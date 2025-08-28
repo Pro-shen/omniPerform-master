@@ -13,6 +13,6 @@ public class OmniPerformServletInitializer extends SpringBootServletInitializer
     @Override
     protected SpringApplicationBuilder configure(SpringApplicationBuilder application)
     {
-        return application.sources(OmniPerformApplication.class);
+        return application.sources(OmniPerformWebApplication.class);
     }
 }
