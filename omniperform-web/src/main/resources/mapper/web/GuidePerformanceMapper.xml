@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.web.mapper.GuidePerformanceMapper">
+    
+    <resultMap type="GuidePerformance" id="GuidePerformanceResult">
+        <result property="performanceId"    column="performance_id"    />
+        <result property="guideId"    column="guide_id"    />
+        <result property="dataMonth"    column="data_month"    />
+        <result property="newMembers"    column="new_members"    />
+        <result property="totalMembers"    column="total_members"    />
+        <result property="activeMembers"    column="active_members"    />
+        <result property="salesAmount"    column="sales_amount"    />
+        <result property="orderCount"    column="order_count"    />
+        <result property="motTasksCompleted"    column="mot_tasks_completed"    />
+        <result property="motCompletionRate"    column="mot_completion_rate"    />
+        <result property="customerSatisfaction"    column="customer_satisfaction"    />
+        <result property="responseTime"    column="response_time"    />
+        <result property="conversionRate"    column="conversion_rate"    />
+        <result property="repeatPurchaseRate"    column="repeat_purchase_rate"    />
+        <result property="memberScanRate"    column="member_scan_rate"    />
+        <result property="interactionCount"    column="interaction_count"    />
+        <result property="performanceScore"    column="performance_score"    />
+        <result property="rankInRegion"    column="rank_in_region"    />
+        <result property="rankOverall"    column="rank_overall"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="guideName"    column="guide_name"    />
+        <result property="guideCode"    column="guide_code"    />
+        <result property="regionName"    column="region_name"    />
+        <result property="storeName"    column="store_name"    />
+    </resultMap>
+
+    <sql id="selectGuidePerformanceVo">
+        select gp.performance_id, gp.guide_id, gp.data_month, gp.new_members, gp.total_members, gp.active_members, 
+               gp.sales_amount, gp.order_count, gp.mot_tasks_completed, gp.mot_completion_rate, gp.customer_satisfaction, 
+               gp.response_time, gp.conversion_rate, gp.repeat_purchase_rate, gp.member_scan_rate, gp.interaction_count, 
+               gp.performance_score, gp.rank_in_region, gp.rank_overall, gp.create_time, gp.update_time,
+               gi.guide_name, gi.guide_code, gi.region_name, gi.store_name
+        from guide_performance gp
+        left join guide_info gi on gp.guide_id = gi.guide_id
+    </sql>
+
+    <select id="selectGuidePerformanceList" parameterType="GuidePerformance" resultMap="GuidePerformanceResult">
+        <include refid="selectGuidePerformanceVo"/>
+        <where>  
+            <if test="guideId != null "> and gp.guide_id = #{guideId}</if>
+            <if test="dataMonth != null  and dataMonth != ''"> and gp.data_month = #{dataMonth}</if>
+            <if test="newMembers != null "> and gp.new_members = #{newMembers}</if>
+            <if test="totalMembers != null "> and gp.total_members = #{totalMembers}</if>
+            <if test="activeMembers != null "> and gp.active_members = #{activeMembers}</if>
+            <if test="salesAmount != null "> and gp.sales_amount = #{salesAmount}</if>
+            <if test="orderCount != null "> and gp.order_count = #{orderCount}</if>
+            <if test="motTasksCompleted != null "> and gp.mot_tasks_completed = #{motTasksCompleted}</if>
+            <if test="motCompletionRate != null "> and gp.mot_completion_rate = #{motCompletionRate}</if>
+            <if test="customerSatisfaction != null "> and gp.customer_satisfaction = #{customerSatisfaction}</if>
+            <if test="responseTime != null "> and gp.response_time = #{responseTime}</if>
+            <if test="conversionRate != null "> and gp.conversion_rate = #{conversionRate}</if>
+            <if test="repeatPurchaseRate != null "> and gp.repeat_purchase_rate = #{repeatPurchaseRate}</if>
+            <if test="memberScanRate != null "> and gp.member_scan_rate = #{memberScanRate}</if>
+            <if test="interactionCount != null "> and gp.interaction_count = #{interactionCount}</if>
+            <if test="performanceScore != null "> and gp.performance_score = #{performanceScore}</if>
+            <if test="rankInRegion != null "> and gp.rank_in_region = #{rankInRegion}</if>
+            <if test="rankOverall != null "> and gp.rank_overall = #{rankOverall}</if>
+            <if test="guideName != null and guideName != ''"> and gi.guide_name like concat('%', #{guideName}, '%')</if>
+            <if test="guideCode != null and guideCode != ''"> and gi.guide_code like concat('%', #{guideCode}, '%')</if>
+            <if test="regionName != null and regionName != ''"> and gi.region_name like concat('%', #{regionName}, '%')</if>
+        </where>
+        order by gp.performance_score desc, gp.rank_overall asc
+    </select>
+    
+    <select id="selectGuidePerformanceByPerformanceId" parameterType="Long" resultMap="GuidePerformanceResult">
+        <include refid="selectGuidePerformanceVo"/>
+        where gp.performance_id = #{performanceId}
+    </select>
+
+    <select id="selectGuidePerformanceRanking" resultMap="GuidePerformanceResult">
+        <include refid="selectGuidePerformanceVo"/>
+        <where>
+            <if test="dataMonth != null and dataMonth != ''"> and gp.data_month = #{dataMonth}</if>
+            and gi.status = 1
+        </where>
+        order by gp.performance_score desc, gp.rank_overall asc
+        <if test="limit != null and limit > 0">
+            limit #{limit}
+        </if>
+    </select>
+
+    <select id="selectGuidePerformanceByGuideIdAndMonth" resultMap="GuidePerformanceResult">
+        <include refid="selectGuidePerformanceVo"/>
+        where gp.guide_id = #{guideId} and gp.data_month = #{dataMonth}
+    </select>
+
+    <select id="selectGuidePerformanceByRegion" resultMap="GuidePerformanceResult">
+        <include refid="selectGuidePerformanceVo"/>
+        <where>
+            <if test="regionCode != null and regionCode != ''"> and gi.region_code = #{regionCode}</if>
+            <if test="dataMonth != null and dataMonth != ''"> and gp.data_month = #{dataMonth}</if>
+            and gi.status = 1
+        </where>
+        order by gp.performance_score desc, gp.rank_in_region asc
+        <if test="limit != null and limit > 0">
+            limit #{limit}
+        </if>
+    </select>
+
+    <select id="countGuidesByMonth" resultType="int">
+        select count(distinct gp.guide_id)
+        from guide_performance gp
+        left join guide_info gi on gp.guide_id = gi.guide_id
+        where gp.data_month = #{dataMonth} and gi.status = 1
+    </select>
+
+    <select id="getAveragePerformanceScore" resultType="Double">
+        select avg(gp.performance_score)
+        from guide_performance gp
+        left join guide_info gi on gp.guide_id = gi.guide_id
+        where gp.data_month = #{dataMonth} and gi.status = 1
+    </select>
+        
+    <insert id="insertGuidePerformance" parameterType="GuidePerformance" useGeneratedKeys="true" keyProperty="performanceId">
+        insert into guide_performance
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="guideId != null">guide_id,</if>
+            <if test="dataMonth != null and dataMonth != ''">data_month,</if>
+            <if test="newMembers != null">new_members,</if>
+            <if test="totalMembers != null">total_members,</if>
+            <if test="activeMembers != null">active_members,</if>
+            <if test="salesAmount != null">sales_amount,</if>
+            <if test="orderCount != null">order_count,</if>
+            <if test="motTasksCompleted != null">mot_tasks_completed,</if>
+            <if test="motCompletionRate != null">mot_completion_rate,</if>
+            <if test="customerSatisfaction != null">customer_satisfaction,</if>
+            <if test="responseTime != null">response_time,</if>
+            <if test="conversionRate != null">conversion_rate,</if>
+            <if test="repeatPurchaseRate != null">repeat_purchase_rate,</if>
+            <if test="memberScanRate != null">member_scan_rate,</if>
+            <if test="interactionCount != null">interaction_count,</if>
+            <if test="performanceScore != null">performance_score,</if>
+            <if test="rankInRegion != null">rank_in_region,</if>
+            <if test="rankOverall != null">rank_overall,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="guideId != null">#{guideId},</if>
+            <if test="dataMonth != null and dataMonth != ''">#{dataMonth},</if>
+            <if test="newMembers != null">#{newMembers},</if>
+            <if test="totalMembers != null">#{totalMembers},</if>
+            <if test="activeMembers != null">#{activeMembers},</if>
+            <if test="salesAmount != null">#{salesAmount},</if>
+            <if test="orderCount != null">#{orderCount},</if>
+            <if test="motTasksCompleted != null">#{motTasksCompleted},</if>
+            <if test="motCompletionRate != null">#{motCompletionRate},</if>
+            <if test="customerSatisfaction != null">#{customerSatisfaction},</if>
+            <if test="responseTime != null">#{responseTime},</if>
+            <if test="conversionRate != null">#{conversionRate},</if>
+            <if test="repeatPurchaseRate != null">#{repeatPurchaseRate},</if>
+            <if test="memberScanRate != null">#{memberScanRate},</if>
+            <if test="interactionCount != null">#{interactionCount},</if>
+            <if test="performanceScore != null">#{performanceScore},</if>
+            <if test="rankInRegion != null">#{rankInRegion},</if>
+            <if test="rankOverall != null">#{rankOverall},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateGuidePerformance" parameterType="GuidePerformance">
+        update guide_performance
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="guideId != null">guide_id = #{guideId},</if>
+            <if test="dataMonth != null and dataMonth != ''">data_month = #{dataMonth},</if>
+            <if test="newMembers != null">new_members = #{newMembers},</if>
+            <if test="totalMembers != null">total_members = #{totalMembers},</if>
+            <if test="activeMembers != null">active_members = #{activeMembers},</if>
+            <if test="salesAmount != null">sales_amount = #{salesAmount},</if>
+            <if test="orderCount != null">order_count = #{orderCount},</if>
+            <if test="motTasksCompleted != null">mot_tasks_completed = #{motTasksCompleted},</if>
+            <if test="motCompletionRate != null">mot_completion_rate = #{motCompletionRate},</if>
+            <if test="customerSatisfaction != null">customer_satisfaction = #{customerSatisfaction},</if>
+            <if test="responseTime != null">response_time = #{responseTime},</if>
+            <if test="conversionRate != null">conversion_rate = #{conversionRate},</if>
+            <if test="repeatPurchaseRate != null">repeat_purchase_rate = #{repeatPurchaseRate},</if>
+            <if test="memberScanRate != null">member_scan_rate = #{memberScanRate},</if>
+            <if test="interactionCount != null">interaction_count = #{interactionCount},</if>
+            <if test="performanceScore != null">performance_score = #{performanceScore},</if>
+            <if test="rankInRegion != null">rank_in_region = #{rankInRegion},</if>
+            <if test="rankOverall != null">rank_overall = #{rankOverall},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where performance_id = #{performanceId}
+    </update>
+
+    <delete id="deleteGuidePerformanceByPerformanceId" parameterType="Long">
+        delete from guide_performance where performance_id = #{performanceId}
+    </delete>
+
+    <delete id="deleteGuidePerformanceByPerformanceIds" parameterType="String">
+        delete from guide_performance where performance_id in 
+        <foreach item="performanceId" collection="array" open="(" separator="," close=")">
+            #{performanceId}
+        </foreach>
+    </delete>
+</mapper>

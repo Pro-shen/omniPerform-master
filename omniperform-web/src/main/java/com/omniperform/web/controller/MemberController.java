@@ -29,7 +29,7 @@ public class MemberController {
      */
     @GetMapping("/overview")
     @ApiOperation("获取会员概览数据")
-    public Result getMemberOverview() {
+    public Result getMemberOverview(@RequestParam(required = false) String month) {
         try {
             Map<String, Object> data = new HashMap<>();
             
@@ -222,7 +222,7 @@ public class MemberController {
      */
     @GetMapping("/stage-statistics")
     @ApiOperation("获取会员阶段分布统计")
-    public Result getMemberStageStatistics() {
+    public Result getMemberStageStatistics(@RequestParam(required = false) String month) {
         try {
             List<Map<String, Object>> stageStats = new ArrayList<>();
             

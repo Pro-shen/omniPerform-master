@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.DashboardMemberOverviewMapper">
+    
+    <resultMap type="DashboardMemberOverview" id="DashboardMemberOverviewResult">
+        <id     property="id"              column="id"              />
+        <result property="dataMonth"       column="data_month"      />
+        <result property="totalMembers"    column="total_members"   />
+        <result property="activeMembers"   column="active_members"  />
+        <result property="newMembers"      column="new_members"     />
+        <result property="memberGrowthRate" column="member_growth_rate" />
+        <result property="createBy"        column="create_by"       />
+        <result property="createTime"      column="create_time"     />
+        <result property="updateBy"        column="update_by"       />
+        <result property="updateTime"      column="update_time"     />
+        <result property="remark"          column="remark"          />
+    </resultMap>
+    
+    <sql id="selectDashboardMemberOverviewVo">
+        select id, data_month, total_members, active_members, new_members, member_growth_rate, create_by, create_time, update_by, update_time, remark 
+        from dashboard_member_overview
+    </sql>
+    
+    <!-- 查询条件 -->
+    <sql id="sqlwhereSearch">
+        <where>
+            <if test="id != null">
+                and id = #{id}
+            </if>
+            <if test="dataMonth != null and dataMonth != ''">
+                and data_month = #{dataMonth}
+            </if>
+        </where>
+    </sql>
+    
+    <select id="selectDashboardMemberOverview" parameterType="DashboardMemberOverview" resultMap="DashboardMemberOverviewResult">
+        <include refid="selectDashboardMemberOverviewVo"/>
+        <include refid="sqlwhereSearch"/>
+    </select>
+    
+    <select id="selectDashboardMemberOverviewById" parameterType="Long" resultMap="DashboardMemberOverviewResult">
+        <include refid="selectDashboardMemberOverviewVo"/>
+        where id = #{id}
+    </select>
+    
+    <select id="selectDashboardMemberOverviewList" parameterType="DashboardMemberOverview" resultMap="DashboardMemberOverviewResult">
+        <include refid="selectDashboardMemberOverviewVo"/>
+        <where>
+            <if test="dataMonth != null and dataMonth != ''">
+                AND data_month like concat('%', #{dataMonth}, '%')
+            </if>
+            <if test="totalMembers != null">
+                AND total_members = #{totalMembers}
+            </if>
+            <if test="activeMembers != null">
+                AND active_members = #{activeMembers}
+            </if>
+        </where>
+        order by data_month desc
+    </select>
+    
+    <select id="selectByDataMonth" parameterType="String" resultMap="DashboardMemberOverviewResult">
+        <include refid="selectDashboardMemberOverviewVo"/>
+        where data_month = #{dataMonth}
+    </select>
+    
+    <select id="selectByMonthRange" resultMap="DashboardMemberOverviewResult">
+        <include refid="selectDashboardMemberOverviewVo"/>
+        where data_month between #{startMonth} and #{endMonth}
+        order by data_month asc
+    </select>
+    
+    <insert id="insertDashboardMemberOverview" parameterType="DashboardMemberOverview" useGeneratedKeys="true" keyProperty="id">
+        insert into dashboard_member_overview
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="dataMonth != null and dataMonth != ''">data_month,</if>
+            <if test="totalMembers != null">total_members,</if>
+            <if test="activeMembers != null">active_members,</if>
+            <if test="newMembers != null">new_members,</if>
+            <if test="memberGrowthRate != null">member_growth_rate,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="dataMonth != null and dataMonth != ''">#{dataMonth},</if>
+            <if test="totalMembers != null">#{totalMembers},</if>
+            <if test="activeMembers != null">#{activeMembers},</if>
+            <if test="newMembers != null">#{newMembers},</if>
+            <if test="memberGrowthRate != null">#{memberGrowthRate},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+        </trim>
+    </insert>
+    
+    <update id="updateDashboardMemberOverview" parameterType="DashboardMemberOverview">
+        update dashboard_member_overview
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="dataMonth != null and dataMonth != ''">data_month = #{dataMonth},</if>
+            <if test="totalMembers != null">total_members = #{totalMembers},</if>
+            <if test="activeMembers != null">active_members = #{activeMembers},</if>
+            <if test="newMembers != null">new_members = #{newMembers},</if>
+            <if test="memberGrowthRate != null">member_growth_rate = #{memberGrowthRate},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null and remark != ''">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+    
+    <delete id="deleteDashboardMemberOverviewById" parameterType="Long">
+        delete from dashboard_member_overview where id = #{id}
+    </delete>
+    
+    <delete id="deleteDashboardMemberOverviewByIds" parameterType="String">
+        delete from dashboard_member_overview where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+    
+</mapper>

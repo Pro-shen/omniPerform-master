@@ -1,0 +1,46 @@
+-- 创建MOT任务表
+CREATE TABLE IF NOT EXISTS mot_task (
+    task_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '任务ID',
+    member_id BIGINT COMMENT '会员ID',
+    member_name VARCHAR(100) COMMENT '会员姓名',
+    member_phone VARCHAR(20) COMMENT '会员手机号',
+    mot_type VARCHAR(50) COMMENT 'MOT类型',
+    priority VARCHAR(20) COMMENT '任务优先级',
+    status VARCHAR(20) COMMENT '任务状态',
+    guide_id BIGINT COMMENT '负责导购ID',
+    guide_name VARCHAR(100) COMMENT '负责导购姓名',
+    due_date DATE COMMENT '计划执行时间',
+    execute_date DATETIME COMMENT '实际执行时间',
+    execute_result VARCHAR(50) COMMENT '执行结果',
+    execute_note TEXT COMMENT '执行备注',
+    description TEXT COMMENT '任务描述',
+    region_id BIGINT COMMENT '区域ID',
+    region_name VARCHAR(100) COMMENT '区域名称',
+    store_id BIGINT COMMENT '门店ID',
+    store_name VARCHAR(100) COMMENT '门店名称',
+    data_month VARCHAR(10) COMMENT '数据月份',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_guide_id (guide_id),
+    INDEX idx_status (status),
+    INDEX idx_due_date (due_date),
+    INDEX idx_data_month (data_month)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='MOT任务表';
+
+-- 插入MOT任务测试数据
+INSERT INTO mot_task (member_id, member_name, member_phone, mot_type, priority, status, guide_id, guide_name, due_date, execute_date, execute_result, execute_note, description, region_id, region_name, store_id, store_name, data_month, create_time) VALUES
+(1, '张三', '13800138001', '首购后回访', '高', '已完成', 1, '张小丽', '2025-01-10', '2025-01-10 14:30:00', '成功沟通', '客户满意度很高，已推荐相关产品', '针对新会员张三的首购后回访', 1, '华东区', 1, '上海旗舰店', '2025-01', '2025-01-09 10:00:00'),
+(2, '李四', '13800138002', '生日关怀', '中', '已完成', 1, '张小丽', '2025-01-11', '2025-01-11 16:20:00', '成功沟通', '发送生日祝福，客户很感动', '会员李四生日关怀', 1, '华东区', 1, '上海旗舰店', '2025-01', '2025-01-10 09:00:00'),
+(3, '王五', '13800138003', '复购提醒', '高', '待执行', 2, '李明华', '2025-01-15', NULL, NULL, NULL, '提醒会员王五进行复购', 2, '华南区', 2, '深圳中心店', '2025-01', '2025-01-12 11:00:00'),
+(4, '赵六', '13800138004', '购买后指导', '中', '已完成', 2, '李明华', '2025-01-12', '2025-01-12 15:45:00', '成功沟通', '详细指导产品使用方法', '指导赵六正确使用产品', 2, '华南区', 2, '深圳中心店', '2025-01', '2025-01-11 14:00:00'),
+(5, '钱七', '13800138005', '节日问候', '低', '已完成', 3, '王美玲', '2025-01-13', '2025-01-13 10:15:00', '成功沟通', '新年问候，维护客户关系', '新年节日问候', 3, '华中区', 3, '武汉购物中心店', '2025-01', '2025-01-12 16:00:00'),
+(6, '孙八', '13800138006', '首购后回访', '高', '执行中', 3, '王美玲', '2025-01-16', NULL, NULL, NULL, '新会员孙八的首购回访', 3, '华中区', 3, '武汉购物中心店', '2025-01', '2025-01-14 09:30:00'),
+(7, '周九', '13800138007', '产品推荐', '中', '待执行', 4, '赵志强', '2025-01-17', NULL, NULL, NULL, '根据购买历史推荐新产品', 4, '华北区', 4, '北京王府井店', '2025-01', '2025-01-15 13:20:00'),
+(8, '吴十', '13800138008', '使用指导', '中', '待执行', 5, '陈雅琪', '2025-01-18', NULL, NULL, NULL, '指导产品正确使用方法', 5, '西南区', 5, '成都春熙路店', '2025-01', '2025-01-16 10:45:00'),
+(9, '郑十一', '13800138009', '满意度调研', '低', '待执行', 6, '刘建国', '2025-01-19', NULL, NULL, NULL, '收集客户满意度反馈', 1, '华东区', 6, '杭州西湖店', '2025-01', '2025-01-17 14:15:00'),
+(10, '陈十二', '13800138010', '复购提醒', '高', '待执行', 7, '周晓燕', '2025-01-20', NULL, NULL, NULL, '提醒老客户进行复购', 2, '华南区', 7, '广州天河店', '2025-01', '2025-01-18 11:30:00'),
+(11, '刘十三', '13800138011', '首购后回访', '高', '待执行', 1, '张小丽', '2025-01-21', NULL, NULL, NULL, '新会员刘十三的首购回访', 1, '华东区', 1, '上海旗舰店', '2025-01', '2025-01-19 08:45:00'),
+(12, '黄十四', '13800138012', '节日问候', '中', '待执行', 2, '李明华', '2025-01-22', NULL, NULL, NULL, '春节节日问候', 2, '华南区', 2, '深圳中心店', '2025-01', '2025-01-20 15:30:00'),
+(13, '林十五', '13800138013', '复购提醒', '高', '待执行', 3, '王美玲', '2025-01-23', NULL, NULL, NULL, '提醒老客户进行复购', 3, '华中区', 3, '武汉购物中心店', '2025-01', '2025-01-21 12:15:00'),
+(14, '徐十六', '13800138014', '购买后指导', '中', '待执行', 4, '赵志强', '2025-01-24', NULL, NULL, NULL, '指导产品正确使用方法', 4, '华北区', 4, '北京王府井店', '2025-01', '2025-01-22 09:20:00'),
+(15, '何十七', '13800138015', '生日关怀', '低', '待执行', 5, '陈雅琪', '2025-01-25', NULL, NULL, NULL, '会员生日祝福', 5, '西南区', 5, '成都春熙路店', '2025-01', '2025-01-23 14:10:00');

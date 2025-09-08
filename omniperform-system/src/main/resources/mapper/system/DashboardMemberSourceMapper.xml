@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.DashboardMemberSourceMapper">
+    
+    <resultMap type="DashboardMemberSource" id="DashboardMemberSourceResult">
+        <result property="id"    column="id"    />
+        <result property="dataMonth"    column="data_month"    />
+        <result property="sourceChannel"    column="source_channel"    />
+        <result property="memberCount"    column="member_count"    />
+        <result property="percentage"    column="percentage"    />
+        <result property="conversionRate"    column="conversion_rate"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectDashboardMemberSourceVo">
+        select id, data_month, source_channel, member_count, percentage, conversion_rate, create_time, update_time from dashboard_member_source
+    </sql>
+
+    <select id="selectDashboardMemberSourceList" parameterType="DashboardMemberSource" resultMap="DashboardMemberSourceResult">
+        <include refid="selectDashboardMemberSourceVo"/>
+        <where>  
+            <if test="dataMonth != null  and dataMonth != ''"> and data_month = #{dataMonth}</if>
+            <if test="sourceChannel != null  and sourceChannel != ''"> and source_channel = #{sourceChannel}</if>
+            <if test="memberCount != null "> and member_count = #{memberCount}</if>
+            <if test="percentage != null "> and percentage = #{percentage}</if>
+            <if test="conversionRate != null "> and conversion_rate = #{conversionRate}</if>
+        </where>
+        order by data_month desc, member_count desc
+    </select>
+    
+    <select id="selectDashboardMemberSourceById" parameterType="Long" resultMap="DashboardMemberSourceResult">
+        <include refid="selectDashboardMemberSourceVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectByDataMonth" parameterType="String" resultMap="DashboardMemberSourceResult">
+        <include refid="selectDashboardMemberSourceVo"/>
+        where data_month = #{dataMonth}
+        order by member_count desc
+    </select>
+
+    <select id="selectByMonthRange" resultMap="DashboardMemberSourceResult">
+        <include refid="selectDashboardMemberSourceVo"/>
+        where data_month between #{startMonth} and #{endMonth}
+        order by data_month desc, member_count desc
+    </select>
+        
+    <insert id="insertDashboardMemberSource" parameterType="DashboardMemberSource" useGeneratedKeys="true" keyProperty="id">
+        insert into dashboard_member_source
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="dataMonth != null and dataMonth != ''">data_month,</if>
+            <if test="sourceChannel != null and sourceChannel != ''">source_channel,</if>
+            <if test="memberCount != null">member_count,</if>
+            <if test="percentage != null">percentage,</if>
+            <if test="conversionRate != null">conversion_rate,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="dataMonth != null and dataMonth != ''">#{dataMonth},</if>
+            <if test="sourceChannel != null and sourceChannel != ''">#{sourceChannel},</if>
+            <if test="memberCount != null">#{memberCount},</if>
+            <if test="percentage != null">#{percentage},</if>
+            <if test="conversionRate != null">#{conversionRate},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateDashboardMemberSource" parameterType="DashboardMemberSource">
+        update dashboard_member_source
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="dataMonth != null and dataMonth != ''">data_month = #{dataMonth},</if>
+            <if test="sourceChannel != null and sourceChannel != ''">source_channel = #{sourceChannel},</if>
+            <if test="memberCount != null">member_count = #{memberCount},</if>
+            <if test="percentage != null">percentage = #{percentage},</if>
+            <if test="conversionRate != null">conversion_rate = #{conversionRate},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteDashboardMemberSourceById" parameterType="Long">
+        delete from dashboard_member_source where id = #{id}
+    </delete>
+
+    <delete id="deleteDashboardMemberSourceByIds" parameterType="String">
+        delete from dashboard_member_source where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

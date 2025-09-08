@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.DashboardMemberGrowthMapper">
+    
+    <resultMap type="DashboardMemberGrowth" id="DashboardMemberGrowthResult">
+        <id     property="id"              column="id"              />
+        <result property="dataMonth"       column="data_month"      />
+        <result property="newMembers"      column="new_members"     />
+        <result property="growthRate"      column="growth_rate"     />
+        <result property="totalMembers" column="total_members" />
+        <result property="createBy"        column="create_by"       />
+        <result property="createTime"      column="create_time"     />
+        <result property="updateBy"        column="update_by"       />
+        <result property="updateTime"      column="update_time"     />
+        <result property="remark"          column="remark"          />
+    </resultMap>
+    
+    <sql id="selectDashboardMemberGrowthVo">
+        select id, data_month, new_members, growth_rate, total_members, create_by, create_time, update_by, update_time, remark 
+        from dashboard_member_growth
+    </sql>
+    
+    <!-- 查询条件 -->
+    <sql id="sqlwhereSearch">
+        <where>
+            <if test="id != null">
+                and id = #{id}
+            </if>
+            <if test="dataMonth != null and dataMonth != ''">
+                and data_month = #{dataMonth}
+            </if>
+        </where>
+    </sql>
+    
+    <select id="selectDashboardMemberGrowth" parameterType="DashboardMemberGrowth" resultMap="DashboardMemberGrowthResult">
+        <include refid="selectDashboardMemberGrowthVo"/>
+        <include refid="sqlwhereSearch"/>
+    </select>
+    
+    <select id="selectDashboardMemberGrowthById" parameterType="Long" resultMap="DashboardMemberGrowthResult">
+        <include refid="selectDashboardMemberGrowthVo"/>
+        where id = #{id}
+    </select>
+    
+    <select id="selectDashboardMemberGrowthList" parameterType="DashboardMemberGrowth" resultMap="DashboardMemberGrowthResult">
+        <include refid="selectDashboardMemberGrowthVo"/>
+        <where>
+            <if test="dataMonth != null and dataMonth != ''">
+                AND data_month like concat('%', #{dataMonth}, '%')
+            </if>
+            <if test="newMembers != null">
+                AND new_members = #{newMembers}
+            </if>
+            <if test="growthRate != null">
+                AND growth_rate = #{growthRate}
+            </if>
+        </where>
+        order by data_month desc
+    </select>
+    
+    <select id="selectByDataMonth" parameterType="String" resultMap="DashboardMemberGrowthResult">
+        <include refid="selectDashboardMemberGrowthVo"/>
+        where data_month = #{dataMonth}
+    </select>
+    
+    <select id="selectByMonthRange" resultMap="DashboardMemberGrowthResult">
+        <include refid="selectDashboardMemberGrowthVo"/>
+        where data_month between #{startMonth} and #{endMonth}
+        order by data_month asc
+    </select>
+    
+    <insert id="insertDashboardMemberGrowth" parameterType="DashboardMemberGrowth" useGeneratedKeys="true" keyProperty="id">
+        insert into dashboard_member_growth
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="dataMonth != null and dataMonth != ''">data_month,</if>
+            <if test="newMembers != null">new_members,</if>
+            <if test="growthRate != null">growth_rate,</if>
+            <if test="totalMembers != null">total_members,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="dataMonth != null and dataMonth != ''">#{dataMonth},</if>
+            <if test="newMembers != null">#{newMembers},</if>
+            <if test="growthRate != null">#{growthRate},</if>
+            <if test="totalMembers != null">#{totalMembers},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+        </trim>
+    </insert>
+    
+    <update id="updateDashboardMemberGrowth" parameterType="DashboardMemberGrowth">
+        update dashboard_member_growth
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="dataMonth != null and dataMonth != ''">data_month = #{dataMonth},</if>
+            <if test="newMembers != null">new_members = #{newMembers},</if>
+            <if test="growthRate != null">growth_rate = #{growthRate},</if>
+            <if test="totalMembers != null">total_members = #{totalMembers},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null and remark != ''">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+    
+    <delete id="deleteDashboardMemberGrowthById" parameterType="Long">
+        delete from dashboard_member_growth where id = #{id}
+    </delete>
+    
+    <delete id="deleteDashboardMemberGrowthByIds" parameterType="String">
+        delete from dashboard_member_growth where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+    
+</mapper>

@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.web.mapper.MotTaskMapper">
+    
+    <resultMap type="MotTask" id="MotTaskResult">
+        <result property="taskId"    column="task_id"    />
+        <result property="memberId"    column="member_id"    />
+        <result property="memberName"    column="member_name"    />
+        <result property="memberPhone"    column="member_phone"    />
+        <result property="motType"    column="mot_type"    />
+        <result property="priority"    column="priority"    />
+        <result property="status"    column="status"    />
+        <result property="guideId"    column="guide_id"    />
+        <result property="guideName"    column="guide_name"    />
+        <result property="dueDate"    column="due_date"    />
+        <result property="executeDate"    column="execute_date"    />
+        <result property="executeResult"    column="execute_result"    />
+        <result property="executeNote"    column="execute_note"    />
+        <result property="description"    column="description"    />
+        <result property="regionId"    column="region_id"    />
+        <result property="regionName"    column="region_name"    />
+        <result property="storeId"    column="store_id"    />
+        <result property="storeName"    column="store_name"    />
+        <result property="dataMonth"    column="data_month"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectMotTaskVo">
+        select task_id, member_id, member_name, member_phone, mot_type, priority, status, guide_id, guide_name, due_date, execute_date, execute_result, execute_note, description, region_id, region_name, store_id, store_name, data_month, create_time, update_time from mot_task
+    </sql>
+
+    <select id="selectMotTaskList" parameterType="MotTask" resultMap="MotTaskResult">
+        <include refid="selectMotTaskVo"/>
+        <where>  
+            <if test="memberId != null "> and member_id = #{memberId}</if>
+            <if test="memberName != null  and memberName != ''"> and member_name like concat('%', #{memberName}, '%')</if>
+            <if test="memberPhone != null  and memberPhone != ''"> and member_phone = #{memberPhone}</if>
+            <if test="motType != null  and motType != ''"> and mot_type = #{motType}</if>
+            <if test="priority != null  and priority != ''"> and priority = #{priority}</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+            <if test="guideId != null "> and guide_id = #{guideId}</if>
+            <if test="guideName != null  and guideName != ''"> and guide_name like concat('%', #{guideName}, '%')</if>
+            <if test="dueDate != null "> and due_date = #{dueDate}</if>
+            <if test="executeDate != null "> and execute_date = #{executeDate}</if>
+            <if test="executeResult != null  and executeResult != ''"> and execute_result = #{executeResult}</if>
+            <if test="description != null  and description != ''"> and description like concat('%', #{description}, '%')</if>
+            <if test="regionId != null "> and region_id = #{regionId}</if>
+            <if test="regionName != null  and regionName != ''"> and region_name like concat('%', #{regionName}, '%')</if>
+            <if test="storeId != null "> and store_id = #{storeId}</if>
+            <if test="storeName != null  and storeName != ''"> and store_name like concat('%', #{storeName}, '%')</if>
+            <if test="dataMonth != null  and dataMonth != ''"> and data_month = #{dataMonth}</if>
+        </where>
+        order by create_time desc
+    </select>
+    
+    <select id="selectMotTaskByTaskId" parameterType="Long" resultMap="MotTaskResult">
+        <include refid="selectMotTaskVo"/>
+        where task_id = #{taskId}
+    </select>
+        
+    <insert id="insertMotTask" parameterType="MotTask" useGeneratedKeys="true" keyProperty="taskId">
+        insert into mot_task
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="memberId != null">member_id,</if>
+            <if test="memberName != null and memberName != ''">member_name,</if>
+            <if test="memberPhone != null and memberPhone != ''">member_phone,</if>
+            <if test="motType != null and motType != ''">mot_type,</if>
+            <if test="priority != null and priority != ''">priority,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="guideId != null">guide_id,</if>
+            <if test="guideName != null and guideName != ''">guide_name,</if>
+            <if test="dueDate != null">due_date,</if>
+            <if test="executeDate != null">execute_date,</if>
+            <if test="executeResult != null and executeResult != ''">execute_result,</if>
+            <if test="executeNote != null and executeNote != ''">execute_note,</if>
+            <if test="description != null and description != ''">description,</if>
+            <if test="regionId != null">region_id,</if>
+            <if test="regionName != null and regionName != ''">region_name,</if>
+            <if test="storeId != null">store_id,</if>
+            <if test="storeName != null and storeName != ''">store_name,</if>
+            <if test="dataMonth != null and dataMonth != ''">data_month,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="memberId != null">#{memberId},</if>
+            <if test="memberName != null and memberName != ''">#{memberName},</if>
+            <if test="memberPhone != null and memberPhone != ''">#{memberPhone},</if>
+            <if test="motType != null and motType != ''">#{motType},</if>
+            <if test="priority != null and priority != ''">#{priority},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="guideId != null">#{guideId},</if>
+            <if test="guideName != null and guideName != ''">#{guideName},</if>
+            <if test="dueDate != null">#{dueDate},</if>
+            <if test="executeDate != null">#{executeDate},</if>
+            <if test="executeResult != null and executeResult != ''">#{executeResult},</if>
+            <if test="executeNote != null and executeNote != ''">#{executeNote},</if>
+            <if test="description != null and description != ''">#{description},</if>
+            <if test="regionId != null">#{regionId},</if>
+            <if test="regionName != null and regionName != ''">#{regionName},</if>
+            <if test="storeId != null">#{storeId},</if>
+            <if test="storeName != null and storeName != ''">#{storeName},</if>
+            <if test="dataMonth != null and dataMonth != ''">#{dataMonth},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateMotTask" parameterType="MotTask">
+        update mot_task
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="memberId != null">member_id = #{memberId},</if>
+            <if test="memberName != null and memberName != ''">member_name = #{memberName},</if>
+            <if test="memberPhone != null and memberPhone != ''">member_phone = #{memberPhone},</if>
+            <if test="motType != null and motType != ''">mot_type = #{motType},</if>
+            <if test="priority != null and priority != ''">priority = #{priority},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="guideId != null">guide_id = #{guideId},</if>
+            <if test="guideName != null and guideName != ''">guide_name = #{guideName},</if>
+            <if test="dueDate != null">due_date = #{dueDate},</if>
+            <if test="executeDate != null">execute_date = #{executeDate},</if>
+            <if test="executeResult != null and executeResult != ''">execute_result = #{executeResult},</if>
+            <if test="executeNote != null and executeNote != ''">execute_note = #{executeNote},</if>
+            <if test="description != null and description != ''">description = #{description},</if>
+            <if test="regionId != null">region_id = #{regionId},</if>
+            <if test="regionName != null and regionName != ''">region_name = #{regionName},</if>
+            <if test="storeId != null">store_id = #{storeId},</if>
+            <if test="storeName != null and storeName != ''">store_name = #{storeName},</if>
+            <if test="dataMonth != null and dataMonth != ''">data_month = #{dataMonth},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where task_id = #{taskId}
+    </update>
+
+    <delete id="deleteMotTaskByTaskId" parameterType="Long">
+        delete from mot_task where task_id = #{taskId}
+    </delete>
+
+    <delete id="deleteMotTaskByTaskIds" parameterType="String">
+        delete from mot_task where task_id in 
+        <foreach item="taskId" collection="array" open="(" separator="," close=")">
+            #{taskId}
+        </foreach>
+    </delete>
+
+    <!-- 查询待执行MOT任务列表 -->
+    <select id="selectPendingMotTasks" resultMap="MotTaskResult">
+        <include refid="selectMotTaskVo"/>
+        where status in ('待执行', '执行中')
+        <if test="month != null and month != ''">
+            and data_month = #{month}
+        </if>
+        order by priority desc, due_date asc
+        <if test="limit != null">
+            limit #{limit}
+        </if>
+    </select>
+
+    <!-- 查询MOT任务统计 -->
+    <select id="selectMotTaskStatistics" resultMap="MotTaskResult">
+        select 
+            status,
+            count(*) as task_count,
+            data_month
+        from mot_task
+        <where>
+            <if test="month != null and month != ''">
+                and data_month = #{month}
+            </if>
+        </where>
+        group by status, data_month
+        order by data_month desc
+    </select>
+
+    <!-- 根据会员ID查询MOT任务 -->
+    <select id="selectMotTaskByMemberId" resultMap="MotTaskResult">
+        <include refid="selectMotTaskVo"/>
+        where member_id = #{memberId}
+        order by create_time desc
+    </select>
+
+    <!-- 根据导购ID查询MOT任务 -->
+    <select id="selectMotTaskByGuideId" resultMap="MotTaskResult">
+        <include refid="selectMotTaskVo"/>
+        where guide_id = #{guideId}
+        order by create_time desc
+    </select>
+
+    <!-- 查询MOT任务执行率统计 -->
+    <select id="selectMotTaskExecutionRate" resultMap="MotTaskResult">
+        select 
+            guide_id,
+            guide_name,
+            region_name,
+            count(*) as total_tasks,
+            sum(case when status = '已完成' then 1 else 0 end) as completed_tasks,
+            round(sum(case when status = '已完成' then 1 else 0 end) * 100.0 / count(*), 2) as execution_rate,
+            data_month
+        from mot_task
+        <where>
+            <if test="month != null and month != ''">
+                and data_month = #{month}
+            </if>
+        </where>
+        group by guide_id, guide_name, region_name, data_month
+        order by execution_rate desc
+    </select>
+
+    <!-- 更新MOT任务状态 -->
+    <update id="updateMotTaskStatus">
+        update mot_task
+        set status = #{status}, update_time = now()
+        where task_id = #{taskId}
+    </update>
+
+    <!-- 执行MOT任务 -->
+    <update id="executeMotTask">
+        update mot_task
+        set status = '已完成',
+            execute_date = now(),
+            execute_result = #{executeResult},
+            execute_note = #{executeNote},
+            update_time = now()
+        where task_id = #{taskId}
+    </update>
+
+</mapper>
