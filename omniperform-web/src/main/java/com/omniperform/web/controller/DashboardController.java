@@ -9,11 +9,14 @@ import com.omniperform.web.service.IGuidePerformanceService;
 import com.omniperform.web.service.IMotTaskService;
 import com.omniperform.web.domain.GuidePerformance;
 import com.omniperform.web.domain.MotTask;
+import com.omniperform.common.utils.poi.ExcelUtil;
+import com.omniperform.common.core.domain.AjaxResult;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import javax.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -28,6 +31,8 @@ import java.util.*;
 @RestController
 @RequestMapping("/dashboard")
 public class DashboardController {
+
+    private static final Logger log = LoggerFactory.getLogger(DashboardController.class);
 
     @Autowired
     private IDashboardMemberOverviewService memberOverviewService;
@@ -409,10 +414,281 @@ public class DashboardController {
     }
 
     /**
+     * 获取有数据的月份列表
+     */
+    @GetMapping("/available-months")
+    public Result<List<String>> getAvailableMonths() {
+        try {
+            Set<String> monthSet = new HashSet<>();
+            
+            // 从各个数据表中获取有数据的月份
+            List<DashboardMemberOverview> overviewList = memberOverviewService.selectDashboardMemberOverviewList(new DashboardMemberOverview());
+            for (DashboardMemberOverview overview : overviewList) {
+                if (overview.getDataMonth() != null && !overview.getDataMonth().isEmpty()) {
+                    monthSet.add(overview.getDataMonth());
+                }
+            }
+            
+            List<DashboardMemberGrowth> growthList = memberGrowthService.selectDashboardMemberGrowthList(new DashboardMemberGrowth());
+            for (DashboardMemberGrowth growth : growthList) {
+                if (growth.getDataMonth() != null && !growth.getDataMonth().isEmpty()) {
+                    monthSet.add(growth.getDataMonth());
+                }
+            }
+            
+            List<DashboardMemberStage> stageList = memberStageService.selectDashboardMemberStageList(new DashboardMemberStage());
+            for (DashboardMemberStage stage : stageList) {
+                if (stage.getDataMonth() != null && !stage.getDataMonth().isEmpty()) {
+                    monthSet.add(stage.getDataMonth());
+                }
+            }
+            
+            List<DashboardRegionPerformance> regionList = regionPerformanceService.selectDashboardRegionPerformanceList(new DashboardRegionPerformance());
+            for (DashboardRegionPerformance region : regionList) {
+                if (region.getDataMonth() != null && !region.getDataMonth().isEmpty()) {
+                    monthSet.add(region.getDataMonth());
+                }
+            }
+            
+            List<DashboardProductSales> salesList = productSalesService.selectDashboardProductSalesList(new DashboardProductSales());
+            for (DashboardProductSales sales : salesList) {
+                if (sales.getDataMonth() != null && !sales.getDataMonth().isEmpty()) {
+                    monthSet.add(sales.getDataMonth());
+                }
+            }
+            
+            List<DashboardMemberSource> sourceList = memberSourceService.selectDashboardMemberSourceList(new DashboardMemberSource());
+            for (DashboardMemberSource source : sourceList) {
+                if (source.getDataMonth() != null && !source.getDataMonth().isEmpty()) {
+                    monthSet.add(source.getDataMonth());
+                }
+            }
+            
+            // 转换为列表并排序（最新的月份在前）
+            List<String> monthList = new ArrayList<>(monthSet);
+            monthList.sort((a, b) -> b.compareTo(a)); // 降序排列
+            
+            return Result.success("获取有数据月份列表成功", monthList);
+        } catch (Exception e) {
+            return Result.error("获取有数据月份列表失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 刷新数据
      */
     @GetMapping("/refresh")
     public Result<String> refreshData() {
-        return Result.success("数据刷新成功", "数据已更新到最新状态");
+        return Result.success("数据刷新成功");
+    }
+
+    /**
+     * 下载Excel导入模板
+     */
+    @GetMapping("/import/template")
+    public void downloadTemplate(HttpServletResponse response) {
+        try {
+            // 创建会员概览数据的Excel模板
+            ExcelUtil<DashboardMemberOverview> util = new ExcelUtil<>(DashboardMemberOverview.class);
+            util.importTemplateExcel(response, "会员概览数据模板");
+            log.info("下载Excel导入模板成功");
+        } catch (Exception e) {
+            log.error("下载Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 下载产品销售数据Excel导入模板
+     */
+    @GetMapping("/import/template/product-sales")
+    public void downloadProductSalesTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<DashboardProductSales> util = new ExcelUtil<>(DashboardProductSales.class);
+            util.importTemplateExcel(response, "产品销售数据模板");
+            log.info("下载产品销售数据Excel导入模板成功");
+        } catch (Exception e) {
+            log.error("下载产品销售数据Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 下载区域绩效数据Excel导入模板
+     */
+    @GetMapping("/import/template/region-performance")
+    public void downloadRegionPerformanceTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<DashboardRegionPerformance> util = new ExcelUtil<>(DashboardRegionPerformance.class);
+            util.importTemplateExcel(response, "区域绩效数据模板");
+            log.info("下载区域绩效数据Excel导入模板成功");
+        } catch (Exception e) {
+            log.error("下载区域绩效数据Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 导入会员概览数据
+     */
+    @PostMapping("/import/member-overview")
+    public Result<String> importMemberOverview(@RequestParam("file") MultipartFile file) {
+        try {
+            ExcelUtil<DashboardMemberOverview> util = new ExcelUtil<>(DashboardMemberOverview.class);
+            List<DashboardMemberOverview> dataList = util.importExcel(file.getInputStream());
+            
+            if (dataList == null || dataList.isEmpty()) {
+                return Result.error("导入数据为空");
+            }
+            
+            // 批量插入数据
+            int successCount = 0;
+            for (DashboardMemberOverview data : dataList) {
+                try {
+                    memberOverviewService.insertDashboardMemberOverview(data);
+                    successCount++;
+                } catch (Exception e) {
+                    log.warn("插入会员概览数据失败: {}", e.getMessage());
+                }
+            }
+            
+            log.info("导入会员概览数据成功，共导入{}条数据", successCount);
+            return Result.success(String.format("导入成功，共导入%d条数据", successCount));
+        } catch (Exception e) {
+            log.error("导入会员概览数据失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 导入产品销售数据
+     */
+    @PostMapping("/import/product-sales")
+    public Result<String> importProductSales(@RequestParam("file") MultipartFile file) {
+        try {
+            ExcelUtil<DashboardProductSales> util = new ExcelUtil<>(DashboardProductSales.class);
+            List<DashboardProductSales> dataList = util.importExcel(file.getInputStream());
+            
+            if (dataList == null || dataList.isEmpty()) {
+                return Result.error("导入数据为空");
+            }
+            
+            // 批量插入数据
+            int successCount = 0;
+            for (DashboardProductSales data : dataList) {
+                try {
+                    productSalesService.insertDashboardProductSales(data);
+                    successCount++;
+                } catch (Exception e) {
+                    log.warn("插入产品销售数据失败: {}", e.getMessage());
+                }
+            }
+            
+            log.info("导入产品销售数据成功，共导入{}条数据", successCount);
+            return Result.success(String.format("导入成功，共导入%d条数据", successCount));
+        } catch (Exception e) {
+            log.error("导入产品销售数据失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 导入区域绩效数据
+     */
+    @PostMapping("/import/region-performance")
+    public Result<String> importRegionPerformance(@RequestParam("file") MultipartFile file) {
+        try {
+            ExcelUtil<DashboardRegionPerformance> util = new ExcelUtil<>(DashboardRegionPerformance.class);
+            List<DashboardRegionPerformance> dataList = util.importExcel(file.getInputStream());
+            
+            if (dataList == null || dataList.isEmpty()) {
+                return Result.error("导入数据为空");
+            }
+            
+            // 批量插入数据
+            int successCount = 0;
+            for (DashboardRegionPerformance data : dataList) {
+                try {
+                    regionPerformanceService.insertDashboardRegionPerformance(data);
+                    successCount++;
+                } catch (Exception e) {
+                    log.warn("插入区域绩效数据失败: {}", e.getMessage());
+                }
+            }
+            
+            log.info("导入区域绩效数据成功，共导入{}条数据", successCount);
+            return Result.success(String.format("导入成功，共导入%d条数据", successCount));
+        } catch (Exception e) {
+            log.error("导入区域绩效数据失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量导入所有类型数据（通用接口）
+     */
+    @PostMapping("/import/batch")
+    public Result<Map<String, Object>> batchImport(@RequestParam("file") MultipartFile file,
+                                                   @RequestParam("dataType") String dataType) {
+        try {
+            Map<String, Object> result = new HashMap<>();
+            int successCount = 0;
+            int failCount = 0;
+            List<String> errorMessages = new ArrayList<>();
+            
+            switch (dataType.toLowerCase()) {
+                case "member-overview":
+                    ExcelUtil<DashboardMemberOverview> memberUtil = new ExcelUtil<>(DashboardMemberOverview.class);
+                    List<DashboardMemberOverview> memberDataList = memberUtil.importExcel(file.getInputStream());
+                    for (DashboardMemberOverview data : memberDataList) {
+                        try {
+                            memberOverviewService.insertDashboardMemberOverview(data);
+                            successCount++;
+                        } catch (Exception e) {
+                            failCount++;
+                            errorMessages.add("会员概览数据导入失败: " + e.getMessage());
+                        }
+                    }
+                    break;
+                    
+                case "product-sales":
+                    ExcelUtil<DashboardProductSales> productUtil = new ExcelUtil<>(DashboardProductSales.class);
+                    List<DashboardProductSales> productDataList = productUtil.importExcel(file.getInputStream());
+                    for (DashboardProductSales data : productDataList) {
+                        try {
+                            productSalesService.insertDashboardProductSales(data);
+                            successCount++;
+                        } catch (Exception e) {
+                            failCount++;
+                            errorMessages.add("产品销售数据导入失败: " + e.getMessage());
+                        }
+                    }
+                    break;
+                    
+                case "region-performance":
+                    ExcelUtil<DashboardRegionPerformance> regionUtil = new ExcelUtil<>(DashboardRegionPerformance.class);
+                    List<DashboardRegionPerformance> regionDataList = regionUtil.importExcel(file.getInputStream());
+                    for (DashboardRegionPerformance data : regionDataList) {
+                        try {
+                            regionPerformanceService.insertDashboardRegionPerformance(data);
+                            successCount++;
+                        } catch (Exception e) {
+                            failCount++;
+                            errorMessages.add("区域绩效数据导入失败: " + e.getMessage());
+                        }
+                    }
+                    break;
+                    
+                default:
+                    return Result.error("不支持的数据类型: " + dataType);
+            }
+            
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("errorMessages", errorMessages);
+            
+            log.info("批量导入{}数据完成，成功{}条，失败{}条", dataType, successCount, failCount);
+            return Result.success("批量导入完成", result);
+        } catch (Exception e) {
+            log.error("批量导入数据失败: {}", e.getMessage(), e);
+            return Result.error("批量导入失败: " + e.getMessage());
+        }
     }
 }

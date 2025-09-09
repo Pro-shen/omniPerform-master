@@ -227,6 +227,172 @@ public class GuideController {
     }
 
     /**
+     * 获取导购绩效概览
+     */
+    @GetMapping("/performance/overview")
+    @ApiOperation("获取导购绩效概览")
+    public Result getPerformanceOverview(@RequestParam(required = false) String region,
+                                         @RequestParam(required = false) String period) {
+        try {
+            Map<String, Object> overview = new HashMap<>();
+            
+            // 总体概览数据
+            overview.put("totalGuides", 156);
+            overview.put("activeGuides", 142);
+            overview.put("avgPerformanceScore", 85.6);
+            overview.put("topPerformerCount", 23);
+            overview.put("avgCAI", 0.72);
+            overview.put("avgRMV", 0.68);
+            
+            log.info("获取导购绩效概览成功");
+            return Result.success("获取导购绩效概览成功", overview);
+        } catch (Exception e) {
+            log.error("获取导购绩效概览失败: {}", e.getMessage(), e);
+            return Result.error("获取导购绩效概览失败");
+        }
+    }
+
+    /**
+     * 获取九宫格绩效分布数据
+     */
+    @GetMapping("/performance/matrix")
+    @ApiOperation("获取九宫格绩效分布数据")
+    public Result getPerformanceMatrix(@RequestParam(required = false) String region,
+                                       @RequestParam(required = false) String period) {
+        try {
+            List<Map<String, Object>> matrixData = new ArrayList<>();
+            
+            // 九宫格位置数据 (x: CAI等级, y: RMV等级, z: 导购人数)
+            String[] positions = {"1-1", "1-2", "1-3", "2-1", "2-2", "2-3", "3-1", "3-2", "3-3"};
+            String[] types = {"培训生", "服务达人", "忠诚专家", "基础型", "骨干力量", "关系专家", "获客能手", "成长之星", "超级明星"};
+            String[] xLabels = {"低", "低", "低", "中", "中", "中", "高", "高", "高"};
+            String[] yLabels = {"低", "中", "高", "低", "中", "高", "低", "中", "高"};
+            int[] counts = {15, 12, 8, 10, 25, 18, 7, 20, 15};
+            
+            for (int i = 0; i < positions.length; i++) {
+                Map<String, Object> point = new HashMap<>();
+                point.put("x", xLabels[i]);
+                point.put("y", yLabels[i]);
+                point.put("z", counts[i]);
+                point.put("position", positions[i]);
+                point.put("type", types[i]);
+                matrixData.add(point);
+            }
+            
+            log.info("获取九宫格绩效分布数据成功");
+            return Result.success("获取九宫格绩效分布数据成功", matrixData);
+        } catch (Exception e) {
+            log.error("获取九宫格绩效分布数据失败: {}", e.getMessage(), e);
+            return Result.error("获取九宫格绩效分布数据失败");
+        }
+    }
+
+    /**
+     * 获取导购绩效趋势数据
+     */
+    @GetMapping("/performance/trend")
+    @ApiOperation("获取导购绩效趋势数据")
+    public Result getPerformanceTrend(@RequestParam(required = false) String region,
+                                      @RequestParam(required = false) String period) {
+        try {
+            Map<String, Object> trendData = new HashMap<>();
+            
+            // 时间轴
+            trendData.put("categories", Arrays.asList("4月", "5月", "6月"));
+            
+            // 各等级趋势数据
+            List<Map<String, Object>> series = new ArrayList<>();
+            
+            Map<String, Object> superStar = new HashMap<>();
+            superStar.put("name", "超级明星 (3-3)");
+            superStar.put("data", Arrays.asList(8, 12, 15));
+            series.add(superStar);
+            
+            Map<String, Object> growthStar = new HashMap<>();
+            growthStar.put("name", "成长之星 (3-2)");
+            growthStar.put("data", Arrays.asList(15, 18, 20));
+            series.add(growthStar);
+            
+            Map<String, Object> backbone = new HashMap<>();
+            backbone.put("name", "骨干力量 (2-2)");
+            backbone.put("data", Arrays.asList(22, 25, 25));
+            series.add(backbone);
+            
+            Map<String, Object> others = new HashMap<>();
+            others.put("name", "其他位置");
+            others.put("data", Arrays.asList(85, 75, 70));
+            series.add(others);
+            
+            trendData.put("series", series);
+            
+            log.info("获取导购绩效趋势数据成功");
+            return Result.success("获取导购绩效趋势数据成功", trendData);
+        } catch (Exception e) {
+            log.error("获取导购绩效趋势数据失败: {}", e.getMessage(), e);
+            return Result.error("获取导购绩效趋势数据失败");
+        }
+    }
+
+    /**
+     * 获取导购绩效详情列表
+     */
+    @GetMapping("/performance/detail")
+    @ApiOperation("获取导购绩效详情列表")
+    public Result getPerformanceDetail(@RequestParam(defaultValue = "1") int page,
+                                       @RequestParam(defaultValue = "10") int size,
+                                       @RequestParam(required = false) String region,
+                                       @RequestParam(required = false) String search) {
+        try {
+            List<Map<String, Object>> details = new ArrayList<>();
+            
+            String[] names = {"张明", "李华", "王丽", "陈静", "赵薇", "刘强", "孙娜", "周杰", "吴琳", "郑浩"};
+            String[] codes = {"G20250001", "G20250015", "G20250023", "G20250042", "G20250056", "G20250067", "G20250078", "G20250089", "G20250091", "G20250102"};
+            String[] stores = {"杭州西湖店", "南京新街口店", "合肥滨湖店", "深圳南山店", "北京朝阳店", "上海浦东店", "广州天河店", "成都春熙店", "武汉江汉店", "西安雁塔店"};
+            String[] regions = {"East", "East", "East", "South", "North", "East", "South", "West", "Central", "West"};
+            double[] caiValues = {0.92, 0.85, 0.65, 0.72, 0.45, 0.88, 0.78, 0.55, 0.69, 0.82};
+            double[] rmvValues = {0.88, 0.75, 0.82, 0.68, 0.58, 0.91, 0.73, 0.85, 0.62, 0.79};
+            String[] positions = {"3-3", "3-2", "2-3", "2-2", "1-2", "3-3", "3-2", "2-3", "2-2", "3-2"};
+            String[] types = {"超级明星", "成长之星", "关系专家", "骨干力量", "服务达人", "超级明星", "成长之星", "关系专家", "骨干力量", "成长之星"};
+            String[] trends = {"提升", "提升", "持平", "提升", "下降", "提升", "持平", "提升", "下降", "提升"};
+            
+            for (int i = 0; i < names.length; i++) {
+                Map<String, Object> detail = new HashMap<>();
+                detail.put("guideName", names[i]);
+                detail.put("guideCode", codes[i]);
+                detail.put("storeName", stores[i]);
+                detail.put("region", regions[i]);
+                detail.put("cai", caiValues[i]);
+                detail.put("rmv", rmvValues[i]);
+                detail.put("position", positions[i]);
+                detail.put("type", types[i]);
+                detail.put("trend", trends[i]);
+                
+                // CAI等级
+                String caiLevel = caiValues[i] >= 0.8 ? "高" : (caiValues[i] >= 0.6 ? "中" : "低");
+                detail.put("caiLevel", caiLevel);
+                
+                // RMV等级
+                String rmvLevel = rmvValues[i] >= 0.8 ? "高" : (rmvValues[i] >= 0.6 ? "中" : "低");
+                detail.put("rmvLevel", rmvLevel);
+                
+                details.add(detail);
+            }
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("list", details);
+            result.put("total", 130);
+            result.put("page", page);
+            result.put("size", size);
+            
+            log.info("获取导购绩效详情列表成功");
+            return Result.success("获取导购绩效详情列表成功", result);
+        } catch (Exception e) {
+            log.error("获取导购绩效详情列表失败: {}", e.getMessage(), e);
+            return Result.error("获取导购绩效详情列表失败");
+        }
+    }
+
+    /**
      * 获取导购绩效统计
      */
     @GetMapping("/performance/statistics")

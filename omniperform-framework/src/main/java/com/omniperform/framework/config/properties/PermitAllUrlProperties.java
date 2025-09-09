@@ -12,6 +12,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,6 +36,8 @@ public class PermitAllUrlProperties implements InitializingBean, ApplicationCont
     public void afterPropertiesSet() throws Exception
     {
         Map<String, Object> controllers = applicationContext.getBeansWithAnnotation(Controller.class);
+        Map<String, Object> restControllers = applicationContext.getBeansWithAnnotation(RestController.class);
+        controllers.putAll(restControllers);
         for (Object bean : controllers.values())
         {
             Class<?> beanClass;

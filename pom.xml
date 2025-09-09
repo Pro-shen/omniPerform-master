@@ -233,7 +233,6 @@
     </dependencyManagement>
 
     <modules>
-        <module>omniperform-admin</module>
         <module>omniperform-framework</module>
         <module>omniperform-system</module>
         <module>omniperform-quartz</module>
