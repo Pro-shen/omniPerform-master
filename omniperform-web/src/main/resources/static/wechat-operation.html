@@ -1,0 +1,2002 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>omniperform™  企业微信运营</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/apexcharts@3.35.0/dist/apexcharts.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="wrapper">
+        <!-- 侧边栏 -->
+        <nav id="sidebar" class="active">
+            <div class="sidebar-header">
+                <h3>omniperform™</h3>
+                <h4>全域绩效智能平台</h4>
+                <!--  -->
+            </div>
+            <ul class="list-unstyled components">
+                <li><a href="index.html"><i class="bi bi-speedometer2"></i><span>运营仪表盘</span></a></li>
+                <li><a href="member-management.html"><i class="bi bi-people"></i><span>会员管理</span></a></li>
+                <li><a href="guide-performance.html"><i class="bi bi-graph-up"></i><span>导购绩效</span></a></li>
+                <li><a href="sop-process.html"><i class="bi bi-list-check"></i><span>SOP流程</span></a></li>
+                <li><a href="mot-management.html"><i class="bi bi-chat-dots"></i><span>MOT管理</span></a></li>
+                <li class="active"><a href="wechat-operation.html"><i class="bi bi-wechat"></i><span>企业微信运营</span></a></li>
+                <li><a href="data-analysis.html"><i class="bi bi-bar-chart"></i><span>数据分析</span></a></li>
+                <li><a href="data-insights.html"><i class="bi bi-lightbulb"></i><span>数据洞察</span></a></li>
+                <li><a href="smart-operation.html"><i class="bi bi-robot"></i><span>智能运营</span></a></li>
+                <li><a href="knowledge-base.html"><i class="bi bi-journal-text"></i><span>知识库</span></a></li>
+                <li><a href="system-settings.html"><i class="bi bi-gear"></i><span>系统设置</span></a></li>
+            </ul>
+            <div class="sidebar-footer"><p>@ 2025 上海迈志信息科技有限公司<br>版权所有</p></div>
+        </nav>
+        <!-- 页面内容 -->
+        <div id="content">
+            <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                <div class="container-fluid">
+                    <button type="button" id="sidebarCollapse" class="btn btn-primary"><i class="bi bi-list"></i></button>
+                    <div class="ms-3"><h2>企业微信运营</h2></div>
+                    <div class="ms-auto d-flex align-items-center">
+                        <div class="dropdown me-2">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="periodDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                2025年7月
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="periodDropdown">
+                                <li><a class="dropdown-item" href="#">2025年7月</a></li>
+                                <li><a class="dropdown-item" href="#">2025年6月</a></li>
+                                <li><a class="dropdown-item" href="#">2025年5月</a></li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-primary">查看运营报告</button>
+                    </div>
+                </div>
+            </nav>
+            <div class="container-fluid">
+                <!-- 企业微信运营概述 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">企业微信运营概述</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>企业微信是连接导购与会员的重要私域运营阵地。通过企业微信，导购可以与会员建立一对一的信任关系，提供个性化服务，推送精准内容，并引导会员参与活动和复购。本模块旨在规范企业微信运营流程，提升运营效率和会员转化效果。</p>
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-info-circle me-2"></i> 企业微信绑定率和活跃度是衡量私域运营效果的关键指标，直接影响会员黏性和复购。
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心指标 -->
+                <div class="row mb-4" id="wechat-metrics">
+                    <div class="col-md-3">
+                        <div class="card metric-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="card-subtitle mb-2 text-muted">企业微信绑定率</h6>
+                                        <h3 class="card-title mb-0" id="binding-rate-value">加载中...</h3>
+                                    </div>
+                                    <div class="metric-icon bg-info-light">
+                                        <i class="bi bi-person-check"></i>
+                                    </div>
+                                </div>
+                                <div class="metric-trend">
+                                    <span id="binding-rate-trend">加载中...</span> 较上月
+                                </div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-info" role="progressbar" id="binding-rate-progress" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card metric-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="card-subtitle mb-2 text-muted">会员入群率</h6>
+                                        <h3 class="card-title mb-0" id="group-join-rate-value">加载中...</h3>
+                                    </div>
+                                    <div class="metric-icon bg-success-light">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                </div>
+                                <div class="metric-trend">
+                                    <span id="group-join-rate-trend">加载中...</span> 较上月
+                                </div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-success" role="progressbar" id="group-join-rate-progress" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card metric-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="card-subtitle mb-2 text-muted">社群活跃度</h6>
+                                        <h3 class="card-title mb-0" id="group-activity-value">加载中...</h3>
+                                    </div>
+                                    <div class="metric-icon bg-warning-light">
+                                        <i class="bi bi-chat-square-dots"></i>
+                                    </div>
+                                </div>
+                                <div class="metric-trend">
+                                    <span id="group-activity-trend">加载中...</span> 较上月
+                                </div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-warning" role="progressbar" id="group-activity-progress" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card metric-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="card-subtitle mb-2 text-muted">企微转化率</h6>
+                                        <h3 class="card-title mb-0" id="conversion-rate-value">加载中...</h3>
+                                    </div>
+                                    <div class="metric-icon bg-primary-light">
+                                        <i class="bi bi-cart-check"></i>
+                                    </div>
+                                </div>
+                                <div class="metric-trend">
+                                    <span id="conversion-rate-trend">加载中...</span> 较上月
+                                </div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-primary" role="progressbar" id="conversion-rate-progress" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 企业微信运营流程 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">企业微信运营SOP</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="sop-step wechat">
+                                    <div class="sop-step-header">1. 添加好友与打标签</div>
+                                    <div class="sop-step-content">
+                                        <p><strong>时机：</strong>会员注册后/首次购买后</p>
+                                        <p><strong>动作：</strong></p>
+                                        <ul>
+                                            <li>引导会员扫码添加导购企业微信</li>
+                                            <li>24小时内通过好友申请</li>
+                                            <li>根据会员信息（宝宝月龄、购买产品、过敏史等）打上精准标签</li>
+                                            <li>发送欢迎语和新人福利</li>
+                                        </ul>
+                                        <p><strong>关键指标：</strong>好友通过率、标签覆盖率</p>
+                                        <button class="btn btn-sm btn-outline-primary mt-2">查看话术模板</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sop-step wechat">
+                                    <div class="sop-step-header">2. 一对一沟通与服务</div>
+                                    <div class="sop-step-content">
+                                        <p><strong>时机：</strong>MOT任务触发/会员主动咨询</p>
+                                        <p><strong>动作：</strong></p>
+                                        <ul>
+                                            <li>根据MOT任务，执行精准沟通（回访、指导、提醒）</li>
+                                            <li>及时响应会员咨询，提供专业解答</li>
+                                            <li>根据会员标签和沟通记录，提供个性化建议</li>
+                                            <li>记录关键沟通信息，更新会员画像</li>
+                                        </ul>
+                                        <p><strong>关键指标：</strong>MOT沟通率、咨询响应时长</p>
+                                        <button class="btn btn-sm btn-outline-primary mt-2">查看沟通技巧</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sop-step wechat">
+                                    <div class="sop-step-header">3. 社群运营与互动</div>
+                                    <div class="sop-step-content">
+                                        <p><strong>时机：</strong>会员添加好友后/定期</p>
+                                        <p><strong>动作：</strong></p>
+                                        <ul>
+                                            <li>邀请会员加入对应月龄/需求的社群</li>
+                                            <li>每日发布育儿知识、产品信息、活动预告</li>
+                                            <li>组织线上互动活动（问答、打卡、秒杀）</li>
+                                            <li>引导会员分享经验，活跃社群氛围</li>
+                                            <li>定期清理不活跃用户和广告</li>
+                                        </ul>
+                                        <p><strong>关键指标：</strong>入群率、社群活跃度、活动参与率</p>
+                                        <button class="btn btn-sm btn-outline-primary mt-2">查看社群规则</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="sop-step wechat">
+                                    <div class="sop-step-header">4. 朋友圈内容发布</div>
+                                    <div class="sop-step-content">
+                                        <p><strong>时机：</strong>每日/每周</p>
+                                        <p><strong>动作：</strong></p>
+                                        <ul>
+                                            <li>每日发布1-2条专业育儿知识/产品科普</li>
+                                            <li>每周发布1-2条会员活动/优惠信息</li>
+                                            <li>每周发布1条导购个人生活/专业形象内容</li>
+                                            <li>与会员朋友圈互动（点赞、评论）</li>
+                                        </ul>
+                                        <p><strong>关键指标：</strong>内容发布频率、互动率</p>
+                                        <button class="btn btn-sm btn-outline-primary mt-2">查看内容日历</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sop-step wechat">
+                                    <div class="sop-step-header">5. 活动推送与转化</div>
+                                    <div class="sop-step-content">
+                                        <p><strong>时机：</strong>活动期间/复购节点</p>
+                                        <p><strong>动作：</strong></p>
+                                        <ul>
+                                            <li>通过一对一/社群/朋友圈推送活动信息</li>
+                                            <li>根据会员标签精准推送优惠券/活动链接</li>
+                                            <li>引导会员参与活动或直接下单购买</li>
+                                            <li>跟进活动参与情况和购买结果</li>
+                                        </ul>
+                                        <p><strong>关键指标：</strong>活动触达率、活动转化率、企微转化率</p>
+                                        <button class="btn btn-sm btn-outline-primary mt-2">查看活动方案</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sop-step wechat">
+                                    <div class="sop-step-header">6. 数据复盘与优化</div>
+                                    <div class="sop-step-content">
+                                        <p><strong>时机：</strong>每日/每周</p>
+                                        <p><strong>动作：</strong></p>
+                                        <ul>
+                                            <li>每日检查企微运营关键指标</li>
+                                            <li>每周复盘社群活跃度、内容互动、转化效果</li>
+                                            <li>分析数据，找出问题点和优化方向</li>
+                                            <li>调整沟通策略、内容方向、活动形式</li>
+                                        </ul>
+                                        <p><strong>关键指标：</strong>各项核心指标变化趋势</p>
+                                        <button class="btn btn-sm btn-outline-primary mt-2">查看复盘模板</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 社群管理 -->
+                <div class="row mb-4">
+                    <div class="col-md-7">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">社群活跃度趋势</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="group-activity-chart" style="height: 350px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">热门社群排行</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>排名</th>
+                                                <th>社群名称</th>
+                                                <th>活跃度</th>
+                                                <th>人数</th>
+                                                <th>入群率</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="hot-groups-tbody">
+                                            <tr>
+                                                <td colspan="5" class="text-center">加载中...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 详细方案模态框 -->
+    <div class="modal fade wechat-sop-modal" id="wechatSopModal" tabindex="-1" aria-labelledby="wechatSopModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="wechatSopModalLabel">企业微信运营详细方案</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="wechatSopContent">
+                        <!-- 详细方案内容将在这里动态加载 -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="downloadSopBtn">下载方案</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.35.0/dist/apexcharts.min.js"></script>
+    <script src="scripts.js"></script>
+    <script>
+        $(document).ready(function() {
+            // 加载企业微信运营数据
+            loadWechatMetrics();
+            loadGroupActivityTrend();
+            loadHotGroups();
+            
+            // 企业微信SOP详细方案数据
+            const wechatSopDetails = {
+                'add-friend': {
+                    title: '添加好友与打标签详细方案',
+                    content: `
+                        <div class="plan-detail">
+                            <h6 class="text-primary mb-3">方案概述</h6>
+                            <p>建立规范化的好友添加流程和精准的标签体系，为后续个性化运营奠定基础。通过系统化的标签管理，实现会员精准分层和个性化服务。</p>
+                            
+                            <h6 class="text-primary mb-3 mt-4">添加好友流程</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="process-card">
+                                        <h6><i class="bi bi-person-plus text-success me-2"></i>线下门店添加</h6>
+                                        <div class="timeline">
+                                            <div class="timeline-item">
+                                                <div class="timeline-marker bg-success">1</div>
+                                                <div class="timeline-content">
+                                                    <h6>购买时引导</h6>
+                                                    <p>在会员购买产品时，导购主动介绍企业微信服务价值，引导扫码添加。</p>
+                                                    <p><strong>话术：</strong>"为了更好地为您和宝宝提供专业服务，我可以加您的企业微信吗？这样我可以及时为您解答育儿问题，还有专属优惠哦。"</p>
+                                                </div>
+                                            </div>
+                                            <div class="timeline-item">
+                                                <div class="timeline-marker bg-success">2</div>
+                                                <div class="timeline-content">
+                                                    <h6>信息收集</h6>
+                                                    <p>添加好友后，通过自然对话收集关键信息：宝宝月龄、性别、过敏史、喂养方式等。</p>
+                                                </div>
+                                            </div>
+                                            <div class="timeline-item">
+                                                <div class="timeline-marker bg-success">3</div>
+                                                <div class="timeline-content">
+                                                    <h6>欢迎语发送</h6>
+                                                    <p>发送个性化欢迎语，介绍服务内容，发放新人专属福利。</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="process-card">
+                                        <h6><i class="bi bi-phone text-info me-2"></i>线上渠道添加</h6>
+                                        <div class="timeline">
+                                            <div class="timeline-item">
+                                                <div class="timeline-marker bg-info">1</div>
+                                                <div class="timeline-content">
+                                                    <h6>小程序/APP引导</h6>
+                                                    <p>在会员注册、下单等关键节点，通过弹窗或页面引导添加企业微信。</p>
+                                                </div>
+                                            </div>
+                                            <div class="timeline-item">
+                                                <div class="timeline-marker bg-info">2</div>
+                                                <div class="timeline-content">
+                                                    <h6>客服转接</h6>
+                                                    <p>客服在解决问题后，主动推荐添加专属导购企业微信，获得更专业的服务。</p>
+                                                </div>
+                                            </div>
+                                            <div class="timeline-item">
+                                                <div class="timeline-marker bg-info">3</div>
+                                                <div class="timeline-content">
+                                                    <h6>活动引流</h6>
+                                                    <p>通过限时活动、专属福利等方式，吸引会员主动添加企业微信。</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">标签体系设计</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="tag-category">
+                                        <h6><i class="bi bi-baby text-primary me-2"></i>宝宝信息标签</h6>
+                                        <div class="tag-list">
+                                            <span class="badge bg-primary me-1 mb-1">0-6月</span>
+                                            <span class="badge bg-primary me-1 mb-1">6-12月</span>
+                                            <span class="badge bg-primary me-1 mb-1">1-2岁</span>
+                                            <span class="badge bg-primary me-1 mb-1">2-3岁</span>
+                                            <span class="badge bg-primary me-1 mb-1">男宝</span>
+                                            <span class="badge bg-primary me-1 mb-1">女宝</span>
+                                            <span class="badge bg-danger me-1 mb-1">过敏体质</span>
+                                            <span class="badge bg-warning me-1 mb-1">早产儿</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="tag-category">
+                                        <h6><i class="bi bi-cart text-success me-2"></i>购买行为标签</h6>
+                                        <div class="tag-list">
+                                            <span class="badge bg-success me-1 mb-1">首购客户</span>
+                                            <span class="badge bg-success me-1 mb-1">复购客户</span>
+                                            <span class="badge bg-success me-1 mb-1">高价值客户</span>
+                                            <span class="badge bg-success me-1 mb-1">价格敏感</span>
+                                            <span class="badge bg-success me-1 mb-1">品质优先</span>
+                                            <span class="badge bg-info me-1 mb-1">1段奶粉</span>
+                                            <span class="badge bg-info me-1 mb-1">2段奶粉</span>
+                                            <span class="badge bg-info me-1 mb-1">3段奶粉</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="tag-category">
+                                        <h6><i class="bi bi-person text-warning me-2"></i>用户特征标签</h6>
+                                        <div class="tag-list">
+                                            <span class="badge bg-warning me-1 mb-1">新手妈妈</span>
+                                            <span class="badge bg-warning me-1 mb-1">二胎家庭</span>
+                                            <span class="badge bg-warning me-1 mb-1">职场妈妈</span>
+                                            <span class="badge bg-warning me-1 mb-1">全职妈妈</span>
+                                            <span class="badge bg-warning me-1 mb-1">高学历</span>
+                                            <span class="badge bg-warning me-1 mb-1">活跃用户</span>
+                                            <span class="badge bg-secondary me-1 mb-1">沉默用户</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">欢迎语模板</h6>
+                            <div class="welcome-templates">
+                                <div class="template-item">
+                                    <h6><i class="bi bi-chat-dots text-primary me-2"></i>首购客户欢迎语</h6>
+                                    <div class="p-3 bg-light rounded">
+                                        <p>【称呼】您好！我是您的专属育儿顾问XX，很高兴为您和宝宝提供服务！🌟</p>
+                                        <p>感谢您选择我们的产品，为了更好地帮助宝宝健康成长，我为您准备了：</p>
+                                        <p>✅ 专业的喂养指导和育儿知识</p>
+                                        <p>✅ 及时的产品使用答疑</p>
+                                        <p>✅ 专属的会员福利和活动信息</p>
+                                        <p>🎁 新客专享：首次添加即可获得价值50元的育儿大礼包，请点击领取→[链接]</p>
+                                        <p>有任何问题随时找我，我会第一时间为您解答！</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="template-item mt-3">
+                                    <h6><i class="bi bi-heart text-danger me-2"></i>老客户欢迎语</h6>
+                                    <div class="p-3 bg-light rounded">
+                                        <p>【称呼】您好！很高兴在企业微信与您相遇！我是您的专属服务顾问XX 😊</p>
+                                        <p>感谢您一直以来对我们的信任和支持！通过企业微信，我可以为您提供更便捷的服务：</p>
+                                        <p>📱 一对一专业咨询，随时解答育儿疑问</p>
+                                        <p>🎯 个性化产品推荐，精准匹配宝宝需求</p>
+                                        <p>🎉 专属活动提醒，第一时间享受优惠</p>
+                                        <p>💝 老客户专享：为您准备了专属优惠券，请查收→[优惠券]</p>
+                                        <p>期待为您和宝宝提供更贴心的服务！</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">关键指标监控</h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-primary">85%</div>
+                                        <div class="metric-label">好友通过率</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-success">92%</div>
+                                        <div class="metric-label">标签覆盖率</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-info">24小时</div>
+                                        <div class="metric-label">平均通过时长</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-warning">78%</div>
+                                        <div class="metric-label">欢迎语回复率</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                },
+                'one-on-one': {
+                    title: '一对一沟通与服务详细方案',
+                    content: `
+                        <div class="plan-detail">
+                            <h6 class="text-primary mb-3">方案概述</h6>
+                            <p>建立标准化的一对一沟通服务体系，通过专业的沟通技巧和个性化的服务内容，提升会员满意度和信任度，促进长期合作关系的建立。</p>
+                            
+                            <h6 class="text-primary mb-3 mt-4">沟通场景分类</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="scenario-card">
+                                        <h6><i class="bi bi-calendar-check text-primary me-2"></i>主动沟通场景</h6>
+                                        <ul>
+                                            <li><strong>MOT任务触发：</strong>首购回访、使用指导、复购提醒、生日关怀等</li>
+                                            <li><strong>定期关怀：</strong>每周育儿知识分享、月度成长关怀</li>
+                                            <li><strong>活动推送：</strong>新品上市、促销活动、会员专享</li>
+                                            <li><strong>异常提醒：</strong>库存不足、产品召回、服务升级</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="scenario-card">
+                                        <h6><i class="bi bi-chat-square-dots text-success me-2"></i>被动响应场景</h6>
+                                        <ul>
+                                            <li><strong>产品咨询：</strong>产品功效、使用方法、适用人群</li>
+                                            <li><strong>育儿求助：</strong>喂养问题、发育疑虑、健康咨询</li>
+                                            <li><strong>售后服务：</strong>退换货、质量问题、投诉建议</li>
+                                            <li><strong>购买决策：</strong>产品选择、价格咨询、优惠政策</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">沟通技巧与话术</h6>
+                            <div class="communication-skills">
+                                <div class="skill-item">
+                                    <h6><i class="bi bi-heart text-danger me-2"></i>建立信任的开场技巧</h6>
+                                    <div class="p-3 bg-light rounded">
+                                        <p><strong>技巧要点：</strong></p>
+                                        <ul>
+                                            <li>使用温暖的称呼，如"亲爱的妈妈"、"宝妈"</li>
+                                            <li>表达关心，询问宝宝近况</li>
+                                            <li>回顾上次沟通内容，体现专业记忆</li>
+                                            <li>主动分享相关的专业知识</li>
+                                        </ul>
+                                        <p><strong>话术示例：</strong></p>
+                                        <p>"亲爱的张妈妈，您好！我是您的专属顾问小李。还记得上次您提到宝宝最近食欲不太好，这几天情况怎么样了？我刚好看到一些关于提升宝宝食欲的小妙招，想分享给您..."</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="skill-item mt-3">
+                                    <h6><i class="bi bi-lightbulb text-warning me-2"></i>专业咨询回复技巧</h6>
+                                    <div class="p-3 bg-light rounded">
+                                        <p><strong>STAR回复法：</strong></p>
+                                        <ul>
+                                            <li><strong>S(Situation)：</strong>理解并复述会员的具体情况</li>
+                                            <li><strong>T(Task)：</strong>明确需要解决的问题</li>
+                                            <li><strong>A(Action)：</strong>提供具体的解决方案</li>
+                                            <li><strong>R(Result)：</strong>说明预期效果和后续跟进</li>
+                                        </ul>
+                                        <p><strong>话术示例：</strong></p>
+                                        <p>"我理解您担心6个月的宝宝夜里总是醒来的问题(S)。这个月龄的宝宝确实容易出现睡眠倒退(T)。建议您可以尝试：1)调整白天的喂奶间隔 2)增加白天的活动量 3)建立固定的睡前仪式(A)。通常坚持1-2周就会有明显改善，我会持续关注宝宝的情况(R)。"</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="skill-item mt-3">
+                                    <h6><i class="bi bi-emoji-smile text-info me-2"></i>情感化沟通技巧</h6>
+                                    <div class="p-3 bg-light rounded">
+                                        <p><strong>技巧要点：</strong></p>
+                                        <ul>
+                                            <li>适当使用表情符号，增加亲和力</li>
+                                            <li>分享自己的育儿经验或身边案例</li>
+                                            <li>及时给予鼓励和肯定</li>
+                                            <li>在特殊节日主动送上祝福</li>
+                                        </ul>
+                                        <p><strong>话术示例：</strong></p>
+                                        <p>"您真是一位用心的好妈妈！👍 能这么细心地观察宝宝的变化，宝宝一定能感受到您满满的爱意。我之前也遇到过类似的情况，当时是这样处理的..."</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">响应时效标准</h6>
+                            <div class="response-standards">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="standard-card">
+                                            <h6>工作时间响应标准</h6>
+                                            <div class="standard-list">
+                                                <div class="standard-item">
+                                                    <span class="time-badge bg-success">5分钟内</span>
+                                                    <span>紧急问题（产品安全、宝宝健康）</span>
+                                                </div>
+                                                <div class="standard-item">
+                                                    <span class="time-badge bg-warning">30分钟内</span>
+                                                    <span>一般咨询（产品使用、育儿问题）</span>
+                                                </div>
+                                                <div class="standard-item">
+                                                    <span class="time-badge bg-info">2小时内</span>
+                                                    <span>复杂问题（需要查询资料）</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="standard-card">
+                                            <h6>非工作时间响应标准</h6>
+                                            <div class="standard-list">
+                                                <div class="standard-item">
+                                                    <span class="time-badge bg-danger">立即</span>
+                                                    <span>紧急安全问题</span>
+                                                </div>
+                                                <div class="standard-item">
+                                                    <span class="time-badge bg-secondary">次日上午</span>
+                                                    <span>一般咨询问题</span>
+                                                </div>
+                                                <div class="standard-item">
+                                                    <span class="time-badge bg-primary">自动回复</span>
+                                                    <span>设置温馨的自动回复消息</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">沟通记录管理</h6>
+                            <div class="record-management">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="record-card">
+                                            <h6>记录内容</h6>
+                                            <ul>
+                                                <li>沟通时间和渠道</li>
+                                                <li>会员咨询的具体问题</li>
+                                                <li>提供的解决方案</li>
+                                                <li>会员反馈和满意度</li>
+                                                <li>后续跟进计划</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="record-card">
+                                            <h6>记录频率</h6>
+                                            <ul>
+                                                <li>每次沟通后立即记录</li>
+                                                <li>每日汇总重要信息</li>
+                                                <li>每周分析沟通趋势</li>
+                                                <li>每月更新会员画像</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="record-card">
+                                            <h6>应用价值</h6>
+                                            <ul>
+                                                <li>个性化服务依据</li>
+                                                <li>问题趋势分析</li>
+                                                <li>服务质量评估</li>
+                                                <li>培训需求识别</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                },
+                'group-operation': {
+                    title: '社群运营与互动详细方案',
+                    content: `
+                        <div class="plan-detail">
+                            <h6 class="text-primary mb-3">方案概述</h6>
+                            <p>构建活跃的社群生态，通过精细化的社群分层、丰富的内容运营和多样化的互动活动，打造高价值的会员交流平台，提升会员黏性和品牌忠诚度。</p>
+                            
+                            <h6 class="text-primary mb-3 mt-4">社群分层策略</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="group-category">
+                                        <h6><i class="bi bi-calendar text-primary me-2"></i>按宝宝月龄分群</h6>
+                                        <div class="group-list">
+                                            <div class="group-item">
+                                                <span class="group-badge bg-primary">孕期妈妈群</span>
+                                                <p>孕期营养、产前准备、新生儿用品</p>
+                                            </div>
+                                            <div class="group-item">
+                                                <span class="group-badge bg-success">0-6月宝宝群</span>
+                                                <p>新生儿护理、母乳喂养、睡眠训练</p>
+                                            </div>
+                                            <div class="group-item">
+                                                <span class="group-badge bg-info">6-12月宝宝群</span>
+                                                <p>辅食添加、爬行训练、疫苗接种</p>
+                                            </div>
+                                            <div class="group-item">
+                                                <span class="group-badge bg-warning">1-3岁宝宝群</span>
+                                                <p>语言发育、行为习惯、早教启蒙</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="group-category">
+                                        <h6><i class="bi bi-heart text-danger me-2"></i>按特殊需求分群</h6>
+                                        <div class="group-list">
+                                            <div class="group-item">
+                                                <span class="group-badge bg-danger">过敏宝宝群</span>
+                                                <p>过敏预防、特殊配方、护理经验</p>
+                                            </div>
+                                            <div class="group-item">
+                                                <span class="group-badge bg-secondary">早产儿群</span>
+                                                <p>早产儿护理、发育追赶、营养补充</p>
+                                            </div>
+                                            <div class="group-item">
+                                                <span class="group-badge bg-dark">二胎家庭群</span>
+                                                <p>二胎经验、手足关系、时间管理</p>
+                                            </div>
+                                            <div class="group-item">
+                                                <span class="group-badge bg-light text-dark">VIP会员群</span>
+                                                <p>专属服务、优先活动、高端交流</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">内容运营策略</h6>
+                            <div class="content-strategy">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="content-type">
+                                            <h6><i class="bi bi-book text-primary me-2"></i>知识科普类</h6>
+                                            <div class="content-schedule">
+                                                <div class="schedule-item">
+                                                    <span class="time">每日早8:00</span>
+                                                    <span class="content">育儿小贴士</span>
+                                                </div>
+                                                <div class="schedule-item">
+                                                    <span class="time">每周三</span>
+                                                    <span class="content">专家讲座预告</span>
+                                                </div>
+                                                <div class="schedule-item">
+                                                    <span class="time">每周五</span>
+                                                    <span class="content">营养知识分享</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="content-type">
+                                            <h6><i class="bi bi-gift text-success me-2"></i>活动福利类</h6>
+                                            <div class="content-schedule">
+                                                <div class="schedule-item">
+                                                    <span class="time">每周一</span>
+                                                    <span class="content">本周活动预告</span>
+                                                </div>
+                                                <div class="schedule-item">
+                                                    <span class="time">每日限时</span>
+                                                    <span class="content">秒杀活动</span>
+                                                </div>
+                                                <div class="schedule-item">
+                                                    <span class="time">节假日</span>
+                                                    <span class="content">特别优惠</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="content-type">
+                                            <h6><i class="bi bi-people text-warning me-2"></i>互动交流类</h6>
+                                            <div class="content-schedule">
+                                                <div class="schedule-item">
+                                                    <span class="time">每日晚8:00</span>
+                                                    <span class="content">话题讨论</span>
+                                                </div>
+                                                <div class="schedule-item">
+                                                    <span class="time">每周二四</span>
+                                                    <span class="content">经验分享</span>
+                                                </div>
+                                                <div class="schedule-item">
+                                                    <span class="time">每周日</span>
+                                                    <span class="content">萌娃秀场</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">互动活动设计</h6>
+                            <div class="activity-design">
+                                <div class="activity-item">
+                                    <h6><i class="bi bi-question-circle text-primary me-2"></i>每日问答活动</h6>
+                                    <div class="p-3 bg-light rounded">
+                                        <p><strong>活动形式：</strong>每天发布一个育儿相关问题，鼓励群成员回答</p>
+                                        <p><strong>奖励机制：</strong>最佳答案获得积分奖励，积分可兑换礼品</p>
+                                        <p><strong>示例问题：</strong>"宝宝6个月了，什么时候开始添加辅食比较合适？"</p>
+                                        <p><strong>预期效果：</strong>提升群活跃度，增加专业知识传播</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="activity-item mt-3">
+                                    <h6><i class="bi bi-camera text-success me-2"></i>萌娃打卡活动</h6>
+                                    <div class="p-3 bg-light rounded">
+                                        <p><strong>活动形式：</strong>每周设定主题，邀请家长分享宝宝照片</p>
+                                        <p><strong>主题示例：</strong>"宝宝的第一次微笑"、"宝宝吃辅食的可爱瞬间"</p>
+                                        <p><strong>奖励机制：</strong>获赞最多的照片获得月度大奖</p>
+                                        <p><strong>预期效果：</strong>增强情感连接，提升群成员归属感</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="activity-item mt-3">
+                                    <h6><i class="bi bi-lightning text-warning me-2"></i>限时秒杀活动</h6>
+                                    <div class="p-3 bg-light rounded">
+                                        <p><strong>活动形式：</strong>每周固定时间发布限量特价商品</p>
+                                        <p><strong>参与方式：</strong>群内发布秒杀链接，先到先得</p>
+                                        <p><strong>商品选择：</strong>热销产品、新品试用装、育儿用品</p>
+                                        <p><strong>预期效果：</strong>刺激购买欲望，提升群活跃度和转化率</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">社群管理规范</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="management-rules">
+                                        <h6>群规制定</h6>
+                                        <ul>
+                                            <li>禁止发布广告和无关信息</li>
+                                            <li>尊重他人，文明交流</li>
+                                            <li>分享内容需真实可靠</li>
+                                            <li>保护隐私，不传播个人信息</li>
+                                            <li>积极参与，共建和谐社群</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="management-rules">
+                                        <h6>管理措施</h6>
+                                        <ul>
+                                            <li>设置群管理员，分工明确</li>
+                                            <li>定期清理不活跃用户</li>
+                                            <li>及时处理违规行为</li>
+                                            <li>建立积分奖励机制</li>
+                                            <li>定期收集群成员反馈</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">效果评估指标</h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-primary">4.2</div>
+                                        <div class="metric-label">平均活跃度</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-success">65%</div>
+                                        <div class="metric-label">入群转化率</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-info">85%</div>
+                                        <div class="metric-label">活动参与率</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-warning">12%</div>
+                                        <div class="metric-label">群内转化率</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                },
+                'moments-content': {
+                    title: '朋友圈内容发布详细方案',
+                    content: `
+                        <div class="plan-detail">
+                            <h6 class="text-primary mb-3">方案概述</h6>
+                            <p>通过系统化的朋友圈内容策略，建立专业的个人品牌形象，与会员保持日常互动，潜移默化地传递品牌价值和专业知识，提升会员信任度和购买意愿。</p>
+                            
+                            <h6 class="text-primary mb-3 mt-4">内容分类与占比</h6>
+                            <div class="content-distribution">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="content-category">
+                                            <div class="category-header bg-primary text-white">
+                                                <h6 class="mb-0">专业知识类</h6>
+                                                <span class="percentage">40%</span>
+                                            </div>
+                                            <div class="category-body">
+                                                <ul>
+                                                    <li>育儿科普知识</li>
+                                                    <li>营养搭配建议</li>
+                                                    <li>产品使用技巧</li>
+                                                    <li>健康护理方法</li>
+                                                </ul>
+                                                <p class="frequency">频率：每日1条</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="content-category">
+                                            <div class="category-header bg-success text-white">
+                                                <h6 class="mb-0">活动福利类</h6>
+                                                <span class="percentage">25%</span>
+                                            </div>
+                                            <div class="category-body">
+                                                <ul>
+                                                    <li>限时优惠活动</li>
+                                                    <li>新品发布信息</li>
+                                                    <li>会员专享福利</li>
+                                                    <li>积分兑换提醒</li>
+                                                </ul>
+                                                <p class="frequency">频率：每周2-3条</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="content-category">
+                                            <div class="category-header bg-info text-white">
+                                                <h6 class="mb-0">个人生活类</h6>
+                                                <span class="percentage">20%</span>
+                                            </div>
+                                            <div class="category-body">
+                                                <ul>
+                                                    <li>工作日常分享</li>
+                                                    <li>学习成长记录</li>
+                                                    <li>生活感悟体会</li>
+                                                    <li>正能量传递</li>
+                                                </ul>
+                                                <p class="frequency">频率：每周1-2条</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="content-category">
+                                            <div class="category-header bg-warning text-white">
+                                                <h6 class="mb-0">客户案例类</h6>
+                                                <span class="percentage">15%</span>
+                                            </div>
+                                            <div class="category-body">
+                                                <ul>
+                                                    <li>成功案例分享</li>
+                                                    <li>客户反馈展示</li>
+                                                    <li>使用效果对比</li>
+                                                    <li>感谢信展示</li>
+                                                </ul>
+                                                <p class="frequency">频率：每周1条</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">内容创作模板</h6>
+                            <div class="content-templates">
+                                <div class="template-item">
+                                    <h6><i class="bi bi-book text-primary me-2"></i>专业知识分享模板</h6>
+                                    <div class="template-content">
+                                        <div class="template-structure">
+                                            <div class="structure-item">
+                                                <span class="structure-label">开头</span>
+                                                <span class="structure-desc">引人关注的问题或现象</span>
+                                            </div>
+                                            <div class="structure-item">
+                                                <span class="structure-label">正文</span>
+                                                <span class="structure-desc">专业知识解释 + 实用建议</span>
+                                            </div>
+                                            <div class="structure-item">
+                                                <span class="structure-label">结尾</span>
+                                                <span class="structure-desc">互动问题 + 专业身份强化</span>
+                                            </div>
+                                        </div>
+                                        <div class="template-example">
+                                            <p><strong>示例：</strong></p>
+                                            <div class="p-3 bg-light rounded">
+                                                <p>🤱 很多新手妈妈问我：宝宝6个月了，什么时候开始添加辅食最合适？</p>
+                                                <p>📚 根据世界卫生组织建议，宝宝满6个月后可以开始添加辅食。但每个宝宝的发育情况不同，我们要观察这些信号：</p>
+                                                <p>✅ 能够独立坐稳</p>
+                                                <p>✅ 对大人吃饭表现出兴趣</p>
+                                                <p>✅ 挺舌反射消失</p>
+                                                <p>💡 记住：辅食添加要循序渐进，从单一到多样，从稀到稠。</p>
+                                                <p>👩‍⚕️ 作为专业的育儿顾问，我建议大家在添加辅食前先咨询医生。你家宝宝开始添加辅食了吗？有什么经验分享？</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="template-item mt-4">
+                                    <h6><i class="bi bi-gift text-success me-2"></i>活动推广模板</h6>
+                                    <div class="template-content">
+                                        <div class="template-example">
+                                            <div class="p-3 bg-light rounded">
+                                                <p>🎉【限时福利来啦】</p>
+                                                <p>📢 好消息！我们的明星产品XX奶粉本周特惠：</p>
+                                                <p>💰 原价298元，现价仅需238元</p>
+                                                <p>🎁 前50名还送价值68元的辅食盒</p>
+                                                <p>⏰ 活动时间：本周三-周日</p>
+                                                <p>📱 想要的宝妈们快来找我，手慢无哦～</p>
+                                                <p>💬 评论区留言"要要要"，我来私信你详情！</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="template-item mt-4">
+                                    <h6><i class="bi bi-person text-info me-2"></i>个人生活分享模板</h6>
+                                    <div class="template-content">
+                                        <div class="template-example">
+                                            <div class="p-3 bg-light rounded">
+                                                <p>📚 今天参加了公司的育儿知识培训，又学到了很多新知识！</p>
+                                                <p>💡 特别是关于宝宝睡眠训练的部分，原来还有这么多细节需要注意。</p>
+                                                <p>🌟 做这份工作最大的收获，就是能够帮助更多的妈妈和宝宝。每当收到宝妈们的感谢信息，都觉得特别有成就感。</p>
+                                                <p>💪 继续努力，做最专业的育儿顾问！</p>
+                                                <p>❤️ 感谢所有信任我的宝妈们，有问题随时找我哦～</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">发布时间策略</h6>
+                            <div class="posting-schedule">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="schedule-card">
+                                            <h6>最佳发布时间</h6>
+                                            <div class="time-slots">
+                                                <div class="time-slot">
+                                                    <span class="time-badge bg-primary">7:30-8:30</span>
+                                                    <span class="time-desc">早晨上班路上，浏览率高</span>
+                                                </div>
+                                                <div class="time-slot">
+                                                    <span class="time-badge bg-success">12:00-13:00</span>
+                                                    <span class="time-desc">午休时间，互动率高</span>
+                                                </div>
+                                                <div class="time-slot">
+                                                    <span class="time-badge bg-warning">19:00-21:00</span>
+                                                    <span class="time-desc">晚饭后，家庭时间</span>
+                                                </div>
+                                                <div class="time-slot">
+                                                    <span class="time-badge bg-info">21:30-22:30</span>
+                                                    <span class="time-desc">睡前放松，深度阅读</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="schedule-card">
+                                            <h6>内容发布规划</h6>
+                                            <div class="weekly-plan">
+                                                <div class="plan-item">
+                                                    <span class="day">周一</span>
+                                                    <span class="content-type">专业知识 + 周计划</span>
+                                                </div>
+                                                <div class="plan-item">
+                                                    <span class="day">周二</span>
+                                                    <span class="content-type">客户案例分享</span>
+                                                </div>
+                                                <div class="plan-item">
+                                                    <span class="day">周三</span>
+                                                    <span class="content-type">活动推广</span>
+                                                </div>
+                                                <div class="plan-item">
+                                                    <span class="day">周四</span>
+                                                    <span class="content-type">专业知识</span>
+                                                </div>
+                                                <div class="plan-item">
+                                                    <span class="day">周五</span>
+                                                    <span class="content-type">个人生活 + 周总结</span>
+                                                </div>
+                                                <div class="plan-item">
+                                                    <span class="day">周末</span>
+                                                    <span class="content-type">轻松话题 + 互动</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">互动技巧</h6>
+                            <div class="interaction-tips">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="tip-card">
+                                            <h6>主动互动</h6>
+                                            <ul>
+                                                <li>及时点赞会员朋友圈</li>
+                                                <li>真诚评论表达关心</li>
+                                                <li>分享有价值的内容</li>
+                                                <li>记住重要节日祝福</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="tip-card">
+                                            <h6>回复技巧</h6>
+                                            <ul>
+                                                <li>快速响应评论和私信</li>
+                                                <li>用专业知识回答问题</li>
+                                                <li>适当使用表情符号</li>
+                                                <li>引导深度沟通</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="tip-card">
+                                            <h6>注意事项</h6>
+                                            <ul>
+                                                <li>避免过度营销</li>
+                                                <li>保持真实自然</li>
+                                                <li>尊重隐私边界</li>
+                                                <li>传递正能量</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                },
+                'activity-promotion': {
+                    title: '活动推送与转化详细方案',
+                    content: `
+                        <div class="plan-detail">
+                            <h6 class="text-primary mb-3">方案概述</h6>
+                            <p>建立多渠道、多层次的活动推送体系，通过精准的用户画像分析和个性化的推送策略，最大化活动触达效果和转化率，实现销售目标的同时提升用户体验。</p>
+                            
+                            <h6 class="text-primary mb-3 mt-4">推送渠道策略</h6>
+                            <div class="channel-strategy">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="channel-card">
+                                            <div class="channel-header bg-primary text-white">
+                                                <i class="bi bi-person-lines-fill"></i>
+                                                <h6>一对一私聊</h6>
+                                            </div>
+                                            <div class="channel-body">
+                                                <p><strong>适用场景：</strong></p>
+                                                <ul>
+                                                    <li>高价值客户专享活动</li>
+                                                    <li>个性化产品推荐</li>
+                                                    <li>复购提醒和优惠</li>
+                                                    <li>VIP会员特权</li>
+                                                </ul>
+                                                <p><strong>优势：</strong>精准度高、转化率高、个性化强</p>
+                                                <p><strong>推送频率：</strong>每周1-2次</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="channel-card">
+                                            <div class="channel-header bg-success text-white">
+                                                <i class="bi bi-people-fill"></i>
+                                                <h6>社群推送</h6>
+                                            </div>
+                                            <div class="channel-body">
+                                                <p><strong>适用场景：</strong></p>
+                                                <ul>
+                                                    <li>限时秒杀活动</li>
+                                                    <li>新品发布会</li>
+                                                    <li>群内专享优惠</li>
+                                                    <li>互动抽奖活动</li>
+                                                </ul>
+                                                <p><strong>优势：</strong>覆盖面广、互动性强、氛围热烈</p>
+                                                <p><strong>推送频率：</strong>每周2-3次</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="channel-card">
+                                            <div class="channel-header bg-info text-white">
+                                                <i class="bi bi-camera-fill"></i>
+                                                <h6>朋友圈展示</h6>
+                                            </div>
+                                            <div class="channel-body">
+                                                <p><strong>适用场景：</strong></p>
+                                                <ul>
+                                                    <li>品牌形象展示</li>
+                                                    <li>活动氛围营造</li>
+                                                    <li>成功案例分享</li>
+                                                    <li>专业知识科普</li>
+                                                </ul>
+                                                <p><strong>优势：</strong>自然传播、信任度高、影响持久</p>
+                                                <p><strong>推送频率：</strong>每日1-2次</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">精准推送策略</h6>
+                            <div class="targeting-strategy">
+                                <div class="strategy-item">
+                                    <h6><i class="bi bi-bullseye text-primary me-2"></i>基于用户标签的精准推送</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="targeting-rule">
+                                                <h6>新客户推送策略</h6>
+                                                <div class="rule-content">
+                                                    <p><strong>目标用户：</strong>注册7天内、未购买用户</p>
+                                                    <p><strong>推送内容：</strong></p>
+                                                    <ul>
+                                                        <li>新客专享大礼包</li>
+                                                        <li>首单立减优惠券</li>
+                                                        <li>免费试用装申请</li>
+                                                        <li>专家一对一咨询</li>
+                                                    </ul>
+                                                    <p><strong>推送时机：</strong>注册后第1、3、7天</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="targeting-rule">
+                                                <h6>老客户推送策略</h6>
+                                                <div class="rule-content">
+                                                    <p><strong>目标用户：</strong>购买3次以上、高价值客户</p>
+                                                    <p><strong>推送内容：</strong></p>
+                                                    <ul>
+                                                        <li>VIP专享折扣</li>
+                                                        <li>新品优先体验</li>
+                                                        <li>积分翻倍活动</li>
+                                                        <li>生日专属礼品</li>
+                                                    </ul>
+                                                    <p><strong>推送时机：</strong>购买周期前3天</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="strategy-item mt-4">
+                                    <h6><i class="bi bi-clock text-success me-2"></i>基于行为触发的智能推送</h6>
+                                    <div class="behavior-triggers">
+                                        <div class="trigger-item">
+                                            <span class="trigger-condition">浏览产品页面3次以上</span>
+                                            <span class="trigger-action">→ 推送限时优惠券</span>
+                                        </div>
+                                        <div class="trigger-item">
+                                            <span class="trigger-condition">加购物车未下单24小时</span>
+                                            <span class="trigger-action">→ 推送购物车提醒+小额优惠</span>
+                                        </div>
+                                        <div class="trigger-item">
+                                            <span class="trigger-condition">下单后7天未评价</span>
+                                            <span class="trigger-action">→ 推送评价有礼活动</span>
+                                        </div>
+                                        <div class="trigger-item">
+                                            <span class="trigger-condition">30天未互动</span>
+                                            <span class="trigger-action">→ 推送关怀问候+专属福利</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">活动推送文案模板</h6>
+                            <div class="copy-templates">
+                                <div class="template-category">
+                                    <h6><i class="bi bi-lightning text-warning me-2"></i>限时秒杀类</h6>
+                                    <div class="template-example">
+                                        <div class="p-3 bg-light rounded">
+                                            <p>🔥【限时秒杀】仅限今日！</p>
+                                            <p>💥 XX明星奶粉，原价298元</p>
+                                            <p>⚡ 秒杀价仅需198元，立省100元！</p>
+                                            <p>📦 前100名下单还送价值68元辅食盒</p>
+                                            <p>⏰ 倒计时：23:59:45</p>
+                                            <p>🛒 点击链接立即抢购：[链接]</p>
+                                            <p>💬 有疑问随时私信我哦～</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="template-category mt-3">
+                                    <h6><i class="bi bi-gift text-success me-2"></i>新品发布类</h6>
+                                    <div class="template-example">
+                                        <div class="p-3 bg-light rounded">
+                                            <p>🎉【重磅新品】万众期待的XX新配方上市啦！</p>
+                                            <p>✨ 全新升级配方，更适合中国宝宝体质</p>
+                                            <p>🧬 添加HMO母乳低聚糖，提升免疫力</p>
+                                            <p>🎁 新品首发特惠：</p>
+                                            <p>   📍 前500名享受8.5折优惠</p>
+                                            <p>   📍 买2罐送1罐试用装</p>
+                                            <p>   📍 免费获得专家营养指导</p>
+                                            <p>🛒 预定链接：[链接]</p>
+                                            <p>想了解更多产品详情的宝妈，快来私信我吧！</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="template-category mt-3">
+                                    <h6><i class="bi bi-heart text-danger me-2"></i>会员专享类</h6>
+                                    <div class="template-example">
+                                        <div class="p-3 bg-light rounded">
+                                            <p>💎【VIP专享】感谢您的信任与支持！</p>
+                                            <p>🌟 作为我们的忠实会员，特别为您准备了专属福利：</p>
+                                            <p>🎯 全场商品额外9折（可叠加其他优惠）</p>
+                                            <p>🎁 每月专属礼品盒（价值不低于100元）</p>
+                                            <p>👩‍⚕️ 专家一对一育儿指导（每月1次）</p>
+                                            <p>📞 24小时专属客服热线</p>
+                                            <p>💝 这是我们对老客户的一点心意，希望能继续为您和宝宝提供最好的服务！</p>
+                                            <p>详情请私信咨询～</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">转化跟进流程</h6>
+                            <div class="conversion-follow-up">
+                                <div class="follow-up-timeline">
+                                    <div class="timeline-item">
+                                        <div class="timeline-marker bg-primary">1</div>
+                                        <div class="timeline-content">
+                                            <h6>活动推送后1小时</h6>
+                                            <p>统计查看率和初步反馈，对未查看用户进行二次推送</p>
+                                        </div>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <div class="timeline-marker bg-success">2</div>
+                                        <div class="timeline-content">
+                                            <h6>活动推送后6小时</h6>
+                                            <p>主动私信询问感兴趣但未下单的用户，了解顾虑并提供解决方案</p>
+                                        </div>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <div class="timeline-marker bg-info">3</div>
+                                        <div class="timeline-content">
+                                            <h6>活动推送后24小时</h6>
+                                            <p>对已下单用户表示感谢，对未下单用户推送最后机会提醒</p>
+                                        </div>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <div class="timeline-marker bg-warning">4</div>
+                                        <div class="timeline-content">
+                                            <h6>活动结束后</h6>
+                                            <p>统计活动效果，分析转化数据，总结经验教训，优化下次活动</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">效果评估指标</h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-primary">92%</div>
+                                        <div class="metric-label">活动触达率</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-success">68%</div>
+                                        <div class="metric-label">内容查看率</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-info">25%</div>
+                                        <div class="metric-label">活动参与率</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="metric-card text-center">
+                                        <div class="metric-value display-6 text-warning">15%</div>
+                                        <div class="metric-label">最终转化率</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                },
+                'data-review': {
+                    title: '数据复盘与优化详细方案',
+                    content: `
+                        <div class="plan-detail">
+                            <h6 class="text-primary mb-3">方案概述</h6>
+                            <p>建立完善的数据监控和分析体系，通过定期的数据复盘，发现运营中的问题和机会点，持续优化企业微信运营策略，提升整体运营效果和ROI。</p>
+                            
+                            <h6 class="text-primary mb-3 mt-4">核心监控指标</h6>
+                            <div class="kpi-dashboard">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="kpi-category">
+                                            <h6><i class="bi bi-person-plus text-primary me-2"></i>用户增长指标</h6>
+                                            <div class="kpi-list">
+                                                <div class="kpi-item">
+                                                    <span class="kpi-name">企微绑定率</span>
+                                                    <span class="kpi-target">目标: ≥80%</span>
+                                                    <span class="kpi-current text-success">当前: 78%</span>
+                                                </div>
+                                                <div class="kpi-item">
+                                                    <span class="kpi-name">好友通过率</span>
+                                                    <span class="kpi-target">目标: ≥90%</span>
+                                                    <span class="kpi-current text-success">当前: 85%</span>
+                                                </div>
+                                                <div class="kpi-item">
+                                                    <span class="kpi-name">入群转化率</span>
+                                                    <span class="kpi-target">目标: ≥70%</span>
+                                                    <span class="kpi-current text-warning">当前: 65%</span>
+                                                </div>
+                                                <div class="kpi-item">
+                                                    <span class="kpi-name">月活跃用户</span>
+                                                    <span class="kpi-target">目标: ≥60%</span>
+                                                    <span class="kpi-current text-success">当前: 72%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="kpi-category">
+                                            <h6><i class="bi bi-graph-up text-success me-2"></i>运营效果指标</h6>
+                                            <div class="kpi-list">
+                                                <div class="kpi-item">
+                                                    <span class="kpi-name">社群活跃度</span>
+                                                    <span class="kpi-target">目标: ≥4.0分</span>
+                                                    <span class="kpi-current text-success">当前: 4.2分</span>
+                                                </div>
+                                                <div class="kpi-item">
+                                                    <span class="kpi-name">朋友圈互动率</span>
+                                                    <span class="kpi-target">目标: ≥15%</span>
+                                                    <span class="kpi-current text-warning">当前: 12%</span>
+                                                </div>
+                                                <div class="kpi-item">
+                                                    <span class="kpi-name">咨询响应时长</span>
+                                                    <span class="kpi-target">目标: ≤30分钟</span>
+                                                    <span class="kpi-current text-success">当前: 25分钟</span>
+                                                </div>
+                                                <div class="kpi-item">
+                                                    <span class="kpi-name">企微转化率</span>
+                                                    <span class="kpi-target">目标: ≥18%</span>
+                                                    <span class="kpi-current text-warning">当前: 15%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">数据收集体系</h6>
+                            <div class="data-collection">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="collection-method">
+                                            <h6><i class="bi bi-robot text-primary me-2"></i>系统自动收集</h6>
+                                            <ul>
+                                                <li>好友添加/删除记录</li>
+                                                <li>消息发送/接收统计</li>
+                                                <li>群聊活跃度数据</li>
+                                                <li>朋友圈互动数据</li>
+                                                <li>活动参与统计</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="collection-method">
+                                            <h6><i class="bi bi-person text-success me-2"></i>人工记录收集</h6>
+                                            <ul>
+                                                <li>沟通质量评分</li>
+                                                <li>客户满意度反馈</li>
+                                                <li>问题分类统计</li>
+                                                <li>成功案例记录</li>
+                                                <li>异常情况报告</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="collection-method">
+                                            <h6><i class="bi bi-clipboard-data text-info me-2"></i>第三方数据</h6>
+                                            <ul>
+                                                <li>CRM系统购买数据</li>
+                                                <li>小程序行为数据</li>
+                                                <li>客服系统咨询记录</li>
+                                                <li>营销活动效果数据</li>
+                                                <li>竞品分析数据</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">复盘分析框架</h6>
+                            <div class="analysis-framework">
+                                <div class="framework-item">
+                                    <h6><i class="bi bi-calendar-week text-primary me-2"></i>每日复盘（5分钟）</h6>
+                                    <div class="framework-content">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="review-checklist">
+                                                    <h6>关键数据检查</h6>
+                                                    <ul>
+                                                        <li>新增好友数量</li>
+                                                        <li>消息回复及时率</li>
+                                                        <li>社群活跃情况</li>
+                                                        <li>朋友圈发布情况</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="review-checklist">
+                                                    <h6>问题记录</h6>
+                                                    <ul>
+                                                        <li>未及时回复的咨询</li>
+                                                        <li>客户投诉或不满</li>
+                                                        <li>技术故障问题</li>
+                                                        <li>需要改进的地方</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="framework-item mt-4">
+                                    <h6><i class="bi bi-calendar-month text-success me-2"></i>每周复盘（30分钟）</h6>
+                                    <div class="framework-content">
+                                        <div class="weekly-analysis">
+                                            <div class="analysis-section">
+                                                <h6>数据趋势分析</h6>
+                                                <div class="trend-items">
+                                                    <div class="trend-item">
+                                                        <span class="trend-metric">好友增长趋势</span>
+                                                        <span class="trend-status text-success">↗ 环比+12%</span>
+                                                    </div>
+                                                    <div class="trend-item">
+                                                        <span class="trend-metric">社群活跃度</span>
+                                                        <span class="trend-status text-warning">→ 环比持平</span>
+                                                    </div>
+                                                    <div class="trend-item">
+                                                        <span class="trend-metric">转化率变化</span>
+                                                        <span class="trend-status text-danger">↘ 环比-3%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="analysis-section mt-3">
+                                                <h6>问题原因分析</h6>
+                                                <div class="problem-analysis">
+                                                    <div class="problem-item">
+                                                        <span class="problem-desc">转化率下降原因：</span>
+                                                        <span class="problem-reason">竞品促销活动影响，客户价格敏感度提升</span>
+                                                    </div>
+                                                    <div class="problem-item">
+                                                        <span class="problem-desc">改进措施：</span>
+                                                        <span class="problem-reason">加强价值传递，推出差异化服务</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="framework-item mt-4">
+                                    <h6><i class="bi bi-calendar-range text-info me-2"></i>每月复盘（2小时）</h6>
+                                    <div class="framework-content">
+                                        <div class="monthly-review">
+                                            <div class="review-section">
+                                                <h6>整体效果评估</h6>
+                                                <div class="evaluation-grid">
+                                                    <div class="eval-item">
+                                                        <span class="eval-metric">目标完成度</span>
+                                                        <span class="eval-score bg-success">85%</span>
+                                                    </div>
+                                                    <div class="eval-item">
+                                                        <span class="eval-metric">ROI表现</span>
+                                                        <span class="eval-score bg-warning">3.2</span>
+                                                    </div>
+                                                    <div class="eval-item">
+                                                        <span class="eval-metric">客户满意度</span>
+                                                        <span class="eval-score bg-success">4.5分</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="review-section mt-3">
+                                                <h6>策略优化建议</h6>
+                                                <div class="optimization-suggestions">
+                                                    <div class="suggestion-item">
+                                                        <i class="bi bi-lightbulb text-warning me-2"></i>
+                                                        <span>增加朋友圈互动内容，提升用户参与度</span>
+                                                    </div>
+                                                    <div class="suggestion-item">
+                                                        <i class="bi bi-target text-primary me-2"></i>
+                                                        <span>优化社群分层策略，提供更精准的服务</span>
+                                                    </div>
+                                                    <div class="suggestion-item">
+                                                        <i class="bi bi-graph-up text-success me-2"></i>
+                                                        <span>加强数据分析能力，建立预警机制</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3 mt-4">优化行动计划</h6>
+                            <div class="action-plan">
+                                <div class="plan-timeline">
+                                    <div class="plan-phase">
+                                        <div class="phase-header bg-primary text-white">
+                                            <h6>短期优化（1-2周）</h6>
+                                        </div>
+                                        <div class="phase-actions">
+                                            <div class="action-item">
+                                                <i class="bi bi-check-circle text-success me-2"></i>
+                                                <span>优化欢迎语和自动回复内容</span>
+                                            </div>
+                                            <div class="action-item">
+                                                <i class="bi bi-check-circle text-success me-2"></i>
+                                                <span>调整朋友圈发布时间和频率</span>
+                                            </div>
+                                            <div class="action-item">
+                                                <i class="bi bi-check-circle text-success me-2"></i>
+                                                <span>完善客户标签体系</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="plan-phase">
+                                        <div class="phase-header bg-success text-white">
+                                            <h6>中期优化（1个月）</h6>
+                                        </div>
+                                        <div class="phase-actions">
+                                            <div class="action-item">
+                                                <i class="bi bi-arrow-right text-primary me-2"></i>
+                                                <span>重新设计社群运营策略</span>
+                                            </div>
+                                            <div class="action-item">
+                                                <i class="bi bi-arrow-right text-primary me-2"></i>
+                                                <span>建立客户分层服务体系</span>
+                                            </div>
+                                            <div class="action-item">
+                                                <i class="bi bi-arrow-right text-primary me-2"></i>
+                                                <span>开发个性化内容推送机制</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="plan-phase">
+                                        <div class="phase-header bg-info text-white">
+                                            <h6>长期优化（3个月）</h6>
+                                        </div>
+                                        <div class="phase-actions">
+                                            <div class="action-item">
+                                                <i class="bi bi-clock text-warning me-2"></i>
+                                                <span>建立智能化运营系统</span>
+                                            </div>
+                                            <div class="action-item">
+                                                <i class="bi bi-clock text-warning me-2"></i>
+                                                <span>完善数据分析和预警体系</span>
+                                            </div>
+                                            <div class="action-item">
+                                                <i class="bi bi-clock text-warning me-2"></i>
+                                                <span>构建全渠道用户运营闭环</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                }
+            };
+            
+            // 为企业微信SOP按钮绑定点击事件
+            $(document).on('click', '.sop-step .btn-outline-primary', function(e) {
+                e.preventDefault();
+                
+                // 根据按钮文本确定方案类型
+                const buttonText = $(this).text().trim();
+                let planType = '';
+                
+                if (buttonText.includes('话术模板')) {
+                    planType = 'add-friend';
+                } else if (buttonText.includes('沟通技巧')) {
+                    planType = 'one-on-one';
+                } else if (buttonText.includes('社群规则')) {
+                    planType = 'group-operation';
+                } else if (buttonText.includes('内容日历')) {
+                    planType = 'moments-content';
+                } else if (buttonText.includes('活动方案')) {
+                    planType = 'activity-promotion';
+                } else if (buttonText.includes('复盘模板')) {
+                    planType = 'data-review';
+                }
+                
+                // 显示对应的详细方案
+                if (planType && wechatSopDetails[planType]) {
+                    showWechatSopPlan(wechatSopDetails[planType]);
+                } else {
+                    // 默认方案
+                    showWechatSopPlan({
+                        title: '企业微信运营详细方案',
+                        content: '<p>该方案的详细内容正在完善中，敬请期待...</p>'
+                    });
+                }
+            });
+            
+            // 显示企业微信SOP详细方案的函数
+            function showWechatSopPlan(plan) {
+                $('#wechatSopModalLabel').text(plan.title);
+                $('#wechatSopContent').html(plan.content);
+                $('#wechatSopModal').modal('show');
+            }
+            
+            // 下载方案按钮事件
+            $('#downloadSopBtn').on('click', function() {
+                const title = $('#wechatSopModalLabel').text();
+                alert('正在准备下载 "' + title + '" 的PDF文档...');
+                // 这里可以添加实际的下载逻辑
+            });
+
+            // 全局变量存储图表实例
+            var groupActivityChart = null;
+            
+            // 渲染社群活跃度趋势图表
+            function renderGroupActivityChart(chartData) {
+                var groupActivityOptions = {
+                    series: chartData.series,
+                    chart: {
+                        height: 350,
+                        type: 'line',
+                        zoom: {
+                            enabled: false
+                        },
+                        toolbar: {
+                            show: false
+                        },
+                        animations: {
+                            enabled: true,
+                            easing: 'easeinout',
+                            speed: 400,
+                            animateGradually: {
+                                enabled: true,
+                                delay: 80
+                            },
+                            dynamicAnimation: {
+                                enabled: true,
+                                speed: 300
+                            }
+                        }
+                    },
+                    dataLabels: {
+                        enabled: false
+                    },
+                    stroke: {
+                        curve: 'smooth',
+                        width: 3
+                    },
+                    colors: ['#ff9800'],
+                    title: {
+                        text: chartData.title || '近四个月社群平均活跃度',
+                        align: 'left'
+                    },
+                    grid: {
+                        row: {
+                            colors: ['#f3f3f3', 'transparent'],
+                            opacity: 0.5
+                        },
+                    },
+                    xaxis: {
+                        categories: chartData.categories,
+                    },
+                    yaxis: {
+                        title: {
+                            text: chartData.yAxisTitle || '活跃度评分 (1-5)'
+                        },
+                        min: chartData.minValue || 3,
+                        max: chartData.maxValue || 5
+                    }
+                };
+
+                if (groupActivityChart) {
+                    groupActivityChart.destroy();
+                }
+                groupActivityChart = new ApexCharts(document.querySelector("#group-activity-chart"), groupActivityOptions);
+                groupActivityChart.render();
+                
+                // 注册全屏功能
+                registerGroupActivityChart();
+            }
+            
+            // 注册图表到全屏功能
+            function registerGroupActivityChart() {
+                if (window.ChartFullscreen && groupActivityChart) {
+                    ChartFullscreen.registerApexChart('group-activity-chart', groupActivityChart.opts);
+                }
+            }
+            
+            // 加载企业微信核心指标数据
+            function loadWechatMetrics() {
+                // 模拟数据，用于直接打开HTML文件时显示
+                const mockData = {
+                    bindingRate: {
+                        value: 85.6,
+                        trend: 2.3,
+                        trendDirection: 'up',
+                        progressPercent: 85.6
+                    },
+                    groupJoinRate: {
+                        value: 72.4,
+                        trend: 1.8,
+                        trendDirection: 'up',
+                        progressPercent: 72.4
+                    },
+                    groupActivity: {
+                        value: 8.7,
+                        trend: 0.5,
+                        trendDirection: 'up',
+                        progressPercent: 87
+                    },
+                    conversionRate: {
+                        value: 15.2,
+                        trend: 0.8,
+                        trendDirection: 'down',
+                        progressPercent: 15.2
+                    }
+                };
+                
+                // 更新企业微信绑定率
+                updateMetricCard('binding-rate', mockData.bindingRate, '%');
+                
+                // 更新会员入群率
+                updateMetricCard('group-join-rate', mockData.groupJoinRate, '%');
+                
+                // 更新社群活跃度
+                updateMetricCard('group-activity', mockData.groupActivity, '分');
+                
+                // 更新企微转化率
+                updateMetricCard('conversion-rate', mockData.conversionRate, '%');
+            }
+            
+            // 更新指标卡片
+            function updateMetricCard(metricType, data, unit) {
+                const valueElement = $('#' + metricType + '-value');
+                const trendElement = $('#' + metricType + '-trend');
+                const progressElement = $('#' + metricType + '-progress');
+                
+                // 更新数值
+                valueElement.text(data.value + unit);
+                
+                // 更新趋势
+                const trendClass = data.trendDirection === 'up' ? 'trend-up' : 'trend-down';
+                const trendIcon = data.trendDirection === 'up' ? 'bi-arrow-up' : 'bi-arrow-down';
+                trendElement.html(`<span class="${trendClass}"><i class="bi ${trendIcon}"></i> ${data.trend}${unit}</span>`);
+                
+                // 更新进度条
+                const progressPercent = data.progressPercent || data.value;
+                progressElement.css('width', progressPercent + '%');
+                progressElement.attr('aria-valuenow', progressPercent);
+            }
+            
+            // 加载社群活跃度趋势数据
+            function loadGroupActivityTrend() {
+                // 模拟趋势数据，匹配图表格式
+                const mockTrendData = {
+                    series: [{
+                        name: '活跃度评分',
+                        data: [4.2, 4.8, 4.1, 3.9, 4.5, 4.7, 4.3]
+                    }],
+                    categories: ['01-01', '01-02', '01-03', '01-04', '01-05', '01-06', '01-07'],
+                    title: '近7天社群平均活跃度',
+                    yAxisTitle: '活跃度评分 (1-5)',
+                    minValue: 3,
+                    maxValue: 5
+                };
+                
+                renderGroupActivityChart(mockTrendData);
+            }
+            
+            // 加载热门社群排行
+            function loadHotGroups() {
+                // 模拟热门社群数据
+                const mockGroupsData = [
+                    {
+                        rank: 1,
+                        groupName: '雀巢咖啡爱好者',
+                        memberCount: 1256,
+                        activityScore: 9.2,
+                        growthRate: 15.6
+                    },
+                    {
+                        rank: 2,
+                        groupName: '健康生活分享群',
+                        memberCount: 1089,
+                        activityScore: 8.8,
+                        growthRate: 12.3
+                    },
+                    {
+                        rank: 3,
+                        groupName: '美食制作交流',
+                        memberCount: 967,
+                        activityScore: 8.5,
+                        growthRate: 10.8
+                    },
+                    {
+                        rank: 4,
+                        groupName: '产品体验官',
+                        memberCount: 834,
+                        activityScore: 8.1,
+                        growthRate: 8.9
+                    },
+                    {
+                        rank: 5,
+                        groupName: '新品尝鲜团',
+                        memberCount: 756,
+                        activityScore: 7.9,
+                        growthRate: 7.2
+                    }
+                ];
+                
+                renderHotGroupsTable(mockGroupsData);
+            }
+            
+            // 渲染热门社群排行表格
+            function renderHotGroupsTable(groups) {
+                const tbody = $('#hot-groups-tbody');
+                tbody.empty();
+                
+                groups.forEach(function(group) {
+                    const badgeHtml = group.badgeClass ? `<span class="badge ${group.badgeClass}">${group.rank}</span>` : group.rank;
+                    const scoreClass = group.scoreClass || '';
+                    
+                    const row = `
+                        <tr>
+                            <td>${badgeHtml}</td>
+                            <td>${group.groupName}</td>
+                            <td><span class="${scoreClass}">${group.activityScore}</span></td>
+                            <td>${group.memberCount}</td>
+                            <td>${group.joinRate}%</td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+            }
+            
+            // 显示错误信息
+            function showErrorMessage(module) {
+                console.warn(`${module}数据加载失败，显示默认提示`);
+            }
+        });
+    </script>
+    <style>
+    .sop-step.wechat .sop-step-header {
+        background-color: #07C160; /* 企业微信绿 */
+        color: white;
+    }
+    .sop-step.wechat {
+        border-left: 5px solid #07C160;
+        margin-bottom: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        overflow: hidden;
+        height: 100%; /* 确保卡片等高 */
+        display: flex;
+        flex-direction: column;
+    }
+    .sop-step.wechat .sop-step-content {
+        padding: 15px;
+        flex-grow: 1; /* 让内容区域填充剩余空间 */
+    }
+    .sop-step.wechat .sop-step-content ul {
+        padding-left: 20px;
+        margin-bottom: 10px;
+    }
+    .sop-step.wechat .sop-step-content p {
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+    }
+    .sop-step.wechat .sop-step-content strong {
+        font-weight: 600;
+    }
+    </style>
+</body>
+</html>

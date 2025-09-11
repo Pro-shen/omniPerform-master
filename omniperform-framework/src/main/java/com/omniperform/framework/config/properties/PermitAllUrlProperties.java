@@ -58,7 +58,7 @@ public class PermitAllUrlProperties implements InitializingBean, ApplicationCont
                     String[] baseUrl = baseMapping.value();
                     for (String url : baseUrl)
                     {
-                        urls.add(prefix(url) + "/*");
+                        urls.add(prefix(url) + "/**");
                     }
                     continue;
                 }

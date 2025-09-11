@@ -19,7 +19,6 @@ import java.util.*;
 @Anonymous
 @RestController
 @RequestMapping("/guide")
-@Api(tags = "导购绩效管理")
 public class GuideController {
 
     private static final Logger log = LoggerFactory.getLogger(GuideController.class);
@@ -27,12 +26,12 @@ public class GuideController {
     /**
      * 获取导购列表
      */
-    @GetMapping("/list")
-    @ApiOperation("获取导购列表")
-    public Result getGuideList(@RequestParam(defaultValue = "1") int page,
-                               @RequestParam(defaultValue = "10") int size,
-                               @RequestParam(required = false) String region,
-                               @RequestParam(required = false) String status) {
+    @PostMapping("/list")
+    public Result getGuideList(@RequestBody(required = false) Map<String, Object> params) {
+        int page = params != null && params.get("page") != null ? Integer.parseInt(params.get("page").toString()) : 1;
+        int size = params != null && params.get("size") != null ? Integer.parseInt(params.get("size").toString()) : 10;
+        String region = params != null ? (String) params.get("region") : null;
+        String status = params != null ? (String) params.get("status") : null;
         try {
             List<Map<String, Object>> guides = new ArrayList<>();
             
@@ -71,11 +70,11 @@ public class GuideController {
     /**
      * 获取导购绩效数据
      */
-    @GetMapping("/performance")
-    @ApiOperation("获取导购绩效数据")
-    public Result getGuidePerformance(@RequestParam(required = false) String guideId,
-                                      @RequestParam(required = false) String startDate,
-                                      @RequestParam(required = false) String endDate) {
+    @PostMapping("/performance")
+    public Result getGuidePerformance(@RequestBody(required = false) Map<String, Object> params) {
+        String guideId = params != null ? (String) params.get("guideId") : null;
+        String startDate = params != null ? (String) params.get("startDate") : null;
+        String endDate = params != null ? (String) params.get("endDate") : null;
         try {
             List<Map<String, Object>> performances = new ArrayList<>();
             
@@ -109,7 +108,6 @@ public class GuideController {
      * 获取导购详情
      */
     @GetMapping("/detail/{guideId}")
-    @ApiOperation("获取导购详情")
     public Result getGuideDetail(@PathVariable String guideId) {
         try {
             Map<String, Object> guide = new HashMap<>();
@@ -159,7 +157,6 @@ public class GuideController {
      * 创建导购
      */
     @PostMapping("/create")
-    @ApiOperation("创建导购")
     public Result createGuide(@RequestBody Map<String, Object> guideData) {
         try {
             Map<String, Object> guide = new HashMap<>();
@@ -187,7 +184,6 @@ public class GuideController {
      * 更新导购信息
      */
     @PutMapping("/update/{guideId}")
-    @ApiOperation("更新导购信息")
     public Result updateGuide(@PathVariable String guideId, @RequestBody Map<String, Object> guideData) {
         try {
             Map<String, Object> guide = new HashMap<>();
@@ -215,7 +211,6 @@ public class GuideController {
      * 删除导购
      */
     @DeleteMapping("/delete/{guideId}")
-    @ApiOperation("删除导购")
     public Result deleteGuide(@PathVariable String guideId) {
         try {
             log.info("删除导购成功，导购ID: {}", guideId);
@@ -229,10 +224,10 @@ public class GuideController {
     /**
      * 获取导购绩效概览
      */
-    @GetMapping("/performance/overview")
-    @ApiOperation("获取导购绩效概览")
-    public Result getPerformanceOverview(@RequestParam(required = false) String region,
-                                         @RequestParam(required = false) String period) {
+    @PostMapping("/performance/overview")
+    public Result getPerformanceOverview(@RequestBody(required = false) Map<String, Object> params) {
+        String region = params != null ? (String) params.get("region") : null;
+        String period = params != null ? (String) params.get("period") : null;
         try {
             Map<String, Object> overview = new HashMap<>();
             
@@ -255,10 +250,10 @@ public class GuideController {
     /**
      * 获取九宫格绩效分布数据
      */
-    @GetMapping("/performance/matrix")
-    @ApiOperation("获取九宫格绩效分布数据")
-    public Result getPerformanceMatrix(@RequestParam(required = false) String region,
-                                       @RequestParam(required = false) String period) {
+    @PostMapping("/performance/matrix")
+    public Result getPerformanceMatrix(@RequestBody(required = false) Map<String, Object> params) {
+        String region = params != null ? (String) params.get("region") : null;
+        String period = params != null ? (String) params.get("period") : null;
         try {
             List<Map<String, Object>> matrixData = new ArrayList<>();
             
@@ -290,10 +285,10 @@ public class GuideController {
     /**
      * 获取导购绩效趋势数据
      */
-    @GetMapping("/performance/trend")
-    @ApiOperation("获取导购绩效趋势数据")
-    public Result getPerformanceTrend(@RequestParam(required = false) String region,
-                                      @RequestParam(required = false) String period) {
+    @PostMapping("/performance/trend")
+    public Result getPerformanceTrend(@RequestBody(required = false) Map<String, Object> params) {
+        String region = params != null ? (String) params.get("region") : null;
+        String period = params != null ? (String) params.get("period") : null;
         try {
             Map<String, Object> trendData = new HashMap<>();
             
@@ -336,12 +331,12 @@ public class GuideController {
     /**
      * 获取导购绩效详情列表
      */
-    @GetMapping("/performance/detail")
-    @ApiOperation("获取导购绩效详情列表")
-    public Result getPerformanceDetail(@RequestParam(defaultValue = "1") int page,
-                                       @RequestParam(defaultValue = "10") int size,
-                                       @RequestParam(required = false) String region,
-                                       @RequestParam(required = false) String search) {
+    @PostMapping("/performance/detail")
+    public Result getPerformanceDetail(@RequestBody(required = false) Map<String, Object> params) {
+        int page = params != null && params.get("page") != null ? Integer.parseInt(params.get("page").toString()) : 1;
+        int size = params != null && params.get("size") != null ? Integer.parseInt(params.get("size").toString()) : 10;
+        String region = params != null ? (String) params.get("region") : null;
+        String search = params != null ? (String) params.get("search") : null;
         try {
             List<Map<String, Object>> details = new ArrayList<>();
             
@@ -395,10 +390,10 @@ public class GuideController {
     /**
      * 获取导购绩效统计
      */
-    @GetMapping("/performance/statistics")
-    @ApiOperation("获取导购绩效统计")
-    public Result getPerformanceStatistics(@RequestParam(required = false) String region,
-                                           @RequestParam(required = false) String period) {
+    @PostMapping("/performance/statistics")
+    public Result getPerformanceStatistics(@RequestBody(required = false) Map<String, Object> params) {
+        String region = params != null ? (String) params.get("region") : null;
+        String period = params != null ? (String) params.get("period") : null;
         try {
             Map<String, Object> statistics = new HashMap<>();
             
