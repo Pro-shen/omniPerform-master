@@ -2,6 +2,11 @@ package com.omniperform.web.controller;
 
 import com.omniperform.web.common.Result;
 import com.omniperform.common.annotation.Anonymous;
+import com.omniperform.system.service.IMemberOverviewService;
+import com.omniperform.system.domain.MemberInfo;
+import com.omniperform.system.domain.MemberMonthlyStats;
+import com.omniperform.system.domain.MemberStageStats;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +27,9 @@ public class MemberController {
 
     private static final Logger log = LoggerFactory.getLogger(MemberController.class);
 
+    @Autowired
+    private IMemberOverviewService memberOverviewService;
+
     /**
      * 获取会员概览数据
      * 
@@ -33,15 +41,8 @@ public class MemberController {
         try {
             log.info("获取会员概览数据，月份: {}", month);
             
-            // 模拟会员概览数据
-            Map<String, Object> overviewData = new HashMap<>();
-            overviewData.put("totalMembers", 15680);
-            overviewData.put("activeMembers", 12450);
-            overviewData.put("newMembersThisMonth", 850);
-            overviewData.put("churnMembers", 320);
-            overviewData.put("repeatPurchaseRate", 68.5);
-            overviewData.put("averageOrderValue", 285.6);
-            overviewData.put("memberGrowthRate", 12.3);
+            // 使用Service层获取真实数据
+            Map<String, Object> overviewData = memberOverviewService.getMemberOverview(month);
             
             return Result.success(overviewData);
         } catch (Exception e) {
@@ -73,36 +74,46 @@ public class MemberController {
             log.info("获取会员列表，页码: {}, 大小: {}, 月份: {}, 关键词: {}, 阶段: {}, 层级: {}", 
                     page, size, month, keyword, stage, tier);
             
-            // 模拟会员列表数据
-            List<Map<String, Object>> memberList = new ArrayList<>();
+            // 使用Service层获取会员列表数据
+            MemberInfo memberInfo = new MemberInfo();
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                memberInfo.setMemberName(keyword);
+            }
+            if (stage != null && !stage.trim().isEmpty()) {
+                memberInfo.setBabyStage(stage);
+            }
             
-            // 生成模拟数据
-            String[] names = {"张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十"};
-            String[] stages = {"导入期", "成长期", "成熟期", "衰退期", "流失期"};
-            String[] tiers = {"高价值会员", "潜力会员", "新会员", "沉默会员"};
-            String[] phones = {"138****1234", "139****5678", "150****9012", "151****3456"};
+            List<MemberInfo> memberList = memberOverviewService.selectMemberInfoList(memberInfo);
             
-            for (int i = 0; i < size; i++) {
-                Map<String, Object> member = new HashMap<>();
-                member.put("id", 1000 + i + (page - 1) * size);
-                member.put("name", names[i % names.length]);
-                member.put("phone", phones[i % phones.length]);
-                member.put("stage", stages[i % stages.length]);
-                member.put("tier", tiers[i % tiers.length]);
-                member.put("totalOrders", 5 + (i % 20));
-                member.put("totalAmount", 1500.0 + (i * 100));
-                member.put("lastOrderDate", "2025-01-" + String.format("%02d", 1 + (i % 28)));
-                member.put("crfmeScore", 60 + (i % 40));
-                member.put("joinDate", "2024-" + String.format("%02d", 1 + (i % 12)) + "-15");
-                memberList.add(member);
+            // 分页处理
+            int total = memberList.size();
+            int startIndex = (page - 1) * size;
+            int endIndex = Math.min(startIndex + size, total);
+            List<MemberInfo> pagedList = memberList.subList(startIndex, endIndex);
+            
+            // 转换为Map格式
+            List<Map<String, Object>> resultList = new ArrayList<>();
+            for (MemberInfo member : pagedList) {
+                Map<String, Object> memberMap = new HashMap<>();
+                memberMap.put("id", member.getMemberId());
+                memberMap.put("name", member.getMemberName());
+                memberMap.put("phone", member.getPhone());
+                memberMap.put("stage", member.getBabyStage());
+                memberMap.put("tier", "普通会员"); // 默认值，可以后续扩展
+                memberMap.put("totalOrders", member.getTotalPurchaseCount());
+                memberMap.put("totalAmount", member.getTotalPurchaseAmount());
+                memberMap.put("lastOrderDate", member.getLastPurchaseTime());
+                memberMap.put("crfmeScore", 0); // 默认值，可以通过Service计算
+                memberMap.put("joinDate", member.getRegistrationDate());
+                resultList.add(memberMap);
             }
             
             Map<String, Object> result = new HashMap<>();
-            result.put("list", memberList);
-            result.put("total", 15680);
+            result.put("list", resultList);
+            result.put("total", total);
             result.put("page", page);
             result.put("size", size);
-            result.put("totalPages", (15680 + size - 1) / size);
+            result.put("totalPages", (total + size - 1) / size);
             
             return Result.success(result);
         } catch (Exception e) {
@@ -235,21 +246,34 @@ public class MemberController {
     /**
      * 获取会员分群
      * 
+     * @param month 月份参数
      * @return 会员分群数据
      */
     @GetMapping("/segments")
-    public Result<List<Map<String, Object>>> getSegments() {
+    public Result<List<Map<String, Object>>> getSegments(@RequestParam(required = false) String month) {
         try {
-            log.info("获取会员分群数据");
+            log.info("获取会员分群数据，月份: {}", month);
             
             List<Map<String, Object>> segments = new ArrayList<>();
+            
+            // 根据月份调整数据（模拟不同月份的数据变化）
+            double monthFactor = 1.0;
+            if (month != null) {
+                if (month.equals("2025-05")) {
+                    monthFactor = 0.85; // 5月数据相对较低
+                } else if (month.equals("2025-06")) {
+                    monthFactor = 0.92; // 6月数据中等
+                } else if (month.equals("2025-07")) {
+                    monthFactor = 1.0; // 7月数据最高
+                }
+            }
             
             // 高价值会员
             Map<String, Object> highValue = new HashMap<>();
             highValue.put("id", 1);
             highValue.put("name", "高价值会员");
             highValue.put("description", "CRFM-E评分≥80分，消费金额高，购买频次高");
-            highValue.put("count", 1250);
+            highValue.put("count", (int)(1250 * monthFactor));
             highValue.put("percentage", 8.0);
             segments.add(highValue);
             
@@ -258,7 +282,7 @@ public class MemberController {
             potential.put("id", 2);
             potential.put("name", "潜力会员");
             potential.put("description", "CRFM-E评分60-79分，有增长潜力");
-            potential.put("count", 3920);
+            potential.put("count", (int)(3920 * monthFactor));
             potential.put("percentage", 25.0);
             segments.add(potential);
             
@@ -267,7 +291,7 @@ public class MemberController {
             newMember.put("id", 3);
             newMember.put("name", "新会员");
             newMember.put("description", "注册时间≤3个月，需要培育");
-            newMember.put("count", 2350);
+            newMember.put("count", (int)(2350 * monthFactor));
             newMember.put("percentage", 15.0);
             segments.add(newMember);
             
@@ -276,7 +300,7 @@ public class MemberController {
             silent.put("id", 4);
             silent.put("name", "沉默会员");
             silent.put("description", "近6个月无购买行为，需要激活");
-            silent.put("count", 8160);
+            silent.put("count", (int)(8160 * monthFactor));
             silent.put("percentage", 52.0);
             segments.add(silent);
             
@@ -298,25 +322,11 @@ public class MemberController {
         try {
             log.info("获取会员阶段统计，月份: {}", month);
             
-            // 模拟会员阶段统计数据
-            List<Map<String, Object>> stageStatistics = new ArrayList<>();
-            
-            String[] stages = {"导入期", "成长期", "成熟期", "衰退期", "流失期"};
-            int[] counts = {850, 1520, 2030, 1350, 1000};
-            String[] colors = {"#0d6efd", "#198754", "#0dcaf0", "#ffc107", "#dc3545"};
-            
-            for (int i = 0; i < stages.length; i++) {
-                Map<String, Object> stage = new HashMap<>();
-                stage.put("stageName", stages[i]);
-                stage.put("count", counts[i]);
-                stage.put("percentage", Math.round(counts[i] * 100.0 / 6750 * 100) / 100.0);
-                stage.put("color", colors[i]);
-                stageStatistics.add(stage);
-            }
+            // 使用Service层获取会员阶段统计数据
+            List<Map<String, Object>> stageStatistics = memberOverviewService.getMemberStageDistribution(month);
             
             Map<String, Object> result = new HashMap<>();
             result.put("stageStatistics", stageStatistics);
-            result.put("totalMembers", 6750);
             result.put("month", month != null ? month : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM")));
             
             return Result.success(result);
@@ -326,45 +336,7 @@ public class MemberController {
         }
     }
 
-    /**
-     * 获取CRFM-E评分分布
-     * 
-     * @param month 月份参数
-     * @return CRFM-E评分分布数据
-     */
-    @GetMapping("/crfme-distribution")
-    public Result<Map<String, Object>> getCrfmeDistribution(@RequestParam(required = false) String month) {
-        try {
-            log.info("获取CRFM-E评分分布，月份: {}", month);
-            
-            // 模拟CRFM-E评分分布数据
-            List<Map<String, Object>> distribution = new ArrayList<>();
-            
-            String[] scoreRanges = {"0-20", "21-40", "41-60", "61-80", "81-100"};
-            int[] counts = {500, 800, 2500, 2100, 850};
-            String[] levels = {"低价值", "一般价值", "中等价值", "高价值", "超高价值"};
-            
-            for (int i = 0; i < scoreRanges.length; i++) {
-                Map<String, Object> range = new HashMap<>();
-                range.put("scoreRange", scoreRanges[i]);
-                range.put("count", counts[i]);
-                range.put("level", levels[i]);
-                range.put("percentage", Math.round(counts[i] * 100.0 / 6750 * 100) / 100.0);
-                distribution.add(range);
-            }
-            
-            Map<String, Object> result = new HashMap<>();
-            result.put("distribution", distribution);
-            result.put("totalMembers", 6750);
-            result.put("averageScore", 62.5);
-            result.put("month", month != null ? month : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM")));
-            
-            return Result.success(result);
-        } catch (Exception e) {
-            log.error("获取CRFM-E评分分布失败", e);
-            return Result.error("获取CRFM-E评分分布失败: " + e.getMessage());
-        }
-    }
+
 
     /**
      * 获取会员增长趋势
@@ -380,20 +352,13 @@ public class MemberController {
         try {
             log.info("获取会员增长趋势，周期: {}, 月份数: {}", period, months);
             
-            // 模拟会员增长趋势数据
-            List<Map<String, Object>> trendData = new ArrayList<>();
-            
+            // 计算开始和结束月份
             LocalDate currentDate = LocalDate.now();
-            for (int i = months - 1; i >= 0; i--) {
-                LocalDate date = currentDate.minusMonths(i);
-                Map<String, Object> monthData = new HashMap<>();
-                monthData.put("month", date.format(DateTimeFormatter.ofPattern("yyyy-MM")));
-                monthData.put("newMembers", 800 + (int)(Math.random() * 400)); // 800-1200随机
-                monthData.put("totalMembers", 15000 + i * 200); // 递增趋势
-                monthData.put("activeMembers", (int)((15000 + i * 200) * (0.6 + Math.random() * 0.2))); // 60-80%活跃
-                monthData.put("churnMembers", 50 + (int)(Math.random() * 100)); // 50-150流失
-                trendData.add(monthData);
-            }
+            String endMonth = currentDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            String startMonth = currentDate.minusMonths(months - 1).format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            
+            // 使用Service层获取会员增长趋势数据
+            List<Map<String, Object>> trendData = memberOverviewService.getMemberGrowthTrend(startMonth, endMonth);
             
             Map<String, Object> result = new HashMap<>();
             result.put("trendData", trendData);
@@ -418,27 +383,8 @@ public class MemberController {
         try {
             log.info("计算会员CRFM-E评分，ID: {}", id);
             
-            // 模拟CRFM-E评分计算
-            Map<String, Object> crfmeScore = new HashMap<>();
-            crfmeScore.put("memberId", id);
-            crfmeScore.put("behaviorScore", 15 + (int)(Math.random() * 5)); // B - 行为评分 (0-20)
-            crfmeScore.put("recencyScore", 14 + (int)(Math.random() * 6));   // R - 最近购买 (0-20)
-            crfmeScore.put("frequencyScore", 16 + (int)(Math.random() * 4)); // F - 购买频次 (0-20)
-            crfmeScore.put("monetaryScore", 17 + (int)(Math.random() * 3));  // M - 消费金额 (0-20)
-            crfmeScore.put("engagementScore", 15 + (int)(Math.random() * 5)); // E - 参与度 (0-20)
-            
-            int totalScore = (Integer)crfmeScore.get("behaviorScore") + 
-                           (Integer)crfmeScore.get("recencyScore") + 
-                           (Integer)crfmeScore.get("frequencyScore") + 
-                           (Integer)crfmeScore.get("monetaryScore") + 
-                           (Integer)crfmeScore.get("engagementScore");
-            
-            crfmeScore.put("totalScore", totalScore);
-            crfmeScore.put("level", totalScore >= 80 ? "超高价值" : 
-                                   totalScore >= 60 ? "高价值" : 
-                                   totalScore >= 40 ? "中等价值" : 
-                                   totalScore >= 20 ? "一般价值" : "低价值");
-            crfmeScore.put("calculatedAt", LocalDate.now().toString());
+            // 使用Service层计算CRFM-E评分
+            Map<String, Object> crfmeScore = memberOverviewService.calculateMemberCrfme(id);
             
             return Result.success(crfmeScore);
         } catch (Exception e) {
@@ -458,16 +404,22 @@ public class MemberController {
         try {
             log.info("根据手机号查询会员: {}", phone);
             
-            // 模拟根据手机号查询会员
+            // 使用Service层根据手机号查询会员
+            MemberInfo memberInfo = memberOverviewService.getMemberByPhone(phone);
+            
+            if (memberInfo == null) {
+                return Result.error("未找到该手机号对应的会员信息");
+            }
+            
             Map<String, Object> member = new HashMap<>();
-            member.put("id", 1001L);
-            member.put("name", "张三");
-            member.put("phone", phone);
-            member.put("email", "zhangsan@example.com");
-            member.put("stage", "成熟期");
-            member.put("tier", "高价值会员");
-            member.put("joinDate", "2024-03-15");
-            member.put("crfmeScore", 85);
+            member.put("id", memberInfo.getMemberId());
+            member.put("name", memberInfo.getMemberName());
+            member.put("phone", memberInfo.getPhone());
+            member.put("email", memberInfo.getEmail());
+            member.put("stage", memberInfo.getBabyStage());
+            member.put("tier", "普通会员"); // 默认值，可以后续扩展
+            member.put("joinDate", memberInfo.getRegistrationDate());
+            member.put("crfmeScore", 0); // 默认值，可以通过Service计算
             
             return Result.success(member);
         } catch (Exception e) {

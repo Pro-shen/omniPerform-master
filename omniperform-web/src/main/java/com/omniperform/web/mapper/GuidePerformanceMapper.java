@@ -1,6 +1,7 @@
 package com.omniperform.web.mapper;
 
 import java.util.List;
+import java.util.Map;
 import com.omniperform.web.domain.GuidePerformance;
 import org.apache.ibatis.annotations.Param;
 
@@ -103,4 +104,102 @@ public interface GuidePerformanceMapper
      * @return 平均绩效分数
      */
     public Double getAveragePerformanceScore(@Param("dataMonth") String dataMonth);
+
+    /**
+     * 查询九宫格分布统计
+     * 
+     * @param dataMonth 数据月份
+     * @return 九宫格分布统计结果
+     */
+    public List<Map<String, Object>> selectMatrixDistribution(@Param("dataMonth") String dataMonth);
+
+    /**
+     * 根据九宫格位置查询导购列表
+     * 
+     * @param matrixPosition 九宫格位置
+     * @param matrixType 九宫格类型
+     * @param dataMonth 数据月份
+     * @return 导购绩效列表
+     */
+    public List<GuidePerformance> selectGuidesByMatrixPosition(@Param("matrixPosition") String matrixPosition, 
+                                                               @Param("matrixType") String matrixType, 
+                                                               @Param("dataMonth") String dataMonth);
+
+    /**
+     * 查询CAI和RMV分数分布
+     * 
+     * @param dataMonth 数据月份
+     * @return CAI和RMV分数分布
+     */
+    public List<Map<String, Object>> selectCaiRmvDistribution(@Param("dataMonth") String dataMonth);
+
+    /**
+     * 更新导购的九宫格位置和类型
+     * 
+     * @param performanceId 绩效记录ID
+     * @param matrixPosition 九宫格位置
+     * @param matrixType 九宫格类型
+     * @return 更新结果
+     */
+    public int updateMatrixPosition(@Param("performanceId") Long performanceId, 
+                                   @Param("matrixPosition") String matrixPosition, 
+                                   @Param("matrixType") String matrixType);
+
+    /**
+     * 批量更新导购的九宫格位置和类型
+     * 
+     * @param guidePerformances 导购绩效列表
+     * @return 结果
+     */
+    public int batchUpdateMatrixPosition(@Param("list") List<GuidePerformance> guidePerformances);
+
+    /**
+     * 统计活跃导购数量
+     * 
+     * @param dataMonth 数据月份
+     * @return 活跃导购数量
+     */
+    public int countActiveGuides(@Param("dataMonth") String dataMonth);
+
+    /**
+     * 统计高绩效导购数量（绩效分数>=80）
+     * 
+     * @param dataMonth 数据月份
+     * @return 高绩效导购数量
+     */
+    public int countHighPerformanceGuides(@Param("dataMonth") String dataMonth);
+
+    /**
+     * 查询绩效趋势数据（按月份统计各等级导购数量）
+     * 
+     * @param startMonth 开始月份
+     * @param endMonth 结束月份
+     * @return 绩效趋势数据
+     */
+    public List<Map<String, Object>> selectPerformanceTrend(@Param("startMonth") String startMonth, 
+                                                            @Param("endMonth") String endMonth);
+
+    /**
+     * 查询绩效统计数据（总体、区域、等级分布）
+     * 
+     * @param dataMonth 数据月份
+     * @return 绩效统计数据
+     */
+    public Map<String, Object> selectPerformanceStatistics(@Param("dataMonth") String dataMonth);
+
+    /**
+     * 查询区域绩效统计
+     * 
+     * @param dataMonth 数据月份
+     * @return 区域绩效统计
+     */
+    public List<Map<String, Object>> selectRegionPerformanceStats(@Param("dataMonth") String dataMonth);
+
+    /**
+     * 查询等级分布统计
+     * 
+     * @param dataMonth 数据月份
+     * @return 等级分布统计
+     */
+    public List<Map<String, Object>> selectGradeDistribution(@Param("dataMonth") String dataMonth);
 }

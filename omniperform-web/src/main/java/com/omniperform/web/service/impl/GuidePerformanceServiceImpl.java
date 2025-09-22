@@ -157,4 +157,218 @@ public class GuidePerformanceServiceImpl implements IGuidePerformanceService
     {
         return guidePerformanceMapper.getAveragePerformanceScore(dataMonth);
     }
+
+    /**
+     * 查询九宫格分布统计
+     * 
+     * @param dataMonth 数据月份
+     * @return 九宫格分布统计结果
+     */
+    @Override
+    public List<Map<String, Object>> selectMatrixDistribution(String dataMonth)
+    {
+        return guidePerformanceMapper.selectMatrixDistribution(dataMonth);
+    }
+
+    /**
+     * 根据九宫格位置查询导购列表
+     * 
+     * @param matrixPosition 九宫格位置
+     * @param matrixType 九宫格类型
+     * @param dataMonth 数据月份
+     * @return 导购绩效列表
+     */
+    @Override
+    public List<GuidePerformance> selectGuidesByMatrixPosition(String matrixPosition, String matrixType, String dataMonth)
+    {
+        return guidePerformanceMapper.selectGuidesByMatrixPosition(matrixPosition, matrixType, dataMonth);
+    }
+
+    /**
+     * 查询CAI和RMV分数分布
+     * 
+     * @param dataMonth 数据月份
+     * @return CAI和RMV分数分布
+     */
+    @Override
+    public List<Map<String, Object>> selectCaiRmvDistribution(String dataMonth)
+    {
+        return guidePerformanceMapper.selectCaiRmvDistribution(dataMonth);
+    }
+
+    /**
+     * 更新导购的九宫格位置和类型
+     * 
+     * @param performanceId 绩效ID
+     * @param matrixPosition 九宫格位置
+     * @param matrixType 九宫格类型
+     * @return 结果
+     */
+    @Override
+    public int updateMatrixPosition(Long performanceId, String matrixPosition, String matrixType)
+    {
+        return guidePerformanceMapper.updateMatrixPosition(performanceId, matrixPosition, matrixType);
+    }
+
+    /**
+     * 批量更新导购的九宫格位置和类型
+     * 
+     * @param guidePerformances 导购绩效列表
+     * @return 结果
+     */
+    @Override
+    public int batchUpdateMatrixPosition(List<GuidePerformance> guidePerformances)
+    {
+        return guidePerformanceMapper.batchUpdateMatrixPosition(guidePerformances);
+    }
+
+    /**
+     * 计算并更新所有导购的九宫格位置
+     * 
+     * @param dataMonth 数据月份
+     * @return 更新的记录数
+     */
+    @Override
+    public int calculateAndUpdateMatrixPositions(String dataMonth)
+    {
+        // 获取所有有CAI和RMV分数的导购绩效数据
+        List<GuidePerformance> performances = guidePerformanceMapper.selectGuidePerformanceList(new GuidePerformance());
+        
+        int updateCount = 0;
+        for (GuidePerformance performance : performances) {
+            if (performance.getCaiScore() != null && performance.getRmvScore() != null 
+                && performance.getCaiScore().doubleValue() > 0 && performance.getRmvScore().doubleValue() > 0) {
+                
+                // 计算九宫格位置和类型
+                String[] result = calculateMatrixPositionAndType(performance.getCaiScore().doubleValue(), 
+                                                                performance.getRmvScore().doubleValue());
+                String matrixPosition = result[0];
+                String matrixType = result[1];
+                
+                // 更新数据库
+                int updated = guidePerformanceMapper.updateMatrixPosition(performance.getPerformanceId(), 
+                                                                        matrixPosition, matrixType);
+                updateCount += updated;
+            }
+        }
+        
+        return updateCount;
+    }
+
+    /**
+     * 根据CAI和RMV分数计算九宫格位置和类型
+     * 
+     * @param caiScore CAI分数
+     * @param rmvScore RMV分数
+     * @return [位置, 类型]
+     */
+    private String[] calculateMatrixPositionAndType(double caiScore, double rmvScore) {
+        String position;
+        String type;
+        
+        // 根据分数范围确定位置
+        if (caiScore >= 0.8 && rmvScore >= 0.8) {
+            position = "3-3";
+            type = "超级明星";
+        } else if (caiScore >= 0.6 && rmvScore >= 0.8) {
+            position = "2-3";
+            type = "成长之星";
+        } else if (caiScore >= 0.4 && rmvScore >= 0.8) {
+            position = "1-3";
+            type = "潜力新星";
+        } else if (caiScore >= 0.8 && rmvScore >= 0.6) {
+            position = "3-2";
+            type = "骨干力量";
+        } else if (caiScore >= 0.6 && rmvScore >= 0.6) {
+            position = "2-2";
+            type = "稳定发展";
+        } else if (caiScore >= 0.4 && rmvScore >= 0.6) {
+            position = "1-2";
+            type = "待培养";
+        } else if (caiScore >= 0.8 && rmvScore >= 0.4) {
+            position = "3-1";
+            type = "经验丰富";
+        } else if (caiScore >= 0.6 && rmvScore >= 0.4) {
+            position = "2-1";
+            type = "需要提升";
+        } else {
+            position = "1-1";
+            type = "新手入门";
+        }
+        
+        return new String[]{position, type};
+    }
+
+    /**
+     * 统计活跃导购数量
+     * 
+     * @param dataMonth 数据月份
+     * @return 活跃导购数量
+     */
+    @Override
+    public int countActiveGuides(String dataMonth)
+    {
+        return guidePerformanceMapper.countActiveGuides(dataMonth);
+    }
+
+    /**
+     * 统计高绩效导购数量（绩效分数>=80）
+     * 
+     * @param dataMonth 数据月份
+     * @return 高绩效导购数量
+     */
+    @Override
+    public int countHighPerformanceGuides(String dataMonth)
+    {
+        return guidePerformanceMapper.countHighPerformanceGuides(dataMonth);
+    }
+
+    /**
+     * 查询绩效趋势数据（按月份统计各等级导购数量）
+     * 
+     * @param startMonth 开始月份
+     * @param endMonth 结束月份
+     * @return 绩效趋势数据
+     */
+    @Override
+    public List<Map<String, Object>> selectPerformanceTrend(String startMonth, String endMonth)
+    {
+        return guidePerformanceMapper.selectPerformanceTrend(startMonth, endMonth);
+    }
+
+    /**
+     * 查询绩效统计数据（总体、区域、等级分布）
+     * 
+     * @param dataMonth 数据月份
+     * @return 绩效统计数据
+     */
+    @Override
+    public Map<String, Object> selectPerformanceStatistics(String dataMonth)
+    {
+        return guidePerformanceMapper.selectPerformanceStatistics(dataMonth);
+    }
+
+    /**
+     * 查询区域绩效统计
+     * 
+     * @param dataMonth 数据月份
+     * @return 区域绩效统计
+     */
+    @Override
+    public List<Map<String, Object>> selectRegionPerformanceStats(String dataMonth)
+    {
+        return guidePerformanceMapper.selectRegionPerformanceStats(dataMonth);
+    }
+
+    /**
+     * 查询等级分布统计
+     * 
+     * @param dataMonth 数据月份
+     * @return 等级分布统计
+     */
+    @Override
+    public List<Map<String, Object>> selectGradeDistribution(String dataMonth)
+    {
+        return guidePerformanceMapper.selectGradeDistribution(dataMonth);
+    }
 }

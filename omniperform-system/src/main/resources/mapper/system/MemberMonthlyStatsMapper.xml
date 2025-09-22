@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.MemberMonthlyStatsMapper">
+    
+    <resultMap type="MemberMonthlyStats" id="MemberMonthlyStatsResult">
+        <result property="statsId"    column="stats_id"    />
+        <result property="statsMonth"    column="stats_month"    />
+        <result property="totalMembers"    column="total_members"    />
+        <result property="newMembers"    column="new_members"    />
+        <result property="activeMembers"    column="active_members"    />
+        <result property="purchaseMembers"    column="purchase_members"    />
+        <result property="churnMembers"    column="churn_members"    />
+        <result property="totalPurchaseAmount"    column="total_purchase_amount"    />
+        <result property="avgOrderValue"    column="avg_order_value"    />
+        <result property="activeRate"    column="active_rate"    />
+        <result property="purchaseRate"    column="purchase_rate"    />
+        <result property="churnRate"    column="churn_rate"    />
+        <result property="statsTime"    column="stats_time"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectMemberMonthlyStatsVo">
+        select stats_id, stats_month, total_members, new_members, active_members, purchase_members, churn_members, total_purchase_amount, avg_order_value, active_rate, purchase_rate, churn_rate, stats_time, create_time, update_time from member_monthly_stats
+    </sql>
+
+    <select id="selectMemberMonthlyStatsList" parameterType="MemberMonthlyStats" resultMap="MemberMonthlyStatsResult">
+        <include refid="selectMemberMonthlyStatsVo"/>
+        <where>  
+            <if test="statsMonth != null  and statsMonth != ''"> and stats_month = #{statsMonth}</if>
+            <if test="totalMembers != null "> and total_members = #{totalMembers}</if>
+            <if test="newMembers != null "> and new_members = #{newMembers}</if>
+            <if test="activeMembers != null "> and active_members = #{activeMembers}</if>
+            <if test="purchaseMembers != null "> and purchase_members = #{purchaseMembers}</if>
+            <if test="churnMembers != null "> and churn_members = #{churnMembers}</if>
+            <if test="totalPurchaseAmount != null "> and total_purchase_amount = #{totalPurchaseAmount}</if>
+            <if test="avgOrderValue != null "> and avg_order_value = #{avgOrderValue}</if>
+            <if test="activeRate != null "> and active_rate = #{activeRate}</if>
+            <if test="purchaseRate != null "> and purchase_rate = #{purchaseRate}</if>
+            <if test="churnRate != null "> and churn_rate = #{churnRate}</if>
+            <if test="statsTime != null "> and stats_time = #{statsTime}</if>
+        </where>
+        order by stats_month desc
+    </select>
+    
+    <select id="selectMemberMonthlyStatsByStatsId" parameterType="Long" resultMap="MemberMonthlyStatsResult">
+        <include refid="selectMemberMonthlyStatsVo"/>
+        where stats_id = #{statsId}
+    </select>
+
+    <select id="selectMemberMonthlyStatsByMonth" parameterType="String" resultMap="MemberMonthlyStatsResult">
+        <include refid="selectMemberMonthlyStatsVo"/>
+        where stats_month = #{month}
+        limit 1
+    </select>
+
+    <select id="selectMemberMonthlyStatsByDateRange" resultMap="MemberMonthlyStatsResult">
+        <include refid="selectMemberMonthlyStatsVo"/>
+        where stats_month between #{startMonth} and #{endMonth}
+        order by stats_month asc
+    </select>
+        
+    <insert id="insertMemberMonthlyStats" parameterType="MemberMonthlyStats" useGeneratedKeys="true" keyProperty="statsId">
+        insert into member_monthly_stats
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="statsMonth != null and statsMonth != ''">stats_month,</if>
+            <if test="totalMembers != null">total_members,</if>
+            <if test="newMembers != null">new_members,</if>
+            <if test="activeMembers != null">active_members,</if>
+            <if test="purchaseMembers != null">purchase_members,</if>
+            <if test="churnMembers != null">churn_members,</if>
+            <if test="totalPurchaseAmount != null">total_purchase_amount,</if>
+            <if test="avgOrderValue != null">avg_order_value,</if>
+            <if test="activeRate != null">active_rate,</if>
+            <if test="purchaseRate != null">purchase_rate,</if>
+            <if test="churnRate != null">churn_rate,</if>
+            <if test="statsTime != null">stats_time,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="statsMonth != null and statsMonth != ''">#{statsMonth},</if>
+            <if test="totalMembers != null">#{totalMembers},</if>
+            <if test="newMembers != null">#{newMembers},</if>
+            <if test="activeMembers != null">#{activeMembers},</if>
+            <if test="purchaseMembers != null">#{purchaseMembers},</if>
+            <if test="churnMembers != null">#{churnMembers},</if>
+            <if test="totalPurchaseAmount != null">#{totalPurchaseAmount},</if>
+            <if test="avgOrderValue != null">#{avgOrderValue},</if>
+            <if test="activeRate != null">#{activeRate},</if>
+            <if test="purchaseRate != null">#{purchaseRate},</if>
+            <if test="churnRate != null">#{churnRate},</if>
+            <if test="statsTime != null">#{statsTime},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateMemberMonthlyStats" parameterType="MemberMonthlyStats">
+        update member_monthly_stats
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="statsMonth != null and statsMonth != ''">stats_month = #{statsMonth},</if>
+            <if test="totalMembers != null">total_members = #{totalMembers},</if>
+            <if test="newMembers != null">new_members = #{newMembers},</if>
+            <if test="activeMembers != null">active_members = #{activeMembers},</if>
+            <if test="purchaseMembers != null">purchase_members = #{purchaseMembers},</if>
+            <if test="churnMembers != null">churn_members = #{churnMembers},</if>
+            <if test="totalPurchaseAmount != null">total_purchase_amount = #{totalPurchaseAmount},</if>
+            <if test="avgOrderValue != null">avg_order_value = #{avgOrderValue},</if>
+            <if test="activeRate != null">active_rate = #{activeRate},</if>
+            <if test="purchaseRate != null">purchase_rate = #{purchaseRate},</if>
+            <if test="churnRate != null">churn_rate = #{churnRate},</if>
+            <if test="statsTime != null">stats_time = #{statsTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where stats_id = #{statsId}
+    </update>
+
+    <delete id="deleteMemberMonthlyStatsByStatsId" parameterType="Long">
+        delete from member_monthly_stats where stats_id = #{statsId}
+    </delete>
+
+    <delete id="deleteMemberMonthlyStatsByStatsIds" parameterType="String">
+        delete from member_monthly_stats where stats_id in 
+        <foreach item="statsId" collection="array" open="(" separator="," close=")">
+            #{statsId}
+        </foreach>
+    </delete>
+
+</mapper>

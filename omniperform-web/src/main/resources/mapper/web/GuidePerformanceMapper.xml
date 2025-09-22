@@ -24,6 +24,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="performanceScore"    column="performance_score"    />
         <result property="rankInRegion"    column="rank_in_region"    />
         <result property="rankOverall"    column="rank_overall"    />
+        <result property="caiScore"    column="cai_score"    />
+        <result property="rmvScore"    column="rmv_score"    />
+        <result property="matrixPosition"    column="matrix_position"    />
+        <result property="matrixType"    column="matrix_type"    />
+        <result property="trend"    column="trend"    />
         <result property="createTime"    column="create_time"    />
         <result property="updateTime"    column="update_time"    />
         <result property="guideName"    column="guide_name"    />
@@ -36,7 +41,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select gp.performance_id, gp.guide_id, gp.data_month, gp.new_members, gp.total_members, gp.active_members, 
                gp.sales_amount, gp.order_count, gp.mot_tasks_completed, gp.mot_completion_rate, gp.customer_satisfaction, 
                gp.response_time, gp.conversion_rate, gp.repeat_purchase_rate, gp.member_scan_rate, gp.interaction_count, 
-               gp.performance_score, gp.rank_in_region, gp.rank_overall, gp.create_time, gp.update_time,
+               gp.performance_score, gp.rank_in_region, gp.rank_overall, gp.cai_score, gp.rmv_score, 
+               gp.matrix_position, gp.matrix_type, gp.trend, gp.create_time, gp.update_time,
                gi.guide_name, gi.guide_code, gi.region_name, gi.store_name
         from guide_performance gp
         left join guide_info gi on gp.guide_id = gi.guide_id
@@ -140,6 +146,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="performanceScore != null">performance_score,</if>
             <if test="rankInRegion != null">rank_in_region,</if>
             <if test="rankOverall != null">rank_overall,</if>
+            <if test="caiScore != null">cai_score,</if>
+            <if test="rmvScore != null">rmv_score,</if>
+            <if test="matrixPosition != null and matrixPosition != ''">matrix_position,</if>
+            <if test="matrixType != null and matrixType != ''">matrix_type,</if>
+            <if test="trend != null and trend != ''">trend,</if>
             <if test="createTime != null">create_time,</if>
             <if test="updateTime != null">update_time,</if>
          </trim>
@@ -162,6 +173,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="performanceScore != null">#{performanceScore},</if>
             <if test="rankInRegion != null">#{rankInRegion},</if>
             <if test="rankOverall != null">#{rankOverall},</if>
+            <if test="caiScore != null">#{caiScore},</if>
+            <if test="rmvScore != null">#{rmvScore},</if>
+            <if test="matrixPosition != null and matrixPosition != ''">#{matrixPosition},</if>
+            <if test="matrixType != null and matrixType != ''">#{matrixType},</if>
+            <if test="trend != null and trend != ''">#{trend},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="updateTime != null">#{updateTime},</if>
          </trim>
@@ -188,6 +204,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="performanceScore != null">performance_score = #{performanceScore},</if>
             <if test="rankInRegion != null">rank_in_region = #{rankInRegion},</if>
             <if test="rankOverall != null">rank_overall = #{rankOverall},</if>
+            <if test="caiScore != null">cai_score = #{caiScore},</if>
+            <if test="rmvScore != null">rmv_score = #{rmvScore},</if>
+            <if test="matrixPosition != null">matrix_position = #{matrixPosition},</if>
+            <if test="matrixType != null">matrix_type = #{matrixType},</if>
+            <if test="trend != null">trend = #{trend},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </trim>
         where performance_id = #{performanceId}
@@ -203,4 +224,168 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{performanceId}
         </foreach>
     </delete>
+
+    <!-- 查询九宫格分布统计 -->
+    <select id="selectMatrixDistribution" resultType="map">
+        select 
+            matrix_position,
+            matrix_type,
+            count(*) as guide_count,
+            avg(performance_score) as avg_score,
+            avg(cai_score) as avg_cai,
+            avg(rmv_score) as avg_rmv
+        from guide_performance gp
+        left join guide_info gi on gp.guide_id = gi.guide_id
+        <where>
+            <if test="dataMonth != null and dataMonth != ''"> and gp.data_month = #{dataMonth}</if>
+            and gi.status = 1
+            and gp.matrix_position is not null
+            and gp.matrix_type is not null
+        </where>
+        group by matrix_position, matrix_type
+        order by matrix_position
+    </select>
+
+    <!-- 根据九宫格位置查询导购列表 -->
+    <select id="selectGuidesByMatrixPosition" resultMap="GuidePerformanceResult">
+        <include refid="selectGuidePerformanceVo"/>
+        <where>
+            <if test="matrixPosition != null and matrixPosition != ''"> and gp.matrix_position = #{matrixPosition}</if>
+            <if test="matrixType != null and matrixType != ''"> and gp.matrix_type = #{matrixType}</if>
+            <if test="dataMonth != null and dataMonth != ''"> and gp.data_month = #{dataMonth}</if>
+            and gi.status = 1
+        </where>
+        order by gp.performance_score desc
+    </select>
+
+    <!-- 查询CAI和RMV分数分布 -->
+    <select id="selectCaiRmvDistribution" resultMap="GuidePerformanceResult">
+        <include refid="selectGuidePerformanceVo"/>
+        <where>
+            <if test="dataMonth != null and dataMonth != ''"> and gp.data_month = #{dataMonth}</if>
+            and gi.status = 1
+            and gp.cai_score is not null
+            and gp.rmv_score is not null
+        </where>
+        order by gp.cai_score desc, gp.rmv_score desc
+    </select>
+
+    <!-- 更新导购的九宫格位置和类型 -->
+    <update id="updateMatrixPosition">
+        update guide_performance
+        set matrix_position = #{matrixPosition},
+            matrix_type = #{matrixType},
+            update_time = now()
+        where performance_id = #{performanceId}
+    </update>
+
+    <!-- 批量更新九宫格位置 -->
+    <update id="batchUpdateMatrixPosition" parameterType="java.util.List">
+        <foreach collection="list" item="item" separator=";">
+            update guide_performance set
+            matrix_position = #{item.matrixPosition},
+            matrix_type = #{item.matrixType}
+            where performance_id = #{item.performanceId}
+        </foreach>
+    </update>
+
+    <!-- 统计活跃导购数量 -->
+    <select id="countActiveGuides" parameterType="String" resultType="int">
+        select count(distinct gp.guide_id)
+        from guide_performance gp
+        inner join guide_info gi on gp.guide_id = gi.guide_id
+        where gp.data_month = #{dataMonth}
+        and gi.status = 1
+    </select>
+
+    <!-- 统计高绩效导购数量 -->
+    <select id="countHighPerformanceGuides" parameterType="String" resultType="int">
+        select count(*)
+        from guide_performance gp
+        inner join guide_info gi on gp.guide_id = gi.guide_id
+        where gp.data_month = #{dataMonth}
+        and gp.performance_score >= 80
+        and gi.status = 1
+    </select>
+
+    <!-- 查询绩效趋势数据 -->
+    <select id="selectPerformanceTrend" resultType="map">
+        select 
+            gp.data_month as month,
+            count(case when gp.performance_score >= 90 then 1 end) as excellent_count,
+            count(case when gp.performance_score >= 80 and gp.performance_score &lt; 90 then 1 end) as good_count,
+            count(case when gp.performance_score >= 70 and gp.performance_score &lt; 80 then 1 end) as average_count,
+            count(case when gp.performance_score &lt; 70 then 1 end) as poor_count,
+            count(*) as total_count,
+            avg(gp.performance_score) as avg_score
+        from guide_performance gp
+        inner join guide_info gi on gp.guide_id = gi.guide_id
+        where gp.data_month between #{startMonth} and #{endMonth}
+        and gi.status = 1
+        group by gp.data_month
+        order by gp.data_month
+    </select>
+
+    <!-- 查询绩效统计数据 -->
+    <select id="selectPerformanceStatistics" parameterType="String" resultType="map">
+        select 
+            count(*) as total_guides,
+            count(case when gp.performance_score >= 80 then 1 end) as high_performance_guides,
+            avg(gp.performance_score) as avg_performance_score,
+            max(gp.performance_score) as max_performance_score,
+            min(gp.performance_score) as min_performance_score,
+            avg(gp.cai_score) as avg_cai_score,
+            avg(gp.rmv_score) as avg_rmv_score
+        from guide_performance gp
+        inner join guide_info gi on gp.guide_id = gi.guide_id
+        where gp.data_month = #{dataMonth}
+        and gi.status = 1
+    </select>
+
+    <!-- 查询区域绩效统计 -->
+    <select id="selectRegionPerformanceStats" parameterType="String" resultType="map">
+        select 
+            gi.region_code,
+            gi.region_name,
+            count(*) as guide_count,
+            avg(gp.performance_score) as avg_score,
+            count(case when gp.performance_score >= 80 then 1 end) as high_performance_count
+        from guide_performance gp
+        inner join guide_info gi on gp.guide_id = gi.guide_id
+        where gp.data_month = #{dataMonth}
+        and gi.status = 1
+        group by gi.region_code, gi.region_name
+        order by avg_score desc
+    </select>
+
+    <!-- 查询等级分布统计 -->
+    <select id="selectGradeDistribution" parameterType="String" resultType="map">
+        select 
+            case 
+                when gp.performance_score >= 90 then 'S'
+                when gp.performance_score >= 80 then 'A'
+                when gp.performance_score >= 70 then 'B'
+                when gp.performance_score >= 60 then 'C'
+                else 'D'
+            end as grade,
+            count(*) as count,
+            round(count(*) * 100.0 / (select count(*) from guide_performance gp2 
+                                      inner join guide_info gi2 on gp2.guide_id = gi2.guide_id 
+                                      where gp2.data_month = #{dataMonth} 
+                                      and gi2.status = 1), 2) as percentage
+        from guide_performance gp
+        inner join guide_info gi on gp.guide_id = gi.guide_id
+        where gp.data_month = #{dataMonth}
+        and gi.status = 1
+        group by 
+            case 
+                when gp.performance_score >= 90 then 'S'
+                when gp.performance_score >= 80 then 'A'
+                when gp.performance_score >= 70 then 'B'
+                when gp.performance_score >= 60 then 'C'
+                else 'D'
+            end
+        order by grade
+    </select>
+
 </mapper>

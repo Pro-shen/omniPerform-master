@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.MemberInfoMapper">
+    
+    <resultMap type="MemberInfo" id="MemberInfoResult">
+        <result property="memberId"    column="member_id"    />
+        <result property="memberCode"    column="member_code"    />
+        <result property="memberName"    column="member_name"    />
+        <result property="phone"    column="phone"    />
+        <result property="email"    column="email"    />
+        <result property="gender"    column="gender"    />
+        <result property="birthDate"    column="birth_date"    />
+        <result property="babyBirthDate"    column="baby_birth_date"    />
+        <result property="babyStage"    column="baby_stage"    />
+        <result property="registrationDate"    column="registration_date"    />
+        <result property="registrationSource"    column="registration_source"    />
+        <result property="guideId"    column="guide_id"    />
+        <result property="regionCode"    column="region_code"    />
+        <result property="city"    column="city"    />
+        <result property="status"    column="status"    />
+        <result property="lastLoginTime"    column="last_login_time"    />
+        <result property="lastPurchaseTime"    column="last_purchase_time"    />
+        <result property="lastInteractionTime"    column="last_interaction_time"    />
+        <result property="totalPurchaseAmount"    column="total_purchase_amount"    />
+        <result property="totalPurchaseCount"    column="total_purchase_count"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectMemberInfoVo">
+        select member_id, member_code, member_name, phone, email, gender, birth_date, baby_birth_date, baby_stage, registration_date, registration_source, guide_id, region_code, city, status, last_login_time, last_purchase_time, last_interaction_time, total_purchase_amount, total_purchase_count, create_time, update_time from member_info
+    </sql>
+
+    <select id="selectMemberInfoList" parameterType="MemberInfo" resultMap="MemberInfoResult">
+        <include refid="selectMemberInfoVo"/>
+        <where>  
+            <if test="memberCode != null  and memberCode != ''"> and member_code like concat('%', #{memberCode}, '%')</if>
+            <if test="memberName != null  and memberName != ''"> and member_name like concat('%', #{memberName}, '%')</if>
+            <if test="phone != null  and phone != ''"> and phone = #{phone}</if>
+            <if test="email != null  and email != ''"> and email = #{email}</if>
+            <if test="gender != null "> and gender = #{gender}</if>
+            <if test="birthDate != null "> and birth_date = #{birthDate}</if>
+            <if test="babyBirthDate != null "> and baby_birth_date = #{babyBirthDate}</if>
+            <if test="babyStage != null  and babyStage != ''"> and baby_stage = #{babyStage}</if>
+            <if test="registrationDate != null "> and registration_date = #{registrationDate}</if>
+            <if test="registrationSource != null  and registrationSource != ''"> and registration_source = #{registrationSource}</if>
+            <if test="guideId != null "> and guide_id = #{guideId}</if>
+            <if test="regionCode != null  and regionCode != ''"> and region_code = #{regionCode}</if>
+            <if test="city != null  and city != ''"> and city like concat('%', #{city}, '%')</if>
+            <if test="status != null "> and status = #{status}</if>
+        </where>
+        order by member_id desc
+    </select>
+    
+    <select id="selectMemberInfoByMemberId" parameterType="Long" resultMap="MemberInfoResult">
+        <include refid="selectMemberInfoVo"/>
+        where member_id = #{memberId}
+    </select>
+
+    <select id="selectMemberInfoByPhone" parameterType="String" resultMap="MemberInfoResult">
+        <include refid="selectMemberInfoVo"/>
+        where phone = #{phone}
+        limit 1
+    </select>
+        
+    <insert id="insertMemberInfo" parameterType="MemberInfo" useGeneratedKeys="true" keyProperty="memberId">
+        insert into member_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="memberCode != null and memberCode != ''">member_code,</if>
+            <if test="memberName != null and memberName != ''">member_name,</if>
+            <if test="phone != null">phone,</if>
+            <if test="email != null">email,</if>
+            <if test="gender != null">gender,</if>
+            <if test="birthDate != null">birth_date,</if>
+            <if test="babyBirthDate != null">baby_birth_date,</if>
+            <if test="babyStage != null">baby_stage,</if>
+            <if test="registrationDate != null">registration_date,</if>
+            <if test="registrationSource != null">registration_source,</if>
+            <if test="guideId != null">guide_id,</if>
+            <if test="regionCode != null">region_code,</if>
+            <if test="city != null">city,</if>
+            <if test="status != null">status,</if>
+            <if test="lastLoginTime != null">last_login_time,</if>
+            <if test="lastPurchaseTime != null">last_purchase_time,</if>
+            <if test="lastInteractionTime != null">last_interaction_time,</if>
+            <if test="totalPurchaseAmount != null">total_purchase_amount,</if>
+            <if test="totalPurchaseCount != null">total_purchase_count,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="memberCode != null and memberCode != ''">#{memberCode},</if>
+            <if test="memberName != null and memberName != ''">#{memberName},</if>
+            <if test="phone != null">#{phone},</if>
+            <if test="email != null">#{email},</if>
+            <if test="gender != null">#{gender},</if>
+            <if test="birthDate != null">#{birthDate},</if>
+            <if test="babyBirthDate != null">#{babyBirthDate},</if>
+            <if test="babyStage != null">#{babyStage},</if>
+            <if test="registrationDate != null">#{registrationDate},</if>
+            <if test="registrationSource != null">#{registrationSource},</if>
+            <if test="guideId != null">#{guideId},</if>
+            <if test="regionCode != null">#{regionCode},</if>
+            <if test="city != null">#{city},</if>
+            <if test="status != null">#{status},</if>
+            <if test="lastLoginTime != null">#{lastLoginTime},</if>
+            <if test="lastPurchaseTime != null">#{lastPurchaseTime},</if>
+            <if test="lastInteractionTime != null">#{lastInteractionTime},</if>
+            <if test="totalPurchaseAmount != null">#{totalPurchaseAmount},</if>
+            <if test="totalPurchaseCount != null">#{totalPurchaseCount},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateMemberInfo" parameterType="MemberInfo">
+        update member_info
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="memberCode != null and memberCode != ''">member_code = #{memberCode},</if>
+            <if test="memberName != null and memberName != ''">member_name = #{memberName},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="gender != null">gender = #{gender},</if>
+            <if test="birthDate != null">birth_date = #{birthDate},</if>
+            <if test="babyBirthDate != null">baby_birth_date = #{babyBirthDate},</if>
+            <if test="babyStage != null">baby_stage = #{babyStage},</if>
+            <if test="registrationDate != null">registration_date = #{registrationDate},</if>
+            <if test="registrationSource != null">registration_source = #{registrationSource},</if>
+            <if test="guideId != null">guide_id = #{guideId},</if>
+            <if test="regionCode != null">region_code = #{regionCode},</if>
+            <if test="city != null">city = #{city},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="lastLoginTime != null">last_login_time = #{lastLoginTime},</if>
+            <if test="lastPurchaseTime != null">last_purchase_time = #{lastPurchaseTime},</if>
+            <if test="lastInteractionTime != null">last_interaction_time = #{lastInteractionTime},</if>
+            <if test="totalPurchaseAmount != null">total_purchase_amount = #{totalPurchaseAmount},</if>
+            <if test="totalPurchaseCount != null">total_purchase_count = #{totalPurchaseCount},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where member_id = #{memberId}
+    </update>
+
+    <delete id="deleteMemberInfoByMemberId" parameterType="Long">
+        delete from member_info where member_id = #{memberId}
+    </delete>
+
+    <delete id="deleteMemberInfoByMemberIds" parameterType="String">
+        delete from member_info where member_id in 
+        <foreach item="memberId" collection="array" open="(" separator="," close=")">
+            #{memberId}
+        </foreach>
+    </delete>
+
+    <select id="calculateMemberCrfme" parameterType="Long" resultType="map">
+        SELECT 
+            COALESCE(c.consumption_score, 60) as consumptionScore,
+            COALESCE(r.recency_score, 60) as recencyScore,
+            COALESCE(f.frequency_score, 60) as frequencyScore,
+            COALESCE(m.monetary_score, 60) as monetaryScore,
+            COALESCE(e.engagement_score, 60) as engagementScore,
+            COALESCE(c.consumption_score, 60) + COALESCE(r.recency_score, 60) + COALESCE(f.frequency_score, 60) + COALESCE(m.monetary_score, 60) + COALESCE(e.engagement_score, 60) as totalScore,
+            CASE 
+                WHEN COALESCE(c.consumption_score, 60) + COALESCE(r.recency_score, 60) + COALESCE(f.frequency_score, 60) + COALESCE(m.monetary_score, 60) + COALESCE(e.engagement_score, 60) >= 400 THEN '钻石会员'
+                WHEN COALESCE(c.consumption_score, 60) + COALESCE(r.recency_score, 60) + COALESCE(f.frequency_score, 60) + COALESCE(m.monetary_score, 60) + COALESCE(e.engagement_score, 60) >= 350 THEN '白金会员'
+                WHEN COALESCE(c.consumption_score, 60) + COALESCE(r.recency_score, 60) + COALESCE(f.frequency_score, 60) + COALESCE(m.monetary_score, 60) + COALESCE(e.engagement_score, 60) >= 300 THEN '黄金会员'
+                WHEN COALESCE(c.consumption_score, 60) + COALESCE(r.recency_score, 60) + COALESCE(f.frequency_score, 60) + COALESCE(m.monetary_score, 60) + COALESCE(e.engagement_score, 60) >= 250 THEN '银牌会员'
+                ELSE '普通会员'
+            END as level
+        FROM member_info mi
+        LEFT JOIN member_crfme_scores mcs ON mi.member_id = mcs.member_id
+        LEFT JOIN (SELECT member_id, 60 as consumption_score FROM member_info WHERE member_id = #{memberId}) c ON mi.member_id = c.member_id
+        LEFT JOIN (SELECT member_id, 60 as recency_score FROM member_info WHERE member_id = #{memberId}) r ON mi.member_id = r.member_id
+        LEFT JOIN (SELECT member_id, 60 as frequency_score FROM member_info WHERE member_id = #{memberId}) f ON mi.member_id = f.member_id
+        LEFT JOIN (SELECT member_id, 60 as monetary_score FROM member_info WHERE member_id = #{memberId}) m ON mi.member_id = m.member_id
+        LEFT JOIN (SELECT member_id, 60 as engagement_score FROM member_info WHERE member_id = #{memberId}) e ON mi.member_id = e.member_id
+        WHERE mi.member_id = #{memberId}
+    </select>
+
+</mapper>

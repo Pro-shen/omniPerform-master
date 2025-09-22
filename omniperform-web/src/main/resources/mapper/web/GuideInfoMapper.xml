@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.web.mapper.GuideInfoMapper">
+    
+    <resultMap type="GuideInfo" id="GuideInfoResult">
+        <result property="guideId"    column="guide_id"    />
+        <result property="guideCode"    column="guide_code"    />
+        <result property="guideName"    column="guide_name"    />
+        <result property="phone"    column="phone"    />
+        <result property="email"    column="email"    />
+        <result property="employeeId"    column="employee_id"    />
+        <result property="department"    column="department"    />
+        <result property="regionCode"    column="region_code"    />
+        <result property="regionName"    column="region_name"    />
+        <result property="storeId"    column="store_id"    />
+        <result property="storeName"    column="store_name"    />
+        <result property="supervisorId"    column="supervisor_id"    />
+        <result property="supervisorName"    column="supervisor_name"    />
+        <result property="level"    column="level"    />
+        <result property="hireDate"    column="hire_date"    />
+        <result property="status"    column="status"    />
+        <result property="monthlyTarget"    column="monthly_target"    />
+        <result property="managerId"    column="manager_id"    />
+        <result property="wechatId"    column="wechat_id"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectGuideInfoVo">
+        select guide_id, guide_code, guide_name, phone, email, employee_id, department, region_code, region_name, store_id, store_name, supervisor_id, supervisor_name, level, hire_date, status, monthly_target, manager_id, wechat_id, create_time, update_time from guide_info
+    </sql>
+
+    <select id="selectGuideInfoList" parameterType="GuideInfo" resultMap="GuideInfoResult">
+        <include refid="selectGuideInfoVo"/>
+        <where>  
+            <if test="guideCode != null  and guideCode != ''"> and guide_code = #{guideCode}</if>
+            <if test="guideName != null  and guideName != ''"> and guide_name like concat('%', #{guideName}, '%')</if>
+            <if test="phone != null  and phone != ''"> and phone = #{phone}</if>
+            <if test="email != null  and email != ''"> and email = #{email}</if>
+            <if test="employeeId != null  and employeeId != ''"> and employee_id = #{employeeId}</if>
+            <if test="department != null  and department != ''"> and department = #{department}</if>
+            <if test="regionCode != null  and regionCode != ''"> and region_code = #{regionCode}</if>
+            <if test="regionName != null  and regionName != ''"> and region_name like concat('%', #{regionName}, '%')</if>
+            <if test="storeId != null "> and store_id = #{storeId}</if>
+            <if test="storeName != null  and storeName != ''"> and store_name like concat('%', #{storeName}, '%')</if>
+            <if test="supervisorId != null "> and supervisor_id = #{supervisorId}</if>
+            <if test="supervisorName != null  and supervisorName != ''"> and supervisor_name like concat('%', #{supervisorName}, '%')</if>
+            <if test="level != null  and level != ''"> and level = #{level}</if>
+            <if test="hireDate != null "> and hire_date = #{hireDate}</if>
+            <if test="status != null "> and status = #{status}</if>
+            <if test="monthlyTarget != null "> and monthly_target = #{monthlyTarget}</if>
+            <if test="managerId != null "> and manager_id = #{managerId}</if>
+            <if test="wechatId != null  and wechatId != ''"> and wechat_id = #{wechatId}</if>
+        </where>
+    </select>
+    
+    <select id="selectGuideInfoByGuideId" parameterType="Long" resultMap="GuideInfoResult">
+        <include refid="selectGuideInfoVo"/>
+        where guide_id = #{guideId}
+    </select>
+        
+    <insert id="insertGuideInfo" parameterType="GuideInfo" useGeneratedKeys="true" keyProperty="guideId">
+        insert into guide_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="guideCode != null and guideCode != ''">guide_code,</if>
+            <if test="guideName != null and guideName != ''">guide_name,</if>
+            <if test="phone != null">phone,</if>
+            <if test="email != null">email,</if>
+            <if test="employeeId != null">employee_id,</if>
+            <if test="department != null">department,</if>
+            <if test="regionCode != null">region_code,</if>
+            <if test="regionName != null">region_name,</if>
+            <if test="storeId != null">store_id,</if>
+            <if test="storeName != null">store_name,</if>
+            <if test="supervisorId != null">supervisor_id,</if>
+            <if test="supervisorName != null">supervisor_name,</if>
+            <if test="level != null">level,</if>
+            <if test="hireDate != null">hire_date,</if>
+            <if test="status != null">status,</if>
+            <if test="monthlyTarget != null">monthly_target,</if>
+            <if test="managerId != null">manager_id,</if>
+            <if test="wechatId != null">wechat_id,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="guideCode != null and guideCode != ''">#{guideCode},</if>
+            <if test="guideName != null and guideName != ''">#{guideName},</if>
+            <if test="phone != null">#{phone},</if>
+            <if test="email != null">#{email},</if>
+            <if test="employeeId != null">#{employeeId},</if>
+            <if test="department != null">#{department},</if>
+            <if test="regionCode != null">#{regionCode},</if>
+            <if test="regionName != null">#{regionName},</if>
+            <if test="storeId != null">#{storeId},</if>
+            <if test="storeName != null">#{storeName},</if>
+            <if test="supervisorId != null">#{supervisorId},</if>
+            <if test="supervisorName != null">#{supervisorName},</if>
+            <if test="level != null">#{level},</if>
+            <if test="hireDate != null">#{hireDate},</if>
+            <if test="status != null">#{status},</if>
+            <if test="monthlyTarget != null">#{monthlyTarget},</if>
+            <if test="managerId != null">#{managerId},</if>
+            <if test="wechatId != null">#{wechatId},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateGuideInfo" parameterType="GuideInfo">
+        update guide_info
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="guideCode != null and guideCode != ''">guide_code = #{guideCode},</if>
+            <if test="guideName != null and guideName != ''">guide_name = #{guideName},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="employeeId != null">employee_id = #{employeeId},</if>
+            <if test="department != null">department = #{department},</if>
+            <if test="regionCode != null">region_code = #{regionCode},</if>
+            <if test="regionName != null">region_name = #{regionName},</if>
+            <if test="storeId != null">store_id = #{storeId},</if>
+            <if test="storeName != null">store_name = #{storeName},</if>
+            <if test="supervisorId != null">supervisor_id = #{supervisorId},</if>
+            <if test="supervisorName != null">supervisor_name = #{supervisorName},</if>
+            <if test="level != null">level = #{level},</if>
+            <if test="hireDate != null">hire_date = #{hireDate},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="monthlyTarget != null">monthly_target = #{monthlyTarget},</if>
+            <if test="managerId != null">manager_id = #{managerId},</if>
+            <if test="wechatId != null">wechat_id = #{wechatId},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where guide_id = #{guideId}
+    </update>
+
+    <delete id="deleteGuideInfoByGuideId" parameterType="Long">
+        delete from guide_info where guide_id = #{guideId}
+    </delete>
+
+    <delete id="deleteGuideInfoByGuideIds" parameterType="String">
+        delete from guide_info where guide_id in 
+        <foreach item="guideId" collection="array" open="(" separator="," close=")">
+            #{guideId}
+        </foreach>
+    </delete>
+
+    <select id="selectGuideInfoByGuideCode" parameterType="String" resultMap="GuideInfoResult">
+        <include refid="selectGuideInfoVo"/>
+        where guide_code = #{guideCode}
+    </select>
+
+    <select id="selectGuideInfoByStoreId" parameterType="Long" resultMap="GuideInfoResult">
+        <include refid="selectGuideInfoVo"/>
+        where store_id = #{storeId} and status = 1
+    </select>
+
+    <select id="selectGuideInfoByRegionCode" parameterType="String" resultMap="GuideInfoResult">
+        <include refid="selectGuideInfoVo"/>
+        where region_code = #{regionCode} and status = 1
+    </select>
+
+    <select id="selectActiveGuideInfoList" resultMap="GuideInfoResult">
+        <include refid="selectGuideInfoVo"/>
+        where status = 1
+        order by guide_code
+    </select>
+
+</mapper>

@@ -91,6 +91,26 @@ public class GuidePerformance extends BaseEntity
     @Excel(name = "全国排名")
     private Integer rankOverall;
 
+    /** CAI指数 */
+    @Excel(name = "CAI指数")
+    private BigDecimal caiScore;
+
+    /** RMV指数 */
+    @Excel(name = "RMV指数")
+    private BigDecimal rmvScore;
+
+    /** 九宫格位置 */
+    @Excel(name = "九宫格位置")
+    private String matrixPosition;
+
+    /** 九宫格类型 */
+    @Excel(name = "九宫格类型")
+    private String matrixType;
+
+    /** 趋势 */
+    @Excel(name = "趋势")
+    private String trend;
+
     // 关联查询字段
     /** 导购姓名 */
     private String guideName;
@@ -306,6 +326,46 @@ public class GuidePerformance extends BaseEntity
 
     public void setStoreName(String storeName) {
         this.storeName = storeName;
+    }
+
+    public BigDecimal getCaiScore() {
+        return caiScore;
+    }
+
+    public void setCaiScore(BigDecimal caiScore) {
+        this.caiScore = caiScore;
+    }
+
+    public BigDecimal getRmvScore() {
+        return rmvScore;
+    }
+
+    public void setRmvScore(BigDecimal rmvScore) {
+        this.rmvScore = rmvScore;
+    }
+
+    public String getMatrixPosition() {
+        return matrixPosition;
+    }
+
+    public void setMatrixPosition(String matrixPosition) {
+        this.matrixPosition = matrixPosition;
+    }
+
+    public String getMatrixType() {
+        return matrixType;
+    }
+
+    public void setMatrixType(String matrixType) {
+        this.matrixType = matrixType;
+    }
+
+    public String getTrend() {
+        return trend;
+    }
+
+    public void setTrend(String trend) {
+        this.trend = trend;
     }
 
     @Override
