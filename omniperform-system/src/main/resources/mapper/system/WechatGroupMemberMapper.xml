@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.WechatGroupMemberMapper">
+    
+    <resultMap type="WechatGroupMember" id="WechatGroupMemberResult">
+        <result property="membershipId"    column="membership_id"    />
+        <result property="groupId"    column="group_id"    />
+        <result property="memberId"    column="member_id"    />
+        <result property="openId"    column="open_id"    />
+        <result property="groupNickname"    column="group_nickname"    />
+        <result property="joinTime"    column="join_time"    />
+        <result property="memberRole"    column="member_role"    />
+        <result property="memberStatus"    column="member_status"    />
+        <result property="lastSpeakTime"    column="last_speak_time"    />
+        <result property="speakCount"    column="speak_count"    />
+        <result property="leaveTime"    column="leave_time"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectWechatGroupMemberVo">
+        select membership_id, group_id, member_id, open_id, group_nickname, join_time, member_role, member_status, last_speak_time, speak_count, leave_time, create_by, create_time, update_by, update_time, remark 
+        from wechat_group_member
+    </sql>
+
+    <select id="selectWechatGroupMemberList" parameterType="WechatGroupMember" resultMap="WechatGroupMemberResult">
+        <include refid="selectWechatGroupMemberVo"/>
+        <where>  
+            <if test="groupId != null "> and group_id = #{groupId}</if>
+            <if test="memberId != null "> and member_id = #{memberId}</if>
+            <if test="openId != null  and openId != ''"> and open_id = #{openId}</if>
+            <if test="groupNickname != null  and groupNickname != ''"> and group_nickname like concat('%', #{groupNickname}, '%')</if>
+            <if test="memberRole != null "> and member_role = #{memberRole}</if>
+            <if test="memberStatus != null "> and member_status = #{memberStatus}</if>
+            <if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+                and date_format(join_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+                and date_format(join_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by membership_id desc
+    </select>
+    
+    <select id="selectWechatGroupMemberByMembershipId" parameterType="Long" resultMap="WechatGroupMemberResult">
+        <include refid="selectWechatGroupMemberVo"/>
+        where membership_id = #{membershipId}
+    </select>
+
+    <select id="selectWechatGroupMemberByGroupAndMember" resultMap="WechatGroupMemberResult">
+        <include refid="selectWechatGroupMemberVo"/>
+        where group_id = #{groupId} and member_id = #{memberId}
+        limit 1
+    </select>
+
+    <select id="selectWechatGroupMemberByGroupAndOpenId" resultMap="WechatGroupMemberResult">
+        <include refid="selectWechatGroupMemberVo"/>
+        where group_id = #{groupId} and open_id = #{openId}
+        limit 1
+    </select>
+
+    <select id="selectWechatGroupMemberListByGroupId" parameterType="Long" resultMap="WechatGroupMemberResult">
+        <include refid="selectWechatGroupMemberVo"/>
+        where group_id = #{groupId}
+        order by join_time desc
+    </select>
+
+    <select id="selectWechatGroupMemberListByMemberId" parameterType="Long" resultMap="WechatGroupMemberResult">
+        <include refid="selectWechatGroupMemberVo"/>
+        where member_id = #{memberId}
+        order by join_time desc
+    </select>
+
+    <select id="selectActiveWechatGroupMemberList" parameterType="Long" resultMap="WechatGroupMemberResult">
+        <include refid="selectWechatGroupMemberVo"/>
+        where group_id = #{groupId} and member_status = 1
+        order by last_speak_time desc
+    </select>
+
+    <select id="selectWechatGroupMemberListByRole" resultMap="WechatGroupMemberResult">
+        <include refid="selectWechatGroupMemberVo"/>
+        where group_id = #{groupId} and member_role = #{memberRole}
+        order by join_time desc
+    </select>
+
+    <select id="countWechatGroupMembers" parameterType="Long" resultType="int">
+        select count(*) from wechat_group_member
+        where group_id = #{groupId}
+    </select>
+
+    <select id="countActiveWechatGroupMembers" parameterType="Long" resultType="int">
+        select count(*) from wechat_group_member
+        where group_id = #{groupId} and member_status = 1
+    </select>
+        
+    <insert id="insertWechatGroupMember" parameterType="WechatGroupMember" useGeneratedKeys="true" keyProperty="membershipId">
+        insert into wechat_group_member
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="groupId != null">group_id,</if>
+            <if test="memberId != null">member_id,</if>
+            <if test="openId != null and openId != ''">open_id,</if>
+            <if test="groupNickname != null and groupNickname != ''">group_nickname,</if>
+            <if test="joinTime != null">join_time,</if>
+            <if test="memberRole != null">member_role,</if>
+            <if test="memberStatus != null">member_status,</if>
+            <if test="lastSpeakTime != null">last_speak_time,</if>
+            <if test="speakCount != null">speak_count,</if>
+            <if test="leaveTime != null">leave_time,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="groupId != null">#{groupId},</if>
+            <if test="memberId != null">#{memberId},</if>
+            <if test="openId != null and openId != ''">#{openId},</if>
+            <if test="groupNickname != null and groupNickname != ''">#{groupNickname},</if>
+            <if test="joinTime != null">#{joinTime},</if>
+            <if test="memberRole != null">#{memberRole},</if>
+            <if test="memberStatus != null">#{memberStatus},</if>
+            <if test="lastSpeakTime != null">#{lastSpeakTime},</if>
+            <if test="speakCount != null">#{speakCount},</if>
+            <if test="leaveTime != null">#{leaveTime},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWechatGroupMember" parameterType="WechatGroupMember">
+        update wechat_group_member
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="groupId != null">group_id = #{groupId},</if>
+            <if test="memberId != null">member_id = #{memberId},</if>
+            <if test="openId != null and openId != ''">open_id = #{openId},</if>
+            <if test="groupNickname != null and groupNickname != ''">group_nickname = #{groupNickname},</if>
+            <if test="joinTime != null">join_time = #{joinTime},</if>
+            <if test="memberRole != null">member_role = #{memberRole},</if>
+            <if test="memberStatus != null">member_status = #{memberStatus},</if>
+            <if test="lastSpeakTime != null">last_speak_time = #{lastSpeakTime},</if>
+            <if test="speakCount != null">speak_count = #{speakCount},</if>
+            <if test="leaveTime != null">leave_time = #{leaveTime},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where membership_id = #{membershipId}
+    </update>
+
+    <update id="updateLastSpeakTime" parameterType="WechatGroupMember">
+        update wechat_group_member set last_speak_time = #{lastSpeakTime}
+        where membership_id = #{membershipId}
+    </update>
+
+    <update id="updateSpeakCount" parameterType="WechatGroupMember">
+        update wechat_group_member set speak_count = #{speakCount}
+        where membership_id = #{membershipId}
+    </update>
+
+    <delete id="deleteWechatGroupMemberByMembershipId" parameterType="Long">
+        delete from wechat_group_member where membership_id = #{membershipId}
+    </delete>
+
+    <delete id="deleteWechatGroupMemberByMembershipIds" parameterType="String">
+        delete from wechat_group_member where membership_id in 
+        <foreach item="membershipId" collection="array" open="(" separator="," close=")">
+            #{membershipId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteWechatGroupMemberByGroupId" parameterType="Long">
+        delete from wechat_group_member where group_id = #{groupId}
+    </delete>
+</mapper>

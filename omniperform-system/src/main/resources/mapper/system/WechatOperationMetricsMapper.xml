@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.WechatOperationMetricsMapper">
+    
+    <resultMap type="WechatOperationMetrics" id="WechatOperationMetricsResult">
+        <result property="metricId"    column="metric_id"    />
+        <result property="statDate"    column="stat_date"    />
+        <result property="statMonth"    column="stat_month"    />
+        <result property="userId"    column="user_id"    />
+        <result property="userName"    column="user_name"    />
+        <result property="department"    column="department"    />
+        <result property="friendRequests"    column="friend_requests"    />
+        <result property="friendAccepts"    column="friend_accepts"    />
+        <result property="friendTotal"    column="friend_total"    />
+        <result property="friendActive"    column="friend_active"    />
+        <result property="chatSessions"    column="chat_sessions"    />
+        <result property="chatMessages"    column="chat_messages"    />
+        <result property="chatReplies"    column="chat_replies"    />
+        <result property="chatDuration"    column="chat_duration"    />
+        <result property="groupMessages"    column="group_messages"    />
+        <result property="groupInteractions"    column="group_interactions"    />
+        <result property="momentsLikes"    column="moments_likes"    />
+        <result property="momentsComments"    column="moments_comments"    />
+        <result property="momentsShares"    column="moments_shares"    />
+        <result property="activityPushes"    column="activity_pushes"    />
+        <result property="activityViews"    column="activity_views"    />
+        <result property="activityParticipations"    column="activity_participations"    />
+        <result property="activityConversions"    column="activity_conversions"    />
+        <result property="dataReviews"    column="data_reviews"    />
+        <result property="reportGenerates"    column="report_generates"    />
+        <result property="insightsShared"    column="insights_shared"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectWechatOperationMetricsVo">
+        select metric_id, stat_date, stat_month, user_id, user_name, department, friend_requests, friend_accepts, friend_total, friend_active, chat_sessions, chat_messages, chat_replies, chat_duration, group_messages, group_interactions, moments_likes, moments_comments, moments_shares, activity_pushes, activity_views, activity_participations, activity_conversions, data_reviews, report_generates, insights_shared, create_time, update_time
+        from wechat_operation_metrics
+    </sql>
+
+    <select id="selectWechatOperationMetricsList" parameterType="WechatOperationMetrics" resultMap="WechatOperationMetricsResult">
+        <include refid="selectWechatOperationMetricsVo"/>
+        <where>  
+            <if test="statDate != null "> and stat_date = #{statDate}</if>
+            <if test="statMonth != null  and statMonth != ''"> and stat_month = #{statMonth}</if>
+            <if test="userId != null "> and user_id = #{userId}</if>
+            <if test="userName != null  and userName != ''"> and user_name = #{userName}</if>
+            <if test="department != null  and department != ''"> and department = #{department}</if>
+            <if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+                and date_format(stat_date,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+                and date_format(stat_date,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by stat_date desc, metric_id desc
+    </select>
+    
+    <select id="selectWechatOperationMetricsByMetricId" parameterType="Long" resultMap="WechatOperationMetricsResult">
+        <include refid="selectWechatOperationMetricsVo"/>
+        where metric_id = #{metricId}
+    </select>
+
+    <select id="selectWechatOperationMetricsByDateAndType" resultMap="WechatOperationMetricsResult">
+        <include refid="selectWechatOperationMetricsVo"/>
+        where stat_date = #{statDate} and user_id = #{userId}
+        limit 1
+    </select>
+
+    <select id="selectWechatOperationMetricsListByGuideId" parameterType="Long" resultMap="WechatOperationMetricsResult">
+        <include refid="selectWechatOperationMetricsVo"/>
+        where user_id = #{userId}
+        order by stat_date desc
+    </select>
+
+    <select id="selectWechatOperationMetricsListByRegion" parameterType="String" resultMap="WechatOperationMetricsResult">
+        <include refid="selectWechatOperationMetricsVo"/>
+        where department = #{department}
+        order by stat_date desc
+    </select>
+
+    <select id="selectWechatOperationMetricsListByDateRange" resultMap="WechatOperationMetricsResult">
+        <include refid="selectWechatOperationMetricsVo"/>
+        <where>
+            <if test="startDate != null and endDate != null">
+                and stat_date between #{startDate} and #{endDate}
+            </if>
+            <if test="userId != null">
+                and user_id = #{userId}
+            </if>
+        </where>
+        order by stat_date desc
+    </select>
+
+    <select id="selectOperationTrendData" parameterType="map" resultType="map">
+        select 
+            stat_date as date,
+            sum(friend_accepts) as newBindingUsers,
+            sum(friend_active) as activeUsers,
+            sum(chat_messages) as messagesSent,
+            sum(chat_replies) as messagesReplied,
+            sum(group_interactions) as groupActivity,
+            sum(activity_pushes) as sopExecutions,
+            sum(activity_conversions) as convertedUsers,
+            avg(activity_conversions * 100.0 / NULLIF(activity_participations, 0)) as conversionRate
+        from wechat_operation_metrics
+        <where>
+            <if test="startDate != null and endDate != null">
+                and stat_date between #{startDate} and #{endDate}
+            </if>
+            <if test="userId != null">
+                and user_id = #{userId}
+            </if>
+            <if test="department != null and department != ''">
+                and department = #{department}
+            </if>
+            <if test="userName != null and userName != ''">
+                and user_name = #{userName}
+            </if>
+        </where>
+        group by stat_date
+        order by stat_date
+    </select>
+
+    <select id="selectOperationSummaryData" parameterType="map" resultType="map">
+        select 
+            count(*) as totalRecords,
+            sum(friend_accepts) as totalNewBindingUsers,
+            sum(friend_active) as totalActiveUsers,
+            sum(chat_messages) as totalMessagesSent,
+            sum(chat_replies) as totalMessagesReplied,
+            sum(group_interactions) as totalGroupActivity,
+            sum(activity_pushes) as totalSopExecutions,
+            sum(activity_conversions) as totalConvertedUsers,
+            avg(activity_conversions * 100.0 / NULLIF(activity_participations, 0)) as avgConversionRate
+        from wechat_operation_metrics
+        <where>
+            <if test="startDate != null and endDate != null">
+                and stat_date between #{startDate} and #{endDate}
+            </if>
+            <if test="userId != null">
+                and user_id = #{userId}
+            </if>
+            <if test="department != null and department != ''">
+                and department = #{department}
+            </if>
+            <if test="userName != null and userName != ''">
+                and user_name = #{userName}
+            </if>
+        </where>
+    </select>
+
+    <select id="countWechatOperationMetrics" parameterType="WechatOperationMetrics" resultType="int">
+        select count(*) from wechat_operation_metrics
+        <where>
+            <if test="userId != null "> and user_id = #{userId}</if>
+            <if test="department != null  and department != ''"> and department = #{department}</if>
+            <if test="userName != null  and userName != ''"> and user_name = #{userName}</if>
+        </where>
+    </select>
+        
+    <insert id="insertWechatOperationMetrics" parameterType="WechatOperationMetrics" useGeneratedKeys="true" keyProperty="metricId">
+        insert into wechat_operation_metrics
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="statDate != null">stat_date,</if>
+            <if test="statMonth != null">stat_month,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="userName != null">user_name,</if>
+            <if test="department != null">department,</if>
+            <if test="friendRequests != null">friend_requests,</if>
+            <if test="friendAccepts != null">friend_accepts,</if>
+            <if test="friendTotal != null">friend_total,</if>
+            <if test="friendActive != null">friend_active,</if>
+            <if test="chatSessions != null">chat_sessions,</if>
+            <if test="chatMessages != null">chat_messages,</if>
+            <if test="chatReplies != null">chat_replies,</if>
+            <if test="chatDuration != null">chat_duration,</if>
+            <if test="groupMessages != null">group_messages,</if>
+            <if test="groupInteractions != null">group_interactions,</if>
+            <if test="momentsLikes != null">moments_likes,</if>
+            <if test="momentsComments != null">moments_comments,</if>
+            <if test="momentsShares != null">moments_shares,</if>
+            <if test="activityPushes != null">activity_pushes,</if>
+            <if test="activityViews != null">activity_views,</if>
+            <if test="activityParticipations != null">activity_participations,</if>
+            <if test="activityConversions != null">activity_conversions,</if>
+            <if test="dataReviews != null">data_reviews,</if>
+            <if test="reportGenerates != null">report_generates,</if>
+            <if test="insightsShared != null">insights_shared,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="statDate != null">#{statDate},</if>
+            <if test="statMonth != null">#{statMonth},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="userName != null">#{userName},</if>
+            <if test="department != null">#{department},</if>
+            <if test="friendRequests != null">#{friendRequests},</if>
+            <if test="friendAccepts != null">#{friendAccepts},</if>
+            <if test="friendTotal != null">#{friendTotal},</if>
+            <if test="friendActive != null">#{friendActive},</if>
+            <if test="chatSessions != null">#{chatSessions},</if>
+            <if test="chatMessages != null">#{chatMessages},</if>
+            <if test="chatReplies != null">#{chatReplies},</if>
+            <if test="chatDuration != null">#{chatDuration},</if>
+            <if test="groupMessages != null">#{groupMessages},</if>
+            <if test="groupInteractions != null">#{groupInteractions},</if>
+            <if test="momentsLikes != null">#{momentsLikes},</if>
+            <if test="momentsComments != null">#{momentsComments},</if>
+            <if test="momentsShares != null">#{momentsShares},</if>
+            <if test="activityPushes != null">#{activityPushes},</if>
+            <if test="activityViews != null">#{activityViews},</if>
+            <if test="activityParticipations != null">#{activityParticipations},</if>
+            <if test="activityConversions != null">#{activityConversions},</if>
+            <if test="dataReviews != null">#{dataReviews},</if>
+            <if test="reportGenerates != null">#{reportGenerates},</if>
+            <if test="insightsShared != null">#{insightsShared},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWechatOperationMetrics" parameterType="WechatOperationMetrics">
+        update wechat_operation_metrics
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="statDate != null">stat_date = #{statDate},</if>
+            <if test="statMonth != null">stat_month = #{statMonth},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="userName != null">user_name = #{userName},</if>
+            <if test="department != null">department = #{department},</if>
+            <if test="friendRequests != null">friend_requests = #{friendRequests},</if>
+            <if test="friendAccepts != null">friend_accepts = #{friendAccepts},</if>
+            <if test="friendTotal != null">friend_total = #{friendTotal},</if>
+            <if test="friendActive != null">friend_active = #{friendActive},</if>
+            <if test="chatSessions != null">chat_sessions = #{chatSessions},</if>
+            <if test="chatMessages != null">chat_messages = #{chatMessages},</if>
+            <if test="chatReplies != null">chat_replies = #{chatReplies},</if>
+            <if test="chatDuration != null">chat_duration = #{chatDuration},</if>
+            <if test="groupMessages != null">group_messages = #{groupMessages},</if>
+            <if test="groupInteractions != null">group_interactions = #{groupInteractions},</if>
+            <if test="momentsLikes != null">moments_likes = #{momentsLikes},</if>
+            <if test="momentsComments != null">moments_comments = #{momentsComments},</if>
+            <if test="momentsShares != null">moments_shares = #{momentsShares},</if>
+            <if test="activityPushes != null">activity_pushes = #{activityPushes},</if>
+            <if test="activityViews != null">activity_views = #{activityViews},</if>
+            <if test="activityParticipations != null">activity_participations = #{activityParticipations},</if>
+            <if test="activityConversions != null">activity_conversions = #{activityConversions},</if>
+            <if test="dataReviews != null">data_reviews = #{dataReviews},</if>
+            <if test="reportGenerates != null">report_generates = #{reportGenerates},</if>
+            <if test="insightsShared != null">insights_shared = #{insightsShared},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where metric_id = #{metricId}
+    </update>
+
+    <delete id="deleteWechatOperationMetricsByMetricId" parameterType="Long">
+        delete from wechat_operation_metrics where metric_id = #{metricId}
+    </delete>
+
+    <delete id="deleteWechatOperationMetricsByMetricIds" parameterType="String">
+        delete from wechat_operation_metrics where metric_id in 
+        <foreach item="metricId" collection="array" open="(" separator="," close=")">
+            #{metricId}
+        </foreach>
+    </delete>
+</mapper>

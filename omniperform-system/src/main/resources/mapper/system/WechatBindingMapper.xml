@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.WechatBindingMapper">
+    
+    <resultMap type="WechatBinding" id="WechatBindingResult">
+        <result property="bindingId"    column="binding_id"    />
+        <result property="memberId"    column="member_id"    />
+        <result property="openId"    column="open_id"    />
+        <result property="unionId"    column="union_id"    />
+        <result property="nickname"    column="nickname"    />
+        <result property="avatarUrl"    column="avatar_url"    />
+        <result property="bindingTime"    column="binding_time"    />
+        <result property="bindingStatus"    column="binding_status"    />
+        <result property="lastActiveTime"    column="last_active_time"    />
+        <result property="guideId"    column="guide_id"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectWechatBindingVo">
+        select binding_id, member_id, open_id, union_id, nickname, avatar_url, binding_time, binding_status, last_active_time, guide_id, create_by, create_time, update_by, update_time, remark 
+        from wechat_binding
+    </sql>
+
+    <select id="selectWechatBindingList" parameterType="WechatBinding" resultMap="WechatBindingResult">
+        <include refid="selectWechatBindingVo"/>
+        <where>  
+            <if test="memberId != null "> and member_id = #{memberId}</if>
+            <if test="openId != null  and openId != ''"> and open_id = #{openId}</if>
+            <if test="unionId != null  and unionId != ''"> and union_id = #{unionId}</if>
+            <if test="nickname != null  and nickname != ''"> and nickname like concat('%', #{nickname}, '%')</if>
+            <if test="bindingStatus != null "> and binding_status = #{bindingStatus}</if>
+            <if test="guideId != null "> and guide_id = #{guideId}</if>
+            <if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+                and date_format(binding_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+                and date_format(binding_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by binding_id desc
+    </select>
+    
+    <select id="selectWechatBindingByBindingId" parameterType="Long" resultMap="WechatBindingResult">
+        <include refid="selectWechatBindingVo"/>
+        where binding_id = #{bindingId}
+    </select>
+
+    <select id="selectWechatBindingByMemberId" parameterType="Long" resultMap="WechatBindingResult">
+        <include refid="selectWechatBindingVo"/>
+        where member_id = #{memberId}
+        limit 1
+    </select>
+
+    <select id="selectWechatBindingByOpenId" parameterType="String" resultMap="WechatBindingResult">
+        <include refid="selectWechatBindingVo"/>
+        where open_id = #{openId}
+        limit 1
+    </select>
+
+    <select id="selectWechatBindingByUnionId" parameterType="String" resultMap="WechatBindingResult">
+        <include refid="selectWechatBindingVo"/>
+        where union_id = #{unionId}
+        limit 1
+    </select>
+
+    <select id="selectWechatBindingListByGuideId" parameterType="Long" resultMap="WechatBindingResult">
+        <include refid="selectWechatBindingVo"/>
+        where guide_id = #{guideId}
+        order by binding_time desc
+    </select>
+
+    <select id="countWechatBindings" parameterType="WechatBinding" resultType="int">
+        select count(*) from wechat_binding
+        <where>
+            <if test="bindingStatus != null "> and binding_status = #{bindingStatus}</if>
+            <if test="guideId != null "> and guide_id = #{guideId}</if>
+        </where>
+    </select>
+        
+    <insert id="insertWechatBinding" parameterType="WechatBinding" useGeneratedKeys="true" keyProperty="bindingId">
+        insert into wechat_binding
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="memberId != null">member_id,</if>
+            <if test="openId != null and openId != ''">open_id,</if>
+            <if test="unionId != null and unionId != ''">union_id,</if>
+            <if test="nickname != null and nickname != ''">nickname,</if>
+            <if test="avatarUrl != null and avatarUrl != ''">avatar_url,</if>
+            <if test="bindingTime != null">binding_time,</if>
+            <if test="bindingStatus != null">binding_status,</if>
+            <if test="lastActiveTime != null">last_active_time,</if>
+            <if test="guideId != null">guide_id,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="memberId != null">#{memberId},</if>
+            <if test="openId != null and openId != ''">#{openId},</if>
+            <if test="unionId != null and unionId != ''">#{unionId},</if>
+            <if test="nickname != null and nickname != ''">#{nickname},</if>
+            <if test="avatarUrl != null and avatarUrl != ''">#{avatarUrl},</if>
+            <if test="bindingTime != null">#{bindingTime},</if>
+            <if test="bindingStatus != null">#{bindingStatus},</if>
+            <if test="lastActiveTime != null">#{lastActiveTime},</if>
+            <if test="guideId != null">#{guideId},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWechatBinding" parameterType="WechatBinding">
+        update wechat_binding
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="memberId != null">member_id = #{memberId},</if>
+            <if test="openId != null and openId != ''">open_id = #{openId},</if>
+            <if test="unionId != null and unionId != ''">union_id = #{unionId},</if>
+            <if test="nickname != null and nickname != ''">nickname = #{nickname},</if>
+            <if test="avatarUrl != null and avatarUrl != ''">avatar_url = #{avatarUrl},</if>
+            <if test="bindingTime != null">binding_time = #{bindingTime},</if>
+            <if test="bindingStatus != null">binding_status = #{bindingStatus},</if>
+            <if test="lastActiveTime != null">last_active_time = #{lastActiveTime},</if>
+            <if test="guideId != null">guide_id = #{guideId},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where binding_id = #{bindingId}
+    </update>
+
+    <update id="updateLastActiveTime" parameterType="WechatBinding">
+        update wechat_binding set last_active_time = #{lastActiveTime}
+        where binding_id = #{bindingId}
+    </update>
+
+    <delete id="deleteWechatBindingByBindingId" parameterType="Long">
+        delete from wechat_binding where binding_id = #{bindingId}
+    </delete>
+
+    <delete id="deleteWechatBindingByBindingIds" parameterType="String">
+        delete from wechat_binding where binding_id in 
+        <foreach item="bindingId" collection="array" open="(" separator="," close=")">
+            #{bindingId}
+        </foreach>
+    </delete>
+</mapper>

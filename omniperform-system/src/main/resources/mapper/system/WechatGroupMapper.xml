@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.WechatGroupMapper">
+    
+    <resultMap type="WechatGroup" id="WechatGroupResult">
+        <result property="groupId"    column="group_id"    />
+        <result property="groupName"    column="group_name"    />
+        <result property="groupType"    column="group_type"    jdbcType="VARCHAR" typeHandler="org.apache.ibatis.type.StringTypeHandler" />
+        <result property="description"    column="description"    />
+        <result property="ownerId"    column="group_owner_id"    />
+        <result property="status"    column="status"    />
+        <result property="memberCount"    column="member_count"    />
+        <result property="maxMembers"    column="max_member_count"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectWechatGroupVo">
+        select group_id, group_name, CAST(group_type AS CHAR) as group_type, description, group_owner_id, status, member_count, max_member_count, create_by, create_time, update_by, update_time, remark 
+        from wechat_group
+    </sql>
+
+    <select id="selectWechatGroupList" parameterType="WechatGroup" resultMap="WechatGroupResult">
+        <include refid="selectWechatGroupVo"/>
+        <where>  
+            <if test="groupName != null  and groupName != ''"> and group_name like concat('%', #{groupName}, '%')</if>
+            <if test="groupType != null "> and group_type = #{groupType}</if>
+            <if test="ownerId != null "> and group_owner_id = #{ownerId}</if>
+            <if test="status != null "> and status = #{status}</if>
+            <if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+                and date_format(create_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+                and date_format(create_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by group_id desc
+    </select>
+    
+    <select id="selectWechatGroupByGroupId" parameterType="Long" resultMap="WechatGroupResult">
+        <include refid="selectWechatGroupVo"/>
+        where group_id = #{groupId}
+    </select>
+
+    <select id="selectWechatGroupListByOwnerId" parameterType="Long" resultMap="WechatGroupResult">
+        <include refid="selectWechatGroupVo"/>
+        where group_owner_id = #{ownerId}
+        order by create_time desc
+    </select>
+
+    <select id="selectWechatGroupListByType" parameterType="Integer" resultMap="WechatGroupResult">
+        <include refid="selectWechatGroupVo"/>
+        where group_type = #{groupType}
+        order by create_time desc
+    </select>
+
+    <select id="selectActiveWechatGroupList" parameterType="WechatGroup" resultMap="WechatGroupResult">
+        <include refid="selectWechatGroupVo"/>
+        <where>
+            and status = 1
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="countWechatGroups" parameterType="WechatGroup" resultType="int">
+        select count(*) from wechat_group
+        <where>
+            <if test="status != null "> and status = #{status}</if>
+        </where>
+    </select>
+        
+    <insert id="insertWechatGroup" parameterType="WechatGroup" useGeneratedKeys="true" keyProperty="groupId">
+        insert into wechat_group
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="groupName != null and groupName != ''">group_name,</if>
+            <if test="groupType != null">group_type,</if>
+            <if test="description != null">description,</if>
+            <if test="ownerId != null">group_owner_id,</if>
+            <if test="status != null">status,</if>
+            <if test="memberCount != null">member_count,</if>
+            <if test="maxMembers != null">max_member_count,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="groupName != null and groupName != ''">#{groupName},</if>
+            <if test="groupType != null">#{groupType},</if>
+            <if test="description != null">#{description},</if>
+            <if test="ownerId != null">#{ownerId},</if>
+            <if test="status != null">#{status},</if>
+            <if test="memberCount != null">#{memberCount},</if>
+            <if test="maxMembers != null">#{maxMembers},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWechatGroup" parameterType="WechatGroup">
+        update wechat_group
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="groupName != null and groupName != ''">group_name = #{groupName},</if>
+            <if test="groupType != null">group_type = #{groupType},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="ownerId != null">group_owner_id = #{ownerId},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="memberCount != null">member_count = #{memberCount},</if>
+            <if test="maxMembers != null">max_member_count = #{maxMembers},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where group_id = #{groupId}
+    </update>
+
+    <update id="updateMemberCount" parameterType="WechatGroup">
+        update wechat_group set member_count = #{memberCount}
+        where group_id = #{groupId}
+    </update>
+
+    <delete id="deleteWechatGroupByGroupId" parameterType="Long">
+        delete from wechat_group where group_id = #{groupId}
+    </delete>
+
+    <delete id="deleteWechatGroupByGroupIds" parameterType="String">
+        delete from wechat_group where group_id in 
+        <foreach item="groupId" collection="array" open="(" separator="," close=")">
+            #{groupId}
+        </foreach>
+    </delete>
+</mapper>

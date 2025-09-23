@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.WechatSopPlanMapper">
+    
+    <resultMap type="WechatSopPlan" id="WechatSopPlanResult">
+        <result property="sopPlanId"    column="sop_plan_id"    />
+        <result property="sopName"    column="sop_name"    />
+        <result property="sopType"    column="sop_type"    />
+        <result property="targetGroupId"    column="target_group_id"    />
+        <result property="targetUserId"    column="target_user_id"    />
+        <result property="executionTime"    column="execution_time"    />
+        <result property="executionStatus"    column="execution_status"    />
+        <result property="messageContent"    column="message_content"    />
+        <result property="messageType"    column="message_type"    />
+        <result property="mediaUrl"    column="media_url"    />
+        <result property="actualExecutionTime"    column="actual_execution_time"    />
+        <result property="executionResult"    column="execution_result"    />
+        <result property="failureReason"    column="failure_reason"    />
+        <result property="guideId"    column="guide_id"    />
+        <result property="retryCount"    column="retry_count"    />
+        <result property="maxRetries"    column="max_retries"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectWechatSopPlanVo">
+        select sop_plan_id, sop_name, sop_type, target_group_id, target_user_id, execution_time, execution_status, message_content, message_type, media_url, actual_execution_time, execution_result, failure_reason, guide_id, retry_count, max_retries, create_by, create_time, update_by, update_time, remark 
+        from wechat_sop_plan
+    </sql>
+
+    <select id="selectWechatSopPlanList" parameterType="WechatSopPlan" resultMap="WechatSopPlanResult">
+        <include refid="selectWechatSopPlanVo"/>
+        <where>  
+            <if test="sopName != null  and sopName != ''"> and sop_name like concat('%', #{sopName}, '%')</if>
+            <if test="sopType != null "> and sop_type = #{sopType}</if>
+            <if test="targetGroupId != null "> and target_group_id = #{targetGroupId}</if>
+            <if test="targetUserId != null "> and target_user_id = #{targetUserId}</if>
+            <if test="executionStatus != null "> and execution_status = #{executionStatus}</if>
+            <if test="messageType != null "> and message_type = #{messageType}</if>
+            <if test="guideId != null "> and guide_id = #{guideId}</if>
+            <if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+                and date_format(execution_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+                and date_format(execution_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by sop_plan_id desc
+    </select>
+    
+    <select id="selectWechatSopPlanBySopPlanId" parameterType="Long" resultMap="WechatSopPlanResult">
+        <include refid="selectWechatSopPlanVo"/>
+        where sop_plan_id = #{sopPlanId}
+    </select>
+
+    <select id="selectWechatSopPlanListByGuideId" parameterType="Long" resultMap="WechatSopPlanResult">
+        <include refid="selectWechatSopPlanVo"/>
+        where guide_id = #{guideId}
+        order by execution_time desc
+    </select>
+
+    <select id="selectWechatSopPlanListByType" parameterType="Integer" resultMap="WechatSopPlanResult">
+        <include refid="selectWechatSopPlanVo"/>
+        where sop_type = #{sopType}
+        order by execution_time desc
+    </select>
+
+    <select id="selectWechatSopPlanListByStatus" parameterType="Integer" resultMap="WechatSopPlanResult">
+        <include refid="selectWechatSopPlanVo"/>
+        where execution_status = #{executionStatus}
+        order by execution_time desc
+    </select>
+
+    <select id="selectPendingWechatSopPlanList" parameterType="java.util.Date" resultMap="WechatSopPlanResult">
+        <include refid="selectWechatSopPlanVo"/>
+        where execution_status = 0 and execution_time &lt;= #{currentTime}
+        order by execution_time asc
+    </select>
+
+    <select id="selectWechatSopPlanListByTargetGroupId" parameterType="Long" resultMap="WechatSopPlanResult">
+        <include refid="selectWechatSopPlanVo"/>
+        where target_group_id = #{targetGroupId}
+        order by execution_time desc
+    </select>
+
+    <select id="selectWechatSopPlanListByTargetUserId" parameterType="Long" resultMap="WechatSopPlanResult">
+        <include refid="selectWechatSopPlanVo"/>
+        where target_user_id = #{targetUserId}
+        order by execution_time desc
+    </select>
+
+    <select id="selectRetryWechatSopPlanList" parameterType="WechatSopPlan" resultMap="WechatSopPlanResult">
+        <include refid="selectWechatSopPlanVo"/>
+        where execution_status = 2 and retry_count &lt; max_retries
+        <if test="guideId != null "> and guide_id = #{guideId}</if>
+        order by execution_time desc
+    </select>
+
+    <select id="countWechatSopPlans" parameterType="WechatSopPlan" resultType="int">
+        select count(*) from wechat_sop_plan
+        <where>
+            <if test="sopType != null "> and sop_type = #{sopType}</if>
+            <if test="executionStatus != null "> and execution_status = #{executionStatus}</if>
+            <if test="guideId != null "> and guide_id = #{guideId}</if>
+        </where>
+    </select>
+        
+    <insert id="insertWechatSopPlan" parameterType="WechatSopPlan" useGeneratedKeys="true" keyProperty="sopPlanId">
+        insert into wechat_sop_plan
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="sopName != null and sopName != ''">sop_name,</if>
+            <if test="sopType != null">sop_type,</if>
+            <if test="targetGroupId != null">target_group_id,</if>
+            <if test="targetUserId != null">target_user_id,</if>
+            <if test="executionTime != null">execution_time,</if>
+            <if test="executionStatus != null">execution_status,</if>
+            <if test="messageContent != null">message_content,</if>
+            <if test="messageType != null">message_type,</if>
+            <if test="mediaUrl != null">media_url,</if>
+            <if test="actualExecutionTime != null">actual_execution_time,</if>
+            <if test="executionResult != null">execution_result,</if>
+            <if test="failureReason != null">failure_reason,</if>
+            <if test="guideId != null">guide_id,</if>
+            <if test="retryCount != null">retry_count,</if>
+            <if test="maxRetries != null">max_retries,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="sopName != null and sopName != ''">#{sopName},</if>
+            <if test="sopType != null">#{sopType},</if>
+            <if test="targetGroupId != null">#{targetGroupId},</if>
+            <if test="targetUserId != null">#{targetUserId},</if>
+            <if test="executionTime != null">#{executionTime},</if>
+            <if test="executionStatus != null">#{executionStatus},</if>
+            <if test="messageContent != null">#{messageContent},</if>
+            <if test="messageType != null">#{messageType},</if>
+            <if test="mediaUrl != null">#{mediaUrl},</if>
+            <if test="actualExecutionTime != null">#{actualExecutionTime},</if>
+            <if test="executionResult != null">#{executionResult},</if>
+            <if test="failureReason != null">#{failureReason},</if>
+            <if test="guideId != null">#{guideId},</if>
+            <if test="retryCount != null">#{retryCount},</if>
+            <if test="maxRetries != null">#{maxRetries},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWechatSopPlan" parameterType="WechatSopPlan">
+        update wechat_sop_plan
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="sopName != null and sopName != ''">sop_name = #{sopName},</if>
+            <if test="sopType != null">sop_type = #{sopType},</if>
+            <if test="targetGroupId != null">target_group_id = #{targetGroupId},</if>
+            <if test="targetUserId != null">target_user_id = #{targetUserId},</if>
+            <if test="executionTime != null">execution_time = #{executionTime},</if>
+            <if test="executionStatus != null">execution_status = #{executionStatus},</if>
+            <if test="messageContent != null">message_content = #{messageContent},</if>
+            <if test="messageType != null">message_type = #{messageType},</if>
+            <if test="mediaUrl != null">media_url = #{mediaUrl},</if>
+            <if test="actualExecutionTime != null">actual_execution_time = #{actualExecutionTime},</if>
+            <if test="executionResult != null">execution_result = #{executionResult},</if>
+            <if test="failureReason != null">failure_reason = #{failureReason},</if>
+            <if test="guideId != null">guide_id = #{guideId},</if>
+            <if test="retryCount != null">retry_count = #{retryCount},</if>
+            <if test="maxRetries != null">max_retries = #{maxRetries},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where sop_plan_id = #{sopPlanId}
+    </update>
+
+    <update id="updateExecutionStatus" parameterType="WechatSopPlan">
+        update wechat_sop_plan 
+        set execution_status = #{executionStatus},
+            actual_execution_time = #{actualExecutionTime},
+            execution_result = #{executionResult},
+            failure_reason = #{failureReason}
+        where sop_plan_id = #{sopPlanId}
+    </update>
+
+    <update id="updateRetryCount" parameterType="WechatSopPlan">
+        update wechat_sop_plan set retry_count = #{retryCount}
+        where sop_plan_id = #{sopPlanId}
+    </update>
+
+    <delete id="deleteWechatSopPlanBySopPlanId" parameterType="Long">
+        delete from wechat_sop_plan where sop_plan_id = #{sopPlanId}
+    </delete>
+
+    <delete id="deleteWechatSopPlanBySopPlanIds" parameterType="String">
+        delete from wechat_sop_plan where sop_plan_id in 
+        <foreach item="sopPlanId" collection="array" open="(" separator="," close=")">
+            #{sopPlanId}
+        </foreach>
+    </delete>
+</mapper>
