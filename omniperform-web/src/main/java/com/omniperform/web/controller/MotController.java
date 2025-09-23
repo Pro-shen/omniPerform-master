@@ -1,15 +1,24 @@
 package com.omniperform.web.controller;
 
 import com.omniperform.web.common.Result;
+import com.omniperform.web.domain.MotTask;
+import com.omniperform.web.service.IMotTaskService;
 import com.omniperform.common.annotation.Anonymous;
+import com.omniperform.common.core.page.TableDataInfo;
+import com.omniperform.common.core.controller.BaseController;
+import com.omniperform.common.utils.poi.ExcelUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletResponse;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.Date;
 
 /**
  * MOT管理控制器
@@ -21,52 +30,58 @@ import java.util.*;
 @RequestMapping("/mot")
 @CrossOrigin(origins = "*")
 @Api(tags = "MOT管理")
-public class MotController {
+public class MotController extends BaseController {
 
     private static final Logger log = LoggerFactory.getLogger(MotController.class);
+
+    @Autowired
+    private IMotTaskService motTaskService;
 
     /**
      * 获取MOT任务列表
      */
     @GetMapping("/tasks")
     @ApiOperation("获取MOT任务列表")
-    public Result getMotTasks(@RequestParam(defaultValue = "1") int page,
-                              @RequestParam(defaultValue = "10") int size,
-                              @RequestParam(required = false) String status,
-                              @RequestParam(required = false) String priority) {
+    public TableDataInfo getMotTasks(MotTask motTask) {
+        startPage();
+        List<MotTask> list = motTaskService.selectMotTaskList(motTask);
+        return getDataTable(list);
+    }
+
+    /**
+     * 获取MOT任务列表（兼容前端API）
+     */
+    @GetMapping("/tasks/list")
+    @ApiOperation("获取MOT任务列表（兼容前端）")
+    public Result getMotTasksList(@RequestParam(defaultValue = "1") int page,
+                                  @RequestParam(defaultValue = "10") int size,
+                                  @RequestParam(required = false) String status,
+                                  @RequestParam(required = false) String priority,
+                                  @RequestParam(required = false) String motType,
+                                  @RequestParam(required = false) String guideName,
+                                  @RequestParam(required = false) String memberName) {
         try {
-            List<Map<String, Object>> tasks = new ArrayList<>();
+            MotTask motTask = new MotTask();
+            motTask.setStatus(status);
+            motTask.setPriority(priority);
+            motTask.setMotType(motType);
+            motTask.setGuideName(guideName);
+            motTask.setMemberName(memberName);
             
-            String[] types = {"首购后回访", "购买后指导", "复购提醒", "生日关怀", "节日问候", "产品推荐", "使用指导", "满意度调研"};
-            String[] priorities = {"高", "中", "低"};
-            String[] statuses = {"待执行", "执行中", "已完成", "已取消"};
-            String[] guides = {"张小丽", "李明华", "王雅琪", "赵晓燕", "钱志强", "孙美玲", "周建国", "吴佳慧"};
-            String[] memberNames = {"李雅婷", "王晓敏", "张美琳", "陈思雨", "刘佳怡", "赵雪莹", "孙梦洁", "周欣怡", "吴雨桐", "郑晓雯", 
-                                   "黄诗涵", "徐梦琪", "朱雅静", "林思妤", "何雨萱", "罗美娜", "高雅琳", "梁诗雅", "谢雨欣", "韩美丽",
-                                   "冯雅芳", "曹思琪", "彭雨婷", "蒋美玉", "魏雅娟", "董思颖", "薛雨洁", "范美华", "邓雅丽", "石思敏"};
+            // 手动设置分页参数
+            com.github.pagehelper.PageHelper.startPage(page, size);
+            List<MotTask> list = motTaskService.selectMotTaskList(motTask);
             
-            for (int i = 0; i < 20; i++) {
-                Map<String, Object> task = new HashMap<>();
-                task.put("id", i + 1);
-                task.put("memberId", "M" + String.format("%06d", i + 1));
-                task.put("memberName", memberNames[i % memberNames.length]);
-                task.put("motType", types[i % types.length]);
-                task.put("priority", priorities[i % priorities.length]);
-                task.put("status", statuses[i % statuses.length]);
-                task.put("guideName", guides[i % guides.length]);
-                task.put("createDate", LocalDate.now().minusDays(i % 7).toString());
-                task.put("dueDate", LocalDate.now().plusDays((i % 3) + 1).toString());
-                task.put("description", "针对" + task.get("memberName") + "的" + task.get("motType"));
-                tasks.add(task);
-            }
+            // 使用PageInfo获取分页信息
+            com.github.pagehelper.PageInfo<MotTask> pageInfo = new com.github.pagehelper.PageInfo<>(list);
             
             Map<String, Object> result = new HashMap<>();
-            result.put("tasks", tasks.subList((page - 1) * size, Math.min(page * size, tasks.size())));
-            result.put("total", tasks.size());
+            result.put("tasks", list);
+            result.put("total", pageInfo.getTotal());
             result.put("page", page);
             result.put("size", size);
             
-            log.info("获取MOT任务列表成功，页码: {}, 大小: {}", page, size);
+            log.info("获取MOT任务列表成功，页码: {}, 大小: {}, 总数: {}", page, size, pageInfo.getTotal());
             return Result.success("获取MOT任务列表成功", result);
         } catch (Exception e) {
             log.error("获取MOT任务列表失败: {}", e.getMessage(), e);
@@ -79,22 +94,18 @@ public class MotController {
      */
     @PostMapping("/tasks")
     @ApiOperation("创建MOT任务")
-    public Result createMotTask(@RequestBody Map<String, Object> taskData) {
+    public Result createMotTask(@RequestBody MotTask motTask) {
         try {
-            Map<String, Object> task = new HashMap<>();
-            task.put("id", System.currentTimeMillis());
-            task.put("memberId", taskData.get("memberId"));
-            task.put("memberName", taskData.get("memberName"));
-            task.put("motType", taskData.get("motType"));
-            task.put("priority", taskData.get("priority"));
-            task.put("status", "待执行");
-            task.put("guideName", taskData.get("guideName"));
-            task.put("createDate", LocalDate.now().toString());
-            task.put("dueDate", taskData.get("dueDate"));
-            task.put("description", taskData.get("description"));
+            motTask.setStatus("待执行");
+            motTask.setDataMonth(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM")));
+            int result = motTaskService.insertMotTask(motTask);
             
-            log.info("创建MOT任务成功，任务ID: {}", task.get("id"));
-            return Result.success("创建MOT任务成功", task);
+            if (result > 0) {
+                log.info("创建MOT任务成功，任务ID: {}", motTask.getTaskId());
+                return Result.success("创建MOT任务成功", motTask);
+            } else {
+                return Result.error("创建MOT任务失败");
+            }
         } catch (Exception e) {
             log.error("创建MOT任务失败: {}", e.getMessage(), e);
             return Result.error("创建MOT任务失败");
@@ -106,22 +117,17 @@ public class MotController {
      */
     @PutMapping("/tasks/{taskId}")
     @ApiOperation("更新MOT任务")
-    public Result updateMotTask(@PathVariable String taskId, @RequestBody Map<String, Object> taskData) {
+    public Result updateMotTask(@PathVariable Long taskId, @RequestBody MotTask motTask) {
         try {
-            Map<String, Object> task = new HashMap<>();
-            task.put("id", taskId);
-            task.put("memberId", taskData.get("memberId"));
-            task.put("memberName", taskData.get("memberName"));
-            task.put("motType", taskData.get("motType"));
-            task.put("priority", taskData.get("priority"));
-            task.put("status", taskData.get("status"));
-            task.put("guideName", taskData.get("guideName"));
-            task.put("dueDate", taskData.get("dueDate"));
-            task.put("description", taskData.get("description"));
-            task.put("updateDate", LocalDate.now().toString());
+            motTask.setTaskId(taskId);
+            int result = motTaskService.updateMotTask(motTask);
             
-            log.info("更新MOT任务成功，任务ID: {}", taskId);
-            return Result.success("更新MOT任务成功", task);
+            if (result > 0) {
+                log.info("更新MOT任务成功，任务ID: {}", taskId);
+                return Result.success("更新MOT任务成功", motTask);
+            } else {
+                return Result.error("更新MOT任务失败");
+            }
         } catch (Exception e) {
             log.error("更新MOT任务失败: {}", e.getMessage(), e);
             return Result.error("更新MOT任务失败");
@@ -133,10 +139,16 @@ public class MotController {
      */
     @DeleteMapping("/tasks/{taskId}")
     @ApiOperation("删除MOT任务")
-    public Result deleteMotTask(@PathVariable String taskId) {
+    public Result deleteMotTask(@PathVariable Long taskId) {
         try {
-            log.info("删除MOT任务成功，任务ID: {}", taskId);
-            return Result.success("删除MOT任务成功");
+            int result = motTaskService.deleteMotTaskByTaskId(taskId);
+            
+            if (result > 0) {
+                log.info("删除MOT任务成功，任务ID: {}", taskId);
+                return Result.success("删除MOT任务成功");
+            } else {
+                return Result.error("删除MOT任务失败");
+            }
         } catch (Exception e) {
             log.error("删除MOT任务失败: {}", e.getMessage(), e);
             return Result.error("删除MOT任务失败");
@@ -148,32 +160,16 @@ public class MotController {
      */
     @GetMapping("/tasks/{taskId}")
     @ApiOperation("获取MOT任务详情")
-    public Result getMotTaskDetail(@PathVariable String taskId) {
+    public Result getMotTaskDetail(@PathVariable Long taskId) {
         try {
-            Map<String, Object> task = new HashMap<>();
-            task.put("id", taskId);
-            task.put("memberId", "M000001");
-            task.put("memberName", "李雅婷");
-            task.put("motType", "首购后回访");
-            task.put("priority", "高");
-            task.put("status", "待执行");
-            task.put("guideName", "张小丽");
-            task.put("createDate", LocalDate.now().toString());
-            task.put("dueDate", LocalDate.now().plusDays(1).toString());
-            task.put("description", "针对新会员李雅婷的首购后回访");
+            MotTask motTask = motTaskService.selectMotTaskByTaskId(taskId);
             
-            // 执行记录
-            List<Map<String, Object>> executionHistory = new ArrayList<>();
-            Map<String, Object> record = new HashMap<>();
-            record.put("date", LocalDate.now().toString());
-            record.put("action", "任务创建");
-            record.put("operator", "系统");
-            record.put("note", "自动创建MOT任务");
-            executionHistory.add(record);
-            task.put("executionHistory", executionHistory);
-            
-            log.info("获取MOT任务详情成功，任务ID: {}", taskId);
-            return Result.success("获取MOT任务详情成功", task);
+            if (motTask != null) {
+                log.info("获取MOT任务详情成功，任务ID: {}", taskId);
+                return Result.success("获取MOT任务详情成功", motTask);
+            } else {
+                return Result.error("MOT任务不存在");
+            }
         } catch (Exception e) {
             log.error("获取MOT任务详情失败: {}", e.getMessage(), e);
             return Result.error("获取MOT任务详情失败");
@@ -185,18 +181,30 @@ public class MotController {
      */
     @PostMapping("/tasks/{taskId}/execute")
     @ApiOperation("执行MOT任务")
-    public Result executeMotTask(@PathVariable String taskId, @RequestBody Map<String, Object> executionData) {
+    public Result executeMotTask(@PathVariable Long taskId, @RequestBody Map<String, Object> executionData) {
         try {
-            Map<String, Object> result = new HashMap<>();
-            result.put("taskId", taskId);
-            result.put("status", "已完成");
-            result.put("executionDate", LocalDate.now().toString());
-            result.put("executor", executionData.get("executor"));
-            result.put("result", executionData.get("result"));
-            result.put("note", executionData.get("note"));
+            // 获取任务信息
+            MotTask motTask = motTaskService.selectMotTaskByTaskId(taskId);
+            if (motTask == null) {
+                return Result.error("MOT任务不存在");
+            }
             
-            log.info("执行MOT任务成功，任务ID: {}", taskId);
-            return Result.success("执行MOT任务成功", result);
+            // 更新任务状态为已完成
+            motTask.setStatus("已完成");
+            motTask.setExecuteResult(executionData.get("executeResult") != null ? 
+                executionData.get("executeResult").toString() : null);
+            motTask.setExecuteNote(executionData.get("executeNote") != null ? 
+                executionData.get("executeNote").toString() : null);
+            motTask.setExecuteDate(new Date());
+            
+            int result = motTaskService.updateMotTask(motTask);
+            
+            if (result > 0) {
+                log.info("执行MOT任务成功，任务ID: {}", taskId);
+                return Result.success("执行MOT任务成功", motTask);
+            } else {
+                return Result.error("执行MOT任务失败");
+            }
         } catch (Exception e) {
             log.error("执行MOT任务失败: {}", e.getMessage(), e);
             return Result.error("执行MOT任务失败");
@@ -210,30 +218,9 @@ public class MotController {
     @ApiOperation("获取MOT统计数据")
     public Result getMotStatistics() {
         try {
-            Map<String, Object> statistics = new HashMap<>();
-            
-            // 任务状态统计
-            Map<String, Integer> statusStats = new HashMap<>();
-            statusStats.put("待执行", 156);
-            statusStats.put("执行中", 89);
-            statusStats.put("已完成", 1234);
-            statusStats.put("已取消", 23);
-            statistics.put("statusStats", statusStats);
-            
-            // 任务类型统计
-            Map<String, Integer> typeStats = new HashMap<>();
-            typeStats.put("首购后回访", 234);
-            typeStats.put("购买后指导", 189);
-            typeStats.put("复购提醒", 156);
-            typeStats.put("生日关怀", 123);
-            typeStats.put("节日问候", 98);
-            statistics.put("typeStats", typeStats);
-            
-            // 完成率统计
-            statistics.put("completionRate", 82.5);
-            statistics.put("onTimeRate", 78.3);
-            statistics.put("satisfactionRate", 4.6);
-            
+            Map<String, Object> params = new HashMap<>();
+            Map<String, Object> statistics = motTaskService.getMotTaskStatistics(params);
+
             log.info("获取MOT统计数据成功");
             return Result.success("获取MOT统计数据成功", statistics);
         } catch (Exception e) {
@@ -249,33 +236,7 @@ public class MotController {
     @ApiOperation("获取MOT任务分布数据")
     public Result getMotDistribution() {
         try {
-            Map<String, Object> distribution = new HashMap<>();
-            
-            // 按类型分布
-            List<Map<String, Object>> typeDistribution = new ArrayList<>();
-            String[] types = {"首购后回访", "购买后指导", "复购提醒", "生日关怀", "节日问候"};
-            int[] typeCounts = {234, 189, 156, 123, 98};
-            
-            for (int i = 0; i < types.length; i++) {
-                Map<String, Object> item = new HashMap<>();
-                item.put("name", types[i]);
-                item.put("value", typeCounts[i]);
-                typeDistribution.add(item);
-            }
-            distribution.put("typeDistribution", typeDistribution);
-            
-            // 按状态分布
-            List<Map<String, Object>> statusDistribution = new ArrayList<>();
-            String[] statuses = {"待执行", "执行中", "已完成", "已取消"};
-            int[] statusCounts = {156, 89, 1234, 23};
-            
-            for (int i = 0; i < statuses.length; i++) {
-                Map<String, Object> item = new HashMap<>();
-                item.put("name", statuses[i]);
-                item.put("value", statusCounts[i]);
-                statusDistribution.add(item);
-            }
-            distribution.put("statusDistribution", statusDistribution);
+            Map<String, Object> distribution = motTaskService.getGuideTaskDistribution();
             
             log.info("获取MOT任务分布数据成功");
             return Result.success("获取MOT任务分布数据成功", distribution);
@@ -460,31 +421,58 @@ public class MotController {
     @ApiOperation("获取今日MOT任务概览")
     public Result getTodayOverview() {
         try {
-            Map<String, Object> overview = new HashMap<>();
-            
-            // 今日任务统计
-            overview.put("totalTasks", 156);
-            overview.put("completedTasks", 89);
-            overview.put("pendingTasks", 67);
-            overview.put("completionRate", 57.1);
-            
-            // MOT发送率
-            overview.put("sendRate", 92.3);
-            overview.put("sendRateTrend", "+2.1%");
-            
-            // 沟通率
-            overview.put("communicationRate", 78.5);
-            overview.put("communicationRateTrend", "+1.8%");
-            
-            // 成功率
-            overview.put("successRate", 65.2);
-            overview.put("successRateTrend", "+3.2%");
+            Map<String, Object> overview = motTaskService.getTodayOverview();
             
             log.info("获取今日MOT任务概览成功");
             return Result.success("获取今日MOT任务概览成功", overview);
         } catch (Exception e) {
             log.error("获取今日MOT任务概览失败: {}", e.getMessage(), e);
             return Result.error("获取今日MOT任务概览失败");
+        }
+    }
+
+    /**
+     * 获取今日MOT任务列表
+     */
+    @GetMapping("/tasks/today")
+    @ApiOperation("获取今日MOT任务列表")
+    public Result getTodayMotTasks(@RequestParam(defaultValue = "1") int page,
+                                   @RequestParam(defaultValue = "10") int size,
+                                   @RequestParam(required = false) String status,
+                                   @RequestParam(required = false) String priority,
+                                   @RequestParam(required = false) String motType,
+                                   @RequestParam(required = false) String guideName,
+                                   @RequestParam(required = false) String memberName) {
+        try {
+            MotTask motTask = new MotTask();
+            motTask.setStatus(status);
+            motTask.setPriority(priority);
+            motTask.setMotType(motType);
+            motTask.setGuideName(guideName);
+            motTask.setMemberName(memberName);
+            
+            // 移除日期过滤条件，显示所有任务
+            // Date today = new Date();
+            // motTask.setDueDate(today);
+            
+            // 手动设置分页参数
+            com.github.pagehelper.PageHelper.startPage(page, size);
+            List<MotTask> list = motTaskService.selectMotTaskList(motTask);
+            
+            // 使用PageInfo获取分页信息
+            com.github.pagehelper.PageInfo<MotTask> pageInfo = new com.github.pagehelper.PageInfo<>(list);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("tasks", list);
+            result.put("total", pageInfo.getTotal());
+            result.put("page", page);
+            result.put("size", size);
+            
+            log.info("获取今日MOT任务列表成功，页码: {}, 大小: {}, 总数: {}", page, size, pageInfo.getTotal());
+            return Result.success("获取今日MOT任务列表成功", result);
+        } catch (Exception e) {
+            log.error("获取今日MOT任务列表失败: {}", e.getMessage(), e);
+            return Result.error("获取今日MOT任务列表失败");
         }
     }
 }

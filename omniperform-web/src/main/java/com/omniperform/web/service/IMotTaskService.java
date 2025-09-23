@@ -1,6 +1,7 @@
 package com.omniperform.web.service;
 
 import java.util.List;
+import java.util.Map;
 import com.omniperform.web.domain.MotTask;
 
 /**
@@ -118,4 +119,26 @@ public interface IMotTaskService
      * @return 结果
      */
     public int executeMotTask(Long taskId, String executeResult, String executeNote);
+
+    /**
+     * 获取MOT任务统计数据
+     * 
+     * @param params 查询参数
+     * @return 统计数据
+     */
+    public Map<String, Object> getMotTaskStatistics(Map<String, Object> params);
+
+    /**
+     * 获取导购任务分布统计
+     * 
+     * @return 导购任务分布数据
+     */
+    public Map<String, Object> getGuideTaskDistribution();
+
+    /**
+     * 获取今日MOT任务概览
+     * 
+     * @return 今日概览数据
+     */
+    public Map<String, Object> getTodayOverview();
 }
