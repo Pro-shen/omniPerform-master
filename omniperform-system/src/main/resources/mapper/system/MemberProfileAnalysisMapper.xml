@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.MemberProfileAnalysisMapper">
+    
+    <resultMap type="MemberProfileAnalysis" id="MemberProfileAnalysisResult">
+        <result property="id"    column="id"    />
+        <result property="analysisDate"    column="analysis_date"    />
+        <result property="profileType"    column="profile_type"    />
+        <result property="memberCount"    column="member_count"    />
+        <result property="percentage"    column="percentage"    />
+        <result property="avgPurchaseAmount"    column="avg_purchase_amount"    />
+        <result property="avgInteractionFrequency"    column="avg_interaction_frequency"    />
+        <result property="regionCode"    column="region_code"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectMemberProfileAnalysisVo">
+        select id, analysis_date, profile_type, member_count, percentage, avg_purchase_amount, avg_interaction_frequency, region_code, create_time, update_time from member_profile_analysis
+    </sql>
+
+    <select id="selectMemberProfileAnalysisList" parameterType="MemberProfileAnalysis" resultMap="MemberProfileAnalysisResult">
+        <include refid="selectMemberProfileAnalysisVo"/>
+        <where>  
+            <if test="analysisDate != null "> and analysis_date = #{analysisDate}</if>
+            <if test="profileType != null  and profileType != ''"> and profile_type = #{profileType}</if>
+            <if test="regionCode != null  and regionCode != ''"> and region_code = #{regionCode}</if>
+        </where>
+        order by analysis_date desc, profile_type
+    </select>
+    
+    <select id="selectMemberProfileAnalysisById" parameterType="Long" resultMap="MemberProfileAnalysisResult">
+        <include refid="selectMemberProfileAnalysisVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectMemberProfileAnalysisByDateAndType" resultMap="MemberProfileAnalysisResult">
+        <include refid="selectMemberProfileAnalysisVo"/>
+        where analysis_date = #{analysisDate}
+        <if test="profileType != null and profileType != ''">
+            and profile_type = #{profileType}
+        </if>
+        <if test="regionCode != null and regionCode != ''">
+            and region_code = #{regionCode}
+        </if>
+        order by profile_type
+    </select>
+
+    <select id="selectLatestMemberProfileAnalysis" resultMap="MemberProfileAnalysisResult">
+        <include refid="selectMemberProfileAnalysisVo"/>
+        <where>
+            1=1
+            <if test="profileType != null and profileType != ''">
+                and profile_type = #{profileType}
+            </if>
+            <if test="regionCode != null and regionCode != ''">
+                and region_code = #{regionCode}
+            </if>
+        </where>
+        order by analysis_date desc
+        limit 10
+    </select>
+
+    <select id="selectMemberProfileAnalysisByDateRange" resultMap="MemberProfileAnalysisResult">
+        <include refid="selectMemberProfileAnalysisVo"/>
+        where analysis_date between #{startDate} and #{endDate}
+        <if test="profileType != null and profileType != ''">
+            and profile_type = #{profileType}
+        </if>
+        <if test="regionCode != null and regionCode != ''">
+            and region_code = #{regionCode}
+        </if>
+        order by analysis_date desc, profile_type
+    </select>
+
+    <select id="countMembersByProfileType" resultType="java.util.Map">
+        select profile_type, sum(member_count) as total_count, avg(percentage) as avg_percentage
+        from member_profile_analysis
+        where analysis_date = #{analysisDate}
+        <if test="regionCode != null and regionCode != ''">
+            and region_code = #{regionCode}
+        </if>
+        group by profile_type
+    </select>
+
+    <select id="countMembersByRegion" resultType="java.util.Map">
+        select region_code, sum(member_count) as total_count, avg(percentage) as avg_percentage
+        from member_profile_analysis
+        where analysis_date = #{analysisDate}
+        <if test="profileType != null and profileType != ''">
+            and profile_type = #{profileType}
+        </if>
+        group by region_code
+    </select>
+
+    <select id="selectMemberProfileAnalysisByMonth" resultMap="MemberProfileAnalysisResult">
+        <include refid="selectMemberProfileAnalysisVo"/>
+        where month_year = #{monthYear}
+        <if test="profileType != null and profileType != ''">
+            and profile_type = #{profileType}
+        </if>
+        <if test="regionCode != null and regionCode != ''">
+            and region_code = #{regionCode}
+        </if>
+        order by profile_type
+    </select>
+
+    <select id="countMembersByProfileTypeByMonth" resultType="java.util.Map">
+        select 
+            profile_type as profileType,
+            count(*) as recordCount,
+            sum(member_count) as memberCount,
+            avg(percentage) as avgPercentage
+        from member_profile_analysis
+        where month_year = #{monthYear}
+        <if test="regionCode != null and regionCode != ''">
+            and region_code = #{regionCode}
+        </if>
+        group by profile_type
+        order by memberCount desc
+    </select>
+
+    <select id="countMembersByRegionByMonth" resultType="java.util.Map">
+        select 
+            region_code as regionCode,
+            count(*) as recordCount,
+            sum(member_count) as memberCount
+        from member_profile_analysis
+        where month_year = #{monthYear}
+        <if test="profileType != null and profileType != ''">
+            and profile_type = #{profileType}
+        </if>
+        group by region_code
+        order by memberCount desc
+    </select>
+        
+    <insert id="insertMemberProfileAnalysis" parameterType="MemberProfileAnalysis" useGeneratedKeys="true" keyProperty="id">
+        insert into member_profile_analysis
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="analysisDate != null">analysis_date,</if>
+            <if test="profileType != null">profile_type,</if>
+            <if test="memberCount != null">member_count,</if>
+            <if test="percentage != null">percentage,</if>
+            <if test="avgPurchaseAmount != null">avg_purchase_amount,</if>
+            <if test="avgInteractionFrequency != null">avg_interaction_frequency,</if>
+            <if test="regionCode != null">region_code,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="analysisDate != null">#{analysisDate},</if>
+            <if test="profileType != null">#{profileType},</if>
+            <if test="memberCount != null">#{memberCount},</if>
+            <if test="percentage != null">#{percentage},</if>
+            <if test="avgPurchaseAmount != null">#{avgPurchaseAmount},</if>
+            <if test="avgInteractionFrequency != null">#{avgInteractionFrequency},</if>
+            <if test="regionCode != null">#{regionCode},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateMemberProfileAnalysis" parameterType="MemberProfileAnalysis">
+        update member_profile_analysis
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="analysisDate != null">analysis_date = #{analysisDate},</if>
+            <if test="profileType != null">profile_type = #{profileType},</if>
+            <if test="memberCount != null">member_count = #{memberCount},</if>
+            <if test="percentage != null">percentage = #{percentage},</if>
+            <if test="avgPurchaseAmount != null">avg_purchase_amount = #{avgPurchaseAmount},</if>
+            <if test="avgInteractionFrequency != null">avg_interaction_frequency = #{avgInteractionFrequency},</if>
+            <if test="regionCode != null">region_code = #{regionCode},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteMemberProfileAnalysisById" parameterType="Long">
+        delete from member_profile_analysis where id = #{id}
+    </delete>
+
+    <delete id="deleteMemberProfileAnalysisByIds" parameterType="String">
+        delete from member_profile_analysis where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

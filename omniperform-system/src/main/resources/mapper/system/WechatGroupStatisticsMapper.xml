@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.WechatGroupStatisticsMapper">
+    
+    <resultMap type="WechatGroupStatistics" id="WechatGroupStatisticsResult">
+        <result property="statId"    column="stat_id"    />
+        <result property="groupId"    column="group_id"    />
+        <result property="statMonth"    column="stat_month"    />
+        <result property="activityScore"    column="activity_score"    />
+        <result property="joinRate"    column="join_rate"    />
+        <result property="interactionCount"    column="interaction_count"    />
+        <result property="messageCount"    column="message_count"    />
+        <result property="activeMemberCount"    column="active_member_count"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="groupName"    column="group_name"    />
+        <result property="memberCount"    column="member_count"    />
+    </resultMap>
+
+    <sql id="selectWechatGroupStatisticsVo">
+        select stat_id, group_id, stat_month, activity_score, join_rate, interaction_count, message_count, active_member_count, create_time, update_time from wechat_group_statistics
+    </sql>
+
+    <select id="selectWechatGroupStatisticsList" parameterType="WechatGroupStatistics" resultMap="WechatGroupStatisticsResult">
+        <include refid="selectWechatGroupStatisticsVo"/>
+        <where>  
+            <if test="groupId != null "> and group_id = #{groupId}</if>
+            <if test="statMonth != null  and statMonth != ''"> and stat_month = #{statMonth}</if>
+            <if test="activityScore != null "> and activity_score = #{activityScore}</if>
+            <if test="joinRate != null "> and join_rate = #{joinRate}</if>
+            <if test="interactionCount != null "> and interaction_count = #{interactionCount}</if>
+            <if test="messageCount != null "> and message_count = #{messageCount}</if>
+            <if test="activeMemberCount != null "> and active_member_count = #{activeMemberCount}</if>
+        </where>
+    </select>
+    
+    <select id="selectWechatGroupStatisticsByStatId" parameterType="Long" resultMap="WechatGroupStatisticsResult">
+        <include refid="selectWechatGroupStatisticsVo"/>
+        where stat_id = #{statId}
+    </select>
+
+    <select id="selectHotGroupsByMonth" resultMap="WechatGroupStatisticsResult">
+        select 
+            wgs.stat_id, 
+            wgs.group_id, 
+            wgs.stat_month, 
+            wgs.activity_score, 
+            wgs.join_rate, 
+            wgs.interaction_count, 
+            wgs.message_count, 
+            wgs.active_member_count, 
+            wgs.create_time, 
+            wgs.update_time,
+            wg.group_name,
+            wg.member_count
+        from wechat_group_statistics wgs
+        left join wechat_group wg on wgs.group_id = wg.group_id
+        where wgs.stat_month = #{statMonth}
+        order by wgs.activity_score desc
+        <if test="limit != null">
+            limit #{limit}
+        </if>
+    </select>
+        
+    <insert id="insertWechatGroupStatistics" parameterType="WechatGroupStatistics" useGeneratedKeys="true" keyProperty="statId">
+        insert into wechat_group_statistics
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="groupId != null">group_id,</if>
+            <if test="statMonth != null">stat_month,</if>
+            <if test="activityScore != null">activity_score,</if>
+            <if test="joinRate != null">join_rate,</if>
+            <if test="interactionCount != null">interaction_count,</if>
+            <if test="messageCount != null">message_count,</if>
+            <if test="activeMemberCount != null">active_member_count,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="groupId != null">#{groupId},</if>
+            <if test="statMonth != null">#{statMonth},</if>
+            <if test="activityScore != null">#{activityScore},</if>
+            <if test="joinRate != null">#{joinRate},</if>
+            <if test="interactionCount != null">#{interactionCount},</if>
+            <if test="messageCount != null">#{messageCount},</if>
+            <if test="activeMemberCount != null">#{activeMemberCount},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWechatGroupStatistics" parameterType="WechatGroupStatistics">
+        update wechat_group_statistics
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="groupId != null">group_id = #{groupId},</if>
+            <if test="statMonth != null">stat_month = #{statMonth},</if>
+            <if test="activityScore != null">activity_score = #{activityScore},</if>
+            <if test="joinRate != null">join_rate = #{joinRate},</if>
+            <if test="interactionCount != null">interaction_count = #{interactionCount},</if>
+            <if test="messageCount != null">message_count = #{messageCount},</if>
+            <if test="activeMemberCount != null">active_member_count = #{activeMemberCount},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where stat_id = #{statId}
+    </update>
+
+    <delete id="deleteWechatGroupStatisticsByStatId" parameterType="Long">
+        delete from wechat_group_statistics where stat_id = #{statId}
+    </delete>
+
+    <delete id="deleteWechatGroupStatisticsByStatIds" parameterType="String">
+        delete from wechat_group_statistics where stat_id in 
+        <foreach item="statId" collection="array" open="(" separator="," close=")">
+            #{statId}
+        </foreach>
+    </delete>
+</mapper>

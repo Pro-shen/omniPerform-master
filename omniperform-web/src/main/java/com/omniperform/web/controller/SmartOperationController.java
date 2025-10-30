@@ -2,10 +2,17 @@ package com.omniperform.web.controller;
 
 import com.omniperform.web.common.Result;
 import com.omniperform.common.annotation.Anonymous;
+import com.omniperform.system.domain.SmartOperationAlert;
+import com.omniperform.system.domain.MemberProfileAnalysis;
+import com.omniperform.system.service.ISmartOperationOverviewService;
+import com.omniperform.system.service.ISmartOperationAlertService;
+import com.omniperform.system.service.ISmartMarketingTaskService;
+import com.omniperform.system.service.IMemberProfileAnalysisService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -27,28 +34,29 @@ public class SmartOperationController {
 
     private static final Logger log = LoggerFactory.getLogger(SmartOperationController.class);
 
+    @Autowired
+    private ISmartOperationOverviewService smartOperationOverviewService;
+
+    @Autowired
+    private ISmartOperationAlertService smartOperationAlertService;
+
+    @Autowired
+    private ISmartMarketingTaskService smartMarketingTaskService;
+
+    @Autowired
+    private IMemberProfileAnalysisService memberProfileAnalysisService;
+
     /**
      * 获取智能运营概览数据
      */
     @GetMapping("/overview")
     @ApiOperation("获取智能运营概览数据")
-    public Result getSmartOperationOverview() {
+    public Result getSmartOperationOverview(@RequestParam(defaultValue = "") String month) {
         try {
-            Map<String, Object> overview = new HashMap<>();
+            // 使用Service层获取概览数据，支持月份参数
+            Map<String, Object> overview = smartOperationOverviewService.getSmartOperationOverview("all", month);
             
-            // 今日待处理预警
-            overview.put("todayAlerts", 23);
-            
-            // AI推荐任务
-            overview.put("aiRecommendedTasks", 156);
-            
-            // MOT执行率
-            overview.put("motExecutionRate", 87.5);
-            
-            // 会员活跃度
-            overview.put("memberActivityRate", 72.3);
-            
-            log.info("获取智能运营概览数据成功");
+            log.info("获取智能运营概览数据成功，月份: {}", month.isEmpty() ? "当前月份" : month);
             return Result.success("获取智能运营概览数据成功", overview);
         } catch (Exception e) {
             log.error("获取智能运营概览数据失败: {}", e.getMessage(), e);
@@ -62,33 +70,15 @@ public class SmartOperationController {
     @GetMapping("/alerts")
     @ApiOperation("获取实时监控预警数据")
     public Result getAlerts(@RequestParam(defaultValue = "1") int page,
-                           @RequestParam(defaultValue = "10") int size) {
+                           @RequestParam(defaultValue = "10") int size,
+                           @RequestParam(defaultValue = "待处理") String status,
+                           @RequestParam(defaultValue = "all") String region,
+                           @RequestParam(required = false) String month) {
         try {
-            List<Map<String, Object>> alerts = new ArrayList<>();
+            // 暂时使用不带月份参数的方法，避免方法重载问题
+            Map<String, Object> result = smartOperationAlertService.getAlertsDataWithPagination(region, status, page, size);
             
-            String[] alertTypes = {"会员流失风险", "销售异常", "库存预警", "服务质量", "系统异常"};
-            String[] severityLevels = {"高", "中", "低"};
-            String[] statuses = {"待处理", "处理中", "已处理"};
-            
-            for (int i = 0; i < 20; i++) {
-                Map<String, Object> alert = new HashMap<>();
-                alert.put("id", "ALT" + String.format("%06d", i + 1));
-                alert.put("type", alertTypes[i % alertTypes.length]);
-                alert.put("content", "检测到" + alert.get("type") + "，需要及时处理");
-                alert.put("severity", severityLevels[i % severityLevels.length]);
-                alert.put("status", statuses[i % statuses.length]);
-                alert.put("createTime", LocalDateTime.now().minusHours(i).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-                alert.put("region", i % 2 == 0 ? "华东区" : "华南区");
-                alerts.add(alert);
-            }
-            
-            Map<String, Object> result = new HashMap<>();
-            result.put("alerts", alerts.subList((page - 1) * size, Math.min(page * size, alerts.size())));
-            result.put("total", alerts.size());
-            result.put("page", page);
-            result.put("size", size);
-            
-            log.info("获取实时监控预警数据成功，页码: {}, 大小: {}", page, size);
+            log.info("获取实时监控预警数据成功，页码: {}, 大小: {}, 状态: {}, 区域: {}, 月份: {}", page, size, status, region, month);
             return Result.success("获取实时监控预警数据成功", result);
         } catch (Exception e) {
             log.error("获取实时监控预警数据失败: {}", e.getMessage(), e);
@@ -97,39 +87,41 @@ public class SmartOperationController {
     }
 
     /**
+     * 测试查询所有预警数据
+     */
+    /*
+    @GetMapping("/alerts/test")
+    @ApiOperation("测试查询所有预警数据")
+    public Result testGetAllAlerts() {
+        try {
+            List<SmartOperationAlert> alerts = smartOperationAlertService.selectAllSmartOperationAlerts();
+            log.info("测试查询所有预警数据成功，数量: {}", alerts.size());
+            return Result.success("测试查询所有预警数据成功", alerts);
+        } catch (Exception e) {
+            log.error("测试查询所有预警数据失败: {}", e.getMessage(), e);
+            return Result.error("测试查询所有预警数据失败");
+        }
+    }
+    */
+
+    /**
      * 获取AI推荐任务数据
      */
     @GetMapping("/ai-tasks")
     @ApiOperation("获取AI推荐任务数据")
     public Result getAiTasks(@RequestParam(defaultValue = "1") int page,
-                            @RequestParam(defaultValue = "10") int size) {
+                            @RequestParam(defaultValue = "10") int size,
+                            @RequestParam(required = false) String month) {
         try {
-            List<Map<String, Object>> tasks = new ArrayList<>();
-            
-            String[] taskTypes = {"个性化推荐", "触达优化", "内容推送", "活动邀请", "关怀提醒"};
-            String[] priorities = {"高", "中", "低"};
-            String[] statuses = {"待执行", "执行中", "已完成"};
-            
-            for (int i = 0; i < 15; i++) {
-                Map<String, Object> task = new HashMap<>();
-                task.put("id", "AIT" + String.format("%06d", i + 1));
-                task.put("taskType", taskTypes[i % taskTypes.length]);
-                task.put("description", "AI推荐的" + task.get("taskType") + "任务");
-                task.put("priority", priorities[i % priorities.length]);
-                task.put("status", statuses[i % statuses.length]);
-                task.put("targetMember", "会员" + (i + 1));
-                task.put("expectedEffect", "预期提升转化率" + (5 + i % 10) + "%");
-                task.put("createTime", LocalDateTime.now().minusHours(i * 2).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-                tasks.add(task);
+            // 使用Service层获取AI任务数据
+            Map<String, Object> result;
+            if (month != null && !month.trim().isEmpty()) {
+                result = smartMarketingTaskService.getAiTasksData("待执行", "AI推荐", month);
+            } else {
+                result = smartMarketingTaskService.getAiTasksData("待执行", "AI推荐");
             }
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("tasks", tasks.subList((page - 1) * size, Math.min(page * size, tasks.size())));
-            result.put("total", tasks.size());
-            result.put("page", page);
-            result.put("size", size);
-            
-            log.info("获取AI推荐任务数据成功，页码: {}, 大小: {}", page, size);
+            log.info("获取AI推荐任务数据成功，页码: {}, 大小: {}, 月份: {}", page, size, month);
             return Result.success("获取AI推荐任务数据成功", result);
         } catch (Exception e) {
             log.error("获取AI推荐任务数据失败: {}", e.getMessage(), e);
@@ -143,77 +135,18 @@ public class SmartOperationController {
     @GetMapping("/marketing-tasks")
     @ApiOperation("获取AI推荐营销任务数据")
     public Result getMarketingTasks(@RequestParam(defaultValue = "1") int page,
-                                   @RequestParam(defaultValue = "10") int size) {
+                                   @RequestParam(defaultValue = "10") int size,
+                                   @RequestParam(required = false) String month) {
         try {
-            List<Map<String, Object>> tasks = new ArrayList<>();
-            
-            // 模拟营销任务数据，与前端表格结构匹配
-            String[] taskNames = {
-                "0-6个月宝宝营养指南推送",
-                "水解配方奶粉专享优惠", 
-                "618促销活动预热",
-                "宝宝辅食添加指南",
-                "新品试用活动邀请",
-                "会员生日专属礼品",
-                "育儿专家在线答疑",
-                "夏季营养补充建议"
-            };
-            
-            String[] targetGroups = {
-                "成长探索型 (0-6个月)",
-                "品质追求型 (过敏体质)",
-                "价格敏感型 (全阶段)", 
-                "成长探索型 (4-6个月)",
-                "品质追求型 (1-3岁)",
-                "忠诚依赖型 (全阶段)",
-                "社交分享型 (6-12个月)",
-                "成长探索型 (12-36个月)"
-            };
-            
-            String[] expectedEffects = {
-                "提升活跃度+15%",
-                "提升复购率+8%",
-                "提升转化率+12%",
-                "提升活跃度+18%",
-                "提升试用率+25%",
-                "提升满意度+20%",
-                "提升参与度+30%",
-                "提升关注度+22%"
-            };
-            
-            String[] recommendTimes = {
-                "今晚20:00",
-                "明早10:30",
-                "明天12:00",
-                "昨天20:30",
-                "今天14:00",
-                "明天09:00",
-                "后天19:30",
-                "今天16:00"
-            };
-            
-            String[] statuses = {"待执行", "待执行", "待执行", "已完成", "执行中", "待执行", "待执行", "执行中"};
-            int[] memberCounts = {156, 83, 245, 92, 178, 134, 89, 203};
-            
-            for (int i = 0; i < Math.min(taskNames.length, 8); i++) {
-                Map<String, Object> task = new HashMap<>();
-                task.put("taskId", "T-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "-" + String.format("%03d", i + 1));
-                task.put("taskName", taskNames[i]);
-                task.put("targetGroup", targetGroups[i]);
-                task.put("memberCount", memberCounts[i]);
-                task.put("expectedEffect", expectedEffects[i]);
-                task.put("recommendTime", recommendTimes[i]);
-                task.put("status", statuses[i]);
-                tasks.add(task);
+            // 使用Service层获取营销任务数据，不过滤任务类型，返回所有待执行的任务
+            Map<String, Object> result;
+            if (month != null && !month.trim().isEmpty()) {
+                result = smartMarketingTaskService.getMarketingTasksData("待执行", null, month);
+            } else {
+                result = smartMarketingTaskService.getMarketingTasksData("待执行", null);
             }
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("tasks", tasks.subList((page - 1) * size, Math.min(page * size, tasks.size())));
-            result.put("total", tasks.size());
-            result.put("page", page);
-            result.put("size", size);
-            
-            log.info("获取AI推荐营销任务数据成功，页码: {}, 大小: {}", page, size);
+            log.info("获取AI推荐营销任务数据成功，页码: {}, 大小: {}, 月份: {}", page, size, month);
             return Result.success("获取AI推荐营销任务数据成功", result);
         } catch (Exception e) {
             log.error("获取AI推荐营销任务数据失败: {}", e.getMessage(), e);
@@ -228,26 +161,36 @@ public class SmartOperationController {
     @ApiOperation("获取会员画像分析数据")
     public Result getMemberProfile() {
         try {
-            Map<String, Object> profileData = new HashMap<>();
-            
-            // 会员画像饼图数据
-            List<Map<String, Object>> memberProfileData = new ArrayList<>();
-            String[] profileTypes = {"成长探索型", "品质追求型", "价格敏感型", "社交分享型", "忠诚依赖型"};
-            int[] profileValues = {35, 25, 20, 12, 8};
-            
-            for (int i = 0; i < profileTypes.length; i++) {
-                Map<String, Object> profile = new HashMap<>();
-                profile.put("name", profileTypes[i]);
-                profile.put("value", profileValues[i]);
-                memberProfileData.add(profile);
-            }
-            profileData.put("memberProfileData", memberProfileData);
+            // 使用Service层获取会员画像数据
+            Map<String, Object> profileData = memberProfileAnalysisService.getMemberProfileData(null, null);
             
             log.info("获取会员画像分析数据成功");
             return Result.success("获取会员画像分析数据成功", profileData);
         } catch (Exception e) {
             log.error("获取会员画像分析数据失败: {}", e.getMessage(), e);
             return Result.error("获取会员画像分析数据失败");
+        }
+    }
+
+    /**
+     * 测试会员画像分析数据查询
+     */
+    @GetMapping("/member-profile-test")
+    @ApiOperation("测试会员画像分析数据查询")
+    public Result getMemberProfileTest() {
+        try {
+            // 直接查询最新的会员画像分析数据，不传任何参数
+            List<MemberProfileAnalysis> profileList = memberProfileAnalysisService.selectLatestMemberProfileAnalysis(null, null);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("profileList", profileList);
+            result.put("totalCount", profileList.size());
+            
+            log.info("测试获取会员画像分析数据成功，共{}条记录", profileList.size());
+            return Result.success("测试获取会员画像分析数据成功", result);
+        } catch (Exception e) {
+            log.error("测试获取会员画像分析数据失败: {}", e.getMessage(), e);
+            return Result.error("测试获取会员画像分析数据失败: " + e.getMessage());
         }
     }
 
@@ -450,5 +393,125 @@ public class SmartOperationController {
             log.error("获取区域差异化策略数据失败: {}", e.getMessage(), e);
             return Result.error("获取区域差异化策略数据失败");
         }
+    }
+
+    /**
+     * 生成推荐内容
+     */
+    @PostMapping("/generate-content")
+    @ApiOperation("生成推荐内容")
+    public Result generateContent(@RequestBody Map<String, Object> request) {
+        try {
+            String memberProfile = (String) request.get("memberProfile");
+            String marketingGoal = (String) request.get("marketingGoal");
+            List<String> channels = (List<String>) request.get("channels");
+            
+            log.info("收到生成内容请求 - 会员画像: {}, 营销目标: {}, 渠道: {}", memberProfile, marketingGoal, channels);
+            
+            // 模拟内容生成逻辑
+            Map<String, Object> generatedContent = new HashMap<>();
+            
+            // 根据会员画像和营销目标生成内容
+            String contentTitle = generateContentTitle(memberProfile, marketingGoal);
+            String contentBody = generateContentBody(memberProfile, marketingGoal);
+            List<String> channelStrategies = generateChannelStrategies(channels);
+            
+            generatedContent.put("title", contentTitle);
+            generatedContent.put("content", contentBody);
+            generatedContent.put("channels", channelStrategies);
+            generatedContent.put("generatedAt", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            
+            log.info("生成推荐内容成功");
+            return Result.success("生成推荐内容成功", generatedContent);
+        } catch (Exception e) {
+            log.error("生成推荐内容失败: {}", e.getMessage(), e);
+            return Result.error("生成推荐内容失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 生成内容标题
+     */
+    private String generateContentTitle(String memberProfile, String marketingGoal) {
+        Map<String, String> titleTemplates = new HashMap<>();
+        titleTemplates.put("品质追求型_提升复购率", "精选优质产品，为您的品质生活加分");
+        titleTemplates.put("品质追求型_增加客单价", "臻选高端系列，品味生活的每一个细节");
+        titleTemplates.put("品质追求型_促进新品试用", "全新高端产品首发，邀您抢先体验");
+        titleTemplates.put("成长探索型_提升复购率", "发现更多可能，让成长之路更精彩");
+        titleTemplates.put("成长探索型_增加客单价", "升级您的选择，探索更多优质体验");
+        titleTemplates.put("成长探索型_促进新品试用", "新品尝鲜计划，与您一起探索未知");
+        titleTemplates.put("价格敏感型_提升复购率", "超值回购福利，让实惠成为习惯");
+        titleTemplates.put("价格敏感型_增加客单价", "组合优惠套装，更多选择更多实惠");
+        titleTemplates.put("价格敏感型_促进新品试用", "新品特价体验，好产品不贵才是真的好");
+        
+        String key = memberProfile + "_" + marketingGoal;
+        return titleTemplates.getOrDefault(key, "专属推荐内容，为您精心定制");
+    }
+
+    /**
+     * 生成内容正文
+     */
+    private String generateContentBody(String memberProfile, String marketingGoal) {
+        StringBuilder content = new StringBuilder();
+        
+        // 根据会员画像定制开头
+        switch (memberProfile) {
+            case "品质追求型":
+                content.append("亲爱的品质生活追求者，我们深知您对产品品质的严格要求。");
+                break;
+            case "成长探索型":
+                content.append("充满活力的探索者，我们为您准备了全新的发现之旅。");
+                break;
+            case "价格敏感型":
+                content.append("精明的消费者，我们为您带来超值的优质选择。");
+                break;
+            default:
+                content.append("尊敬的客户，我们为您精心准备了专属推荐。");
+        }
+        
+        // 根据营销目标定制内容
+        switch (marketingGoal) {
+            case "提升复购率":
+                content.append("基于您的购买历史和偏好，我们为您推荐以下产品，让您的每次选择都物超所值。");
+                break;
+            case "增加客单价":
+                content.append("为了让您获得更完整的体验，我们特别推荐以下组合套装和升级产品。");
+                break;
+            case "促进新品试用":
+                content.append("我们的最新产品已经上市，特邀您成为首批体验者，享受专属优惠。");
+                break;
+            default:
+                content.append("我们为您准备了精选推荐，希望能为您带来更好的体验。");
+        }
+        
+        return content.toString();
+    }
+
+    /**
+     * 生成渠道策略
+     */
+    private List<String> generateChannelStrategies(List<String> channels) {
+        List<String> strategies = new ArrayList<>();
+        
+        if (channels != null) {
+            for (String channel : channels) {
+                switch (channel) {
+                    case "微信":
+                        strategies.add("微信：通过个人号一对一推送，配合朋友圈展示，提升信任度");
+                        break;
+                    case "短信":
+                        strategies.add("短信：简洁明了的产品信息和优惠提醒，包含直接购买链接");
+                        break;
+                    case "APP":
+                        strategies.add("APP：利用推送通知和个性化首页推荐，提升用户活跃度");
+                        break;
+                    case "邮件":
+                        strategies.add("邮件：详细的产品介绍和使用指南，适合深度内容传播");
+                        break;
+                }
+            }
+        }
+        
+        return strategies;
     }
 }

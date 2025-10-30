@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.web.mapper.KnowledgeBaseMapper">
+    
+    <resultMap type="KnowledgeBase" id="KnowledgeBaseResult">
+        <result property="knowledgeId"    column="knowledge_id"    />
+        <result property="categoryId"    column="category_id"    />
+        <result property="title"    column="title"    />
+        <result property="summary"    column="summary"    />
+        <result property="content"    column="content"    />
+        <result property="tags"    column="tags"    />
+        <result property="author"    column="author"    />
+        <result property="source"    column="source"    />
+        <result property="attachmentUrl"    column="attachment_url"    />
+        <result property="views"    column="views"    />
+        <result property="likes"    column="likes"    />
+        <result property="downloads"    column="downloads"    />
+        <result property="status"    column="status"    />
+        <result property="isFeatured"    column="is_featured"    />
+        <result property="publishTime"    column="publish_time"    />
+        <result property="delFlag"    column="del_flag"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="categoryName"    column="category_name"    />
+        <result property="categoryCode"    column="category_code"    />
+    </resultMap>
+
+    <sql id="selectKnowledgeBaseVo">
+        select k.knowledge_id, k.category_id, k.title, k.summary, k.content, k.tags, k.author, k.source, k.attachment_url, k.views, k.likes, k.downloads, k.status, k.is_featured, k.publish_time, k.del_flag, k.create_by, k.create_time, k.update_by, k.update_time,
+               c.category_name, c.category_code
+        from knowledge_base k
+        left join knowledge_category c on k.category_id = c.category_id
+    </sql>
+
+    <select id="selectKnowledgeBaseList" parameterType="KnowledgeBase" resultMap="KnowledgeBaseResult">
+        <include refid="selectKnowledgeBaseVo"/>
+        <where>  
+            <if test="categoryId != null "> and k.category_id = #{categoryId}</if>
+            <if test="title != null  and title != ''"> and k.title like concat('%', #{title}, '%')</if>
+            <if test="summary != null  and summary != ''"> and k.summary like concat('%', #{summary}, '%')</if>
+            <if test="tags != null  and tags != ''"> and k.tags like concat('%', #{tags}, '%')</if>
+            <if test="status != null  and status != ''"> and k.status = #{status}</if>
+        </where>
+        order by k.create_time desc
+    </select>
+
+    <select id="selectKnowledgeBaseListWithConditions" resultMap="KnowledgeBaseResult">
+        <include refid="selectKnowledgeBaseVo"/>
+        <where>
+            k.status = '0'
+            <if test="categoryId != null and categoryId > 0"> and k.category_id = #{categoryId}</if>
+            <if test="search != null and search != ''">
+                and (k.title like concat('%', #{search}, '%') 
+                     or k.summary like concat('%', #{search}, '%')
+                     or k.tags like concat('%', #{search}, '%'))
+            </if>
+        </where>
+        <choose>
+            <when test="sortBy == 'views'">
+                order by k.views desc, k.create_time desc
+            </when>
+            <when test="sortBy == 'likes'">
+                order by k.likes desc, k.create_time desc
+            </when>
+            <otherwise>
+                order by k.create_time desc
+            </otherwise>
+        </choose>
+    </select>
+    
+    <select id="selectKnowledgeBaseById" parameterType="Long" resultMap="KnowledgeBaseResult">
+        <include refid="selectKnowledgeBaseVo"/>
+        where k.knowledge_id = #{knowledgeId}
+    </select>
+
+    <select id="countKnowledgeByCategory" parameterType="Long" resultType="int">
+        select count(*) from knowledge_base where category_id = #{categoryId} and status = '0'
+    </select>
+
+    <select id="countTotalKnowledge" resultType="int">
+        select count(*) from knowledge_base where status = '0'
+    </select>
+        
+    <insert id="insertKnowledgeBase" parameterType="KnowledgeBase" useGeneratedKeys="true" keyProperty="knowledgeId">
+        insert into knowledge_base
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="categoryId != null">category_id,</if>
+            <if test="title != null and title != ''">title,</if>
+            <if test="summary != null">summary,</if>
+            <if test="content != null">content,</if>
+            <if test="tags != null">tags,</if>
+            <if test="views != null">views,</if>
+            <if test="likes != null">likes,</if>
+            <if test="status != null">status,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="remark != null">remark,</if>
+            create_time
+         </trim>
+         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="categoryId != null">#{categoryId},</if>
+            <if test="title != null and title != ''">#{title},</if>
+            <if test="summary != null">#{summary},</if>
+            <if test="content != null">#{content},</if>
+            <if test="tags != null">#{tags},</if>
+            <if test="views != null">#{views},</if>
+            <if test="likes != null">#{likes},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="remark != null">#{remark},</if>
+            sysdate()
+         </trim>
+    </insert>
+
+    <update id="updateKnowledgeBase" parameterType="KnowledgeBase">
+        update knowledge_base
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="summary != null">summary = #{summary},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="tags != null">tags = #{tags},</if>
+            <if test="views != null">views = #{views},</if>
+            <if test="likes != null">likes = #{likes},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_time = sysdate()
+        </trim>
+        where knowledge_id = #{knowledgeId}
+    </update>
+
+    <update id="incrementViews" parameterType="Long">
+        update knowledge_base set views = views + 1 where knowledge_id = #{knowledgeId}
+    </update>
+
+    <update id="incrementLikes" parameterType="Long">
+        update knowledge_base set likes = likes + 1 where knowledge_id = #{knowledgeId}
+    </update>
+
+    <select id="countByCategoryId" parameterType="Long" resultType="int">
+        select count(*) from knowledge_base where category_id = #{categoryId} and status = '0'
+    </select>
+
+    <select id="countAll" resultType="int">
+        select count(*) from knowledge_base where status = '0'
+    </select>
+
+    <delete id="deleteKnowledgeBaseById" parameterType="Long">
+        delete from knowledge_base where knowledge_id = #{knowledgeId}
+    </delete>
+
+    <delete id="deleteKnowledgeBaseByIds" parameterType="String">
+        delete from knowledge_base where knowledge_id in 
+        <foreach item="knowledgeId" collection="array" open="(" separator="," close=")">
+            #{knowledgeId}
+        </foreach>
+    </delete>
+
+</mapper>

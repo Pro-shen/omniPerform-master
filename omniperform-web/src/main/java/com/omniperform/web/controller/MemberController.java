@@ -3,6 +3,7 @@ package com.omniperform.web.controller;
 import com.omniperform.web.common.Result;
 import com.omniperform.common.annotation.Anonymous;
 import com.omniperform.system.service.IMemberOverviewService;
+import com.omniperform.system.service.IMemberProfileAnalysisService;
 import com.omniperform.system.domain.MemberInfo;
 import com.omniperform.system.domain.MemberMonthlyStats;
 import com.omniperform.system.domain.MemberStageStats;
@@ -29,6 +30,9 @@ public class MemberController {
 
     @Autowired
     private IMemberOverviewService memberOverviewService;
+
+    @Autowired
+    private IMemberProfileAnalysisService memberProfileAnalysisService;
 
     /**
      * 获取会员概览数据
@@ -425,6 +429,37 @@ public class MemberController {
         } catch (Exception e) {
             log.error("根据手机号查询会员失败", e);
             return Result.error("根据手机号查询会员失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取会员画像分析
+     * 
+     * @param profileType 画像类型
+     * @param regionCode 区域代码
+     * @param month 月份参数（格式：YYYY-MM）
+     * @return 会员画像分析数据
+     */
+    @GetMapping("/profile-analysis")
+    public Result<Map<String, Object>> getProfileAnalysis(
+            @RequestParam(required = false) String profileType,
+            @RequestParam(required = false) String regionCode,
+            @RequestParam(required = false) String month) {
+        try {
+            log.info("获取会员画像分析，画像类型: {}, 区域代码: {}, 月份: {}", profileType, regionCode, month);
+            
+            // 使用Service层获取会员画像分析数据
+            Map<String, Object> profileData;
+            if (month != null && !month.trim().isEmpty()) {
+                profileData = memberProfileAnalysisService.getMemberProfileData(profileType, regionCode, month);
+            } else {
+                profileData = memberProfileAnalysisService.getMemberProfileData(profileType, regionCode);
+            }
+            
+            return Result.success(profileData);
+        } catch (Exception e) {
+            log.error("获取会员画像分析失败", e);
+            return Result.error("获取会员画像分析失败: " + e.getMessage());
         }
     }
 }

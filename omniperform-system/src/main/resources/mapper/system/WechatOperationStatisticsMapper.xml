@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.WechatOperationStatisticsMapper">
+    
+    <resultMap type="WechatOperationStatistics" id="WechatOperationStatisticsResult">
+        <result property="statId"    column="stat_id"    />
+        <result property="statMonth"    column="stat_month"    />
+        <result property="totalMembers"    column="total_members"    />
+        <result property="boundMembers"    column="bound_members"    />
+        <result property="groupMembers"    column="group_members"    />
+        <result property="activeGroups"    column="active_groups"    />
+        <result property="totalGroups"    column="total_groups"    />
+        <result property="monthlyConversions"    column="monthly_conversions"    />
+        <result property="avgResponseTime"    column="avg_response_time"    />
+        <result property="satisfactionRate"    column="satisfaction_rate"    />
+        <result property="bindingRate"    column="binding_rate"    />
+        <result property="conversionRate"    column="conversion_rate"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectWechatOperationStatisticsVo">
+        select stat_id, stat_month, total_members, bound_members, group_members, active_groups, total_groups, monthly_conversions, avg_response_time, satisfaction_rate, binding_rate, conversion_rate, create_time, update_time from wechat_operation_statistics
+    </sql>
+
+    <select id="selectWechatOperationStatisticsList" parameterType="WechatOperationStatistics" resultMap="WechatOperationStatisticsResult">
+        <include refid="selectWechatOperationStatisticsVo"/>
+        <where>  
+            <if test="statMonth != null  and statMonth != ''"> and stat_month = #{statMonth}</if>
+            <if test="totalMembers != null "> and total_members = #{totalMembers}</if>
+            <if test="boundMembers != null "> and bound_members = #{boundMembers}</if>
+            <if test="groupMembers != null "> and group_members = #{groupMembers}</if>
+            <if test="activeGroups != null "> and active_groups = #{activeGroups}</if>
+            <if test="totalGroups != null "> and total_groups = #{totalGroups}</if>
+            <if test="monthlyConversions != null "> and monthly_conversions = #{monthlyConversions}</if>
+            <if test="avgResponseTime != null "> and avg_response_time = #{avgResponseTime}</if>
+            <if test="satisfactionRate != null "> and satisfaction_rate = #{satisfactionRate}</if>
+            <if test="bindingRate != null "> and binding_rate = #{bindingRate}</if>
+            <if test="conversionRate != null "> and conversion_rate = #{conversionRate}</if>
+        </where>
+        order by stat_month desc
+    </select>
+    
+    <select id="selectWechatOperationStatisticsByStatId" parameterType="Long" resultMap="WechatOperationStatisticsResult">
+        <include refid="selectWechatOperationStatisticsVo"/>
+        where stat_id = #{statId}
+    </select>
+
+    <select id="selectWechatOperationStatisticsByMonth" parameterType="String" resultMap="WechatOperationStatisticsResult">
+        <include refid="selectWechatOperationStatisticsVo"/>
+        where stat_month = #{statMonth}
+    </select>
+
+    <select id="selectRecentMonthsStatistics" parameterType="Integer" resultMap="WechatOperationStatisticsResult">
+        <include refid="selectWechatOperationStatisticsVo"/>
+        order by stat_month desc
+        <if test="months != null and months > 0">
+            limit #{months}
+        </if>
+    </select>
+        
+    <insert id="insertWechatOperationStatistics" parameterType="WechatOperationStatistics" useGeneratedKeys="true" keyProperty="statId">
+        insert into wechat_operation_statistics
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="statMonth != null and statMonth != ''">stat_month,</if>
+            <if test="totalMembers != null">total_members,</if>
+            <if test="boundMembers != null">bound_members,</if>
+            <if test="groupMembers != null">group_members,</if>
+            <if test="activeGroups != null">active_groups,</if>
+            <if test="totalGroups != null">total_groups,</if>
+            <if test="monthlyConversions != null">monthly_conversions,</if>
+            <if test="avgResponseTime != null">avg_response_time,</if>
+            <if test="satisfactionRate != null">satisfaction_rate,</if>
+            <if test="bindingRate != null">binding_rate,</if>
+            <if test="conversionRate != null">conversion_rate,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="statMonth != null and statMonth != ''">#{statMonth},</if>
+            <if test="totalMembers != null">#{totalMembers},</if>
+            <if test="boundMembers != null">#{boundMembers},</if>
+            <if test="groupMembers != null">#{groupMembers},</if>
+            <if test="activeGroups != null">#{activeGroups},</if>
+            <if test="totalGroups != null">#{totalGroups},</if>
+            <if test="monthlyConversions != null">#{monthlyConversions},</if>
+            <if test="avgResponseTime != null">#{avgResponseTime},</if>
+            <if test="satisfactionRate != null">#{satisfactionRate},</if>
+            <if test="bindingRate != null">#{bindingRate},</if>
+            <if test="conversionRate != null">#{conversionRate},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWechatOperationStatistics" parameterType="WechatOperationStatistics">
+        update wechat_operation_statistics
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="statMonth != null and statMonth != ''">stat_month = #{statMonth},</if>
+            <if test="totalMembers != null">total_members = #{totalMembers},</if>
+            <if test="boundMembers != null">bound_members = #{boundMembers},</if>
+            <if test="groupMembers != null">group_members = #{groupMembers},</if>
+            <if test="activeGroups != null">active_groups = #{activeGroups},</if>
+            <if test="totalGroups != null">total_groups = #{totalGroups},</if>
+            <if test="monthlyConversions != null">monthly_conversions = #{monthlyConversions},</if>
+            <if test="avgResponseTime != null">avg_response_time = #{avgResponseTime},</if>
+            <if test="satisfactionRate != null">satisfaction_rate = #{satisfactionRate},</if>
+            <if test="bindingRate != null">binding_rate = #{bindingRate},</if>
+            <if test="conversionRate != null">conversion_rate = #{conversionRate},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where stat_id = #{statId}
+    </update>
+
+    <delete id="deleteWechatOperationStatisticsByStatId" parameterType="Long">
+        delete from wechat_operation_statistics where stat_id = #{statId}
+    </delete>
+
+    <delete id="deleteWechatOperationStatisticsByStatIds" parameterType="String">
+        delete from wechat_operation_statistics where stat_id in 
+        <foreach item="statId" collection="array" open="(" separator="," close=")">
+            #{statId}
+        </foreach>
+    </delete>
+</mapper>

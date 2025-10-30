@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.SmartOperationOverviewMapper">
+    
+    <resultMap type="SmartOperationOverview" id="SmartOperationOverviewResult">
+        <result property="id"    column="id"    />
+        <result property="statDate"    column="stat_date"    />
+        <result property="todayAlerts"    column="today_alerts"    />
+        <result property="aiRecommendedTasks"    column="ai_recommended_tasks"    />
+        <result property="motExecutionRate"    column="mot_execution_rate"    />
+        <result property="memberActivityRate"    column="member_activity_rate"    />
+        <result property="regionCode"    column="region_code"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectSmartOperationOverviewVo">
+        select id, stat_date, today_alerts, ai_recommended_tasks, mot_execution_rate, member_activity_rate, region_code, create_time, update_time from smart_operation_overview
+    </sql>
+
+    <select id="selectSmartOperationOverviewList" parameterType="SmartOperationOverview" resultMap="SmartOperationOverviewResult">
+        <include refid="selectSmartOperationOverviewVo"/>
+        <where>  
+            <if test="statDate != null "> and stat_date = #{statDate}</if>
+            <if test="regionCode != null  and regionCode != ''"> and region_code = #{regionCode}</if>
+        </where>
+        order by stat_date desc
+    </select>
+    
+    <select id="selectSmartOperationOverviewById" parameterType="Long" resultMap="SmartOperationOverviewResult">
+        <include refid="selectSmartOperationOverviewVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectSmartOperationOverviewByDate" resultMap="SmartOperationOverviewResult">
+        <include refid="selectSmartOperationOverviewVo"/>
+        where stat_date = #{statDate}
+        <if test="regionCode != null and regionCode != '' and regionCode != 'all'">
+            and region_code = #{regionCode}
+        </if>
+        <if test="regionCode == null or regionCode == '' or regionCode == 'all'">
+            and (region_code IS NULL OR region_code = '' OR region_code = 'all')
+        </if>
+    </select>
+
+    <select id="selectLatestSmartOperationOverview" parameterType="String" resultMap="SmartOperationOverviewResult">
+        <include refid="selectSmartOperationOverviewVo"/>
+        <where>
+            <choose>
+                <when test="regionCode != null and regionCode != '' and !regionCode.equals('all')">
+                    region_code = #{regionCode}
+                </when>
+                <otherwise>
+                    (region_code IS NULL OR region_code = '' OR region_code = 'all')
+                </otherwise>
+            </choose>
+        </where>
+        order by stat_date desc
+        limit 1
+    </select>
+
+    <select id="selectSmartOperationOverviewByMonth" resultMap="SmartOperationOverviewResult">
+        <include refid="selectSmartOperationOverviewVo"/>
+        <where>
+            month_year = #{monthYear}
+            <choose>
+                <when test="regionCode != null and regionCode != '' and !regionCode.equals('all')">
+                    and region_code = #{regionCode}
+                </when>
+                <otherwise>
+                    and (region_code IS NULL OR region_code = '' OR region_code = 'all')
+                </otherwise>
+            </choose>
+        </where>
+        order by stat_date desc
+        limit 1
+    </select>
+
+    <select id="selectSmartOperationOverviewByDateRange" resultMap="SmartOperationOverviewResult">
+        <include refid="selectSmartOperationOverviewVo"/>
+        where stat_date between #{startDate} and #{endDate}
+        <choose>
+            <when test="regionCode != null and regionCode != '' and !regionCode.equals('all')">
+                and region_code = #{regionCode}
+            </when>
+            <otherwise>
+                and (region_code IS NULL OR region_code = '' OR region_code = 'all')
+            </otherwise>
+        </choose>
+        order by stat_date desc
+    </select>
+        
+    <insert id="insertSmartOperationOverview" parameterType="SmartOperationOverview" useGeneratedKeys="true" keyProperty="id">
+        insert into smart_operation_overview
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="statDate != null">stat_date,</if>
+            <if test="todayAlerts != null">today_alerts,</if>
+            <if test="aiRecommendedTasks != null">ai_recommended_tasks,</if>
+            <if test="motExecutionRate != null">mot_execution_rate,</if>
+            <if test="memberActivityRate != null">member_activity_rate,</if>
+            <if test="regionCode != null">region_code,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="statDate != null">#{statDate},</if>
+            <if test="todayAlerts != null">#{todayAlerts},</if>
+            <if test="aiRecommendedTasks != null">#{aiRecommendedTasks},</if>
+            <if test="motExecutionRate != null">#{motExecutionRate},</if>
+            <if test="memberActivityRate != null">#{memberActivityRate},</if>
+            <if test="regionCode != null">#{regionCode},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateSmartOperationOverview" parameterType="SmartOperationOverview">
+        update smart_operation_overview
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="statDate != null">stat_date = #{statDate},</if>
+            <if test="todayAlerts != null">today_alerts = #{todayAlerts},</if>
+            <if test="aiRecommendedTasks != null">ai_recommended_tasks = #{aiRecommendedTasks},</if>
+            <if test="motExecutionRate != null">mot_execution_rate = #{motExecutionRate},</if>
+            <if test="memberActivityRate != null">member_activity_rate = #{memberActivityRate},</if>
+            <if test="regionCode != null">region_code = #{regionCode},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteSmartOperationOverviewById" parameterType="Long">
+        delete from smart_operation_overview where id = #{id}
+    </delete>
+
+    <delete id="deleteSmartOperationOverviewByIds" parameterType="String">
+        delete from smart_operation_overview where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

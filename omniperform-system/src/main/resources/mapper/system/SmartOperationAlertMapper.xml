@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.SmartOperationAlertMapper">
+    
+    <resultMap type="SmartOperationAlert" id="SmartOperationAlertResult">
+        <result property="id"    column="id"    />
+        <result property="alertId"    column="alert_id"    />
+        <result property="alertType"    column="alert_type"    />
+        <result property="alertContent"    column="alert_content"    />
+        <result property="severity"    column="severity"    />
+        <result property="status"    column="status"    />
+        <result property="region"    column="region"    />
+        <result property="memberId"    column="member_id"    />
+        <result property="guideId"    column="guide_id"    />
+        <result property="triggerData"    column="trigger_data"    />
+        <result property="processTime"    column="process_time"    />
+        <result property="processUser"    column="process_user"    />
+        <result property="processNote"    column="process_note"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectSmartOperationAlertVo">
+        select id, alert_id, alert_type, alert_content, severity, status, region, member_id, guide_id, trigger_data, process_time, process_user, process_note, create_time, update_time from smart_operation_alerts
+    </sql>
+
+    <select id="selectSmartOperationAlertList" parameterType="SmartOperationAlert" resultMap="SmartOperationAlertResult">
+        <include refid="selectSmartOperationAlertVo"/>
+        <where>  
+            <if test="alertId != null  and alertId != ''"> and alert_id = #{alertId}</if>
+            <if test="alertType != null  and alertType != ''"> and alert_type = #{alertType}</if>
+            <if test="severity != null  and severity != ''"> and severity = #{severity}</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+            <if test="region != null  and region != '' and region != 'all'"> and region = #{region}</if>
+            <if test="memberId != null "> and member_id = #{memberId}</if>
+            <if test="guideId != null "> and guide_id = #{guideId}</if>
+        </where>
+        order by create_time desc
+    </select>
+    
+    <select id="selectSmartOperationAlertById" parameterType="Long" resultMap="SmartOperationAlertResult">
+        <include refid="selectSmartOperationAlertVo"/>
+        where id = #{id}
+    </select>
+    
+    <select id="selectSmartOperationAlertByAlertId" parameterType="String" resultMap="SmartOperationAlertResult">
+        <include refid="selectSmartOperationAlertVo"/>
+        where alert_id = #{alertId}
+    </select>
+    
+    <!-- 测试查询所有数据 -->
+    <select id="selectAllSmartOperationAlerts" resultMap="SmartOperationAlertResult">
+        <include refid="selectSmartOperationAlertVo"/>
+        order by create_time desc
+    </select>
+    
+    <!-- 简化的按状态查询方法 -->
+    <select id="selectSmartOperationAlertByStatus" resultMap="SmartOperationAlertResult">
+        <include refid="selectSmartOperationAlertVo"/>
+        where status = #{status}
+        <if test="region != null and region != '' and region != 'all'">
+            and region = #{region}
+        </if>
+        order by create_time desc
+    </select>
+
+    <!-- 简化的按日期范围查询方法 -->
+    <select id="selectSmartOperationAlertByDateRange" resultMap="SmartOperationAlertResult">
+        <include refid="selectSmartOperationAlertVo"/>
+        where create_time between #{startDate} and #{endDate}
+        <if test="region != null and region != '' and region != 'all'">
+            and region = #{region}
+        </if>
+        order by create_time desc
+    </select>
+
+    <!-- 简化的统计各状态预警数量 -->
+    <select id="countAlertsByStatus" resultType="java.util.Map">
+        select 
+            status,
+            count(*) as count
+        from smart_operation_alerts
+        <where>
+            <if test="region != null and region != '' and region != 'all'">
+                region = #{region}
+            </if>
+        </where>
+        group by status
+    </select>
+
+    <!-- 简化的统计各类型预警数量 -->
+    <select id="countAlertsByType" resultType="java.util.Map">
+        select 
+            alert_type as alertType,
+            count(*) as count
+        from smart_operation_alerts
+        <where>
+            <if test="region != null and region != '' and region != 'all'">
+                region = #{region}
+            </if>
+        </where>
+        group by alert_type
+    </select>
+
+    <!-- 根据月份查询智能运营预警列表 -->
+    <select id="selectSmartOperationAlertByMonth" resultMap="SmartOperationAlertResult">
+        <include refid="selectSmartOperationAlertVo"/>
+        <where>
+            month_year = #{monthYear}
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+            <if test="region != null and region != '' and region != 'all'">
+                and region = #{region}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <!-- 根据月份统计预警数量 -->
+    <select id="countSmartOperationAlertByMonth" resultType="int">
+        select count(*)
+        from smart_operation_alerts
+        <where>
+            month_year = #{monthYear}
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+            <if test="region != null and region != '' and region != 'all'">
+                and region = #{region}
+            </if>
+        </where>
+    </select>
+
+    <insert id="insertSmartOperationAlert" parameterType="SmartOperationAlert" useGeneratedKeys="true" keyProperty="id">
+        insert into smart_operation_alerts
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="alertId != null">alert_id,</if>
+            <if test="alertType != null">alert_type,</if>
+            <if test="alertContent != null">alert_content,</if>
+            <if test="severity != null">severity,</if>
+            <if test="status != null">status,</if>
+            <if test="region != null">region,</if>
+            <if test="memberId != null">member_id,</if>
+            <if test="guideId != null">guide_id,</if>
+            <if test="triggerData != null">trigger_data,</if>
+            <if test="processTime != null">process_time,</if>
+            <if test="processUser != null">process_user,</if>
+            <if test="processNote != null">process_note,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="alertId != null">#{alertId},</if>
+            <if test="alertType != null">#{alertType},</if>
+            <if test="alertContent != null">#{alertContent},</if>
+            <if test="severity != null">#{severity},</if>
+            <if test="status != null">#{status},</if>
+            <if test="region != null">#{region},</if>
+            <if test="memberId != null">#{memberId},</if>
+            <if test="guideId != null">#{guideId},</if>
+            <if test="triggerData != null">#{triggerData},</if>
+            <if test="processTime != null">#{processTime},</if>
+            <if test="processUser != null">#{processUser},</if>
+            <if test="processNote != null">#{processNote},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateSmartOperationAlert" parameterType="SmartOperationAlert">
+        update smart_operation_alerts
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="alertId != null">alert_id = #{alertId},</if>
+            <if test="alertType != null">alert_type = #{alertType},</if>
+            <if test="alertContent != null">alert_content = #{alertContent},</if>
+            <if test="severity != null">severity = #{severity},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="region != null">region = #{region},</if>
+            <if test="memberId != null">member_id = #{memberId},</if>
+            <if test="guideId != null">guide_id = #{guideId},</if>
+            <if test="triggerData != null">trigger_data = #{triggerData},</if>
+            <if test="processTime != null">process_time = #{processTime},</if>
+            <if test="processUser != null">process_user = #{processUser},</if>
+            <if test="processNote != null">process_note = #{processNote},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteSmartOperationAlertById" parameterType="Long">
+        delete from smart_operation_alerts where id = #{id}
+    </delete>
+
+    <delete id="deleteSmartOperationAlertByIds" parameterType="String">
+        delete from smart_operation_alerts where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

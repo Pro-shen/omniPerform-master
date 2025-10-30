@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.SmartMarketingTaskMapper">
+    
+    <resultMap type="SmartMarketingTask" id="SmartMarketingTaskResult">
+        <result property="id"    column="id"    />
+        <result property="taskId"    column="task_id"    />
+        <result property="taskName"    column="task_name"    />
+        <result property="taskType"    column="task_type"    />
+        <result property="targetGroup"    column="target_group"    />
+        <result property="memberCount"    column="member_count"    />
+        <result property="expectedEffect"    column="expected_effect"    />
+        <result property="recommendTime"    column="recommend_time"    />
+        <result property="status"    column="status"    />
+        <result property="priority"    column="priority"    />
+        <result property="aiConfidence"    column="ai_confidence"    />
+        <result property="targetMembers"    column="target_members"    />
+        <result property="taskConfig"    column="task_config"    />
+        <result property="executionResult"    column="execution_result"    />
+        <result property="executeTime"    column="execute_time"    />
+        <result property="completeTime"    column="complete_time"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectSmartMarketingTaskVo">
+        select id, task_id, task_name, task_type, target_group, member_count, expected_effect, recommend_time, status, priority, ai_confidence, target_members, task_config, execution_result, execute_time, complete_time, create_time, update_time from smart_marketing_tasks
+    </sql>
+
+    <select id="selectSmartMarketingTaskList" parameterType="SmartMarketingTask" resultMap="SmartMarketingTaskResult">
+        <include refid="selectSmartMarketingTaskVo"/>
+        <where>  
+            <if test="taskId != null  and taskId != ''"> and task_id = #{taskId}</if>
+            <if test="taskName != null  and taskName != ''"> and task_name like concat('%', #{taskName}, '%')</if>
+            <if test="taskType != null  and taskType != ''"> and task_type = #{taskType}</if>
+            <if test="targetGroup != null  and targetGroup != ''"> and target_group = #{targetGroup}</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+            <if test="priority != null  and priority != ''"> and priority = #{priority}</if>
+        </where>
+        order by recommend_time desc
+    </select>
+    
+    <select id="selectSmartMarketingTaskById" parameterType="Long" resultMap="SmartMarketingTaskResult">
+        <include refid="selectSmartMarketingTaskVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectSmartMarketingTaskByTaskId" parameterType="String" resultMap="SmartMarketingTaskResult">
+        <include refid="selectSmartMarketingTaskVo"/>
+        where task_id = #{taskId}
+    </select>
+
+    <select id="selectSmartMarketingTaskByStatus" resultMap="SmartMarketingTaskResult">
+        <include refid="selectSmartMarketingTaskVo"/>
+        where status = #{status}
+        <if test="taskType != null and taskType != ''">
+            and task_type = #{taskType}
+        </if>
+        order by recommend_time desc
+    </select>
+
+    <select id="selectSmartMarketingTaskByDateRange" resultMap="SmartMarketingTaskResult">
+        <include refid="selectSmartMarketingTaskVo"/>
+        where recommend_time between #{startDate} and #{endDate}
+        <if test="status != null and status != ''">
+            and status = #{status}
+        </if>
+        order by recommend_time desc
+    </select>
+
+    <select id="selectSmartMarketingTaskByMonth" resultMap="SmartMarketingTaskResult">
+        <include refid="selectSmartMarketingTaskVo"/>
+        where YEAR(recommend_time) = #{year} 
+        and MONTH(recommend_time) = #{month}
+        <if test="status != null and status != ''">
+            and status = #{status}
+        </if>
+        order by priority desc, ai_confidence desc, recommend_time desc
+    </select>
+
+    <select id="countTasksByStatus" resultType="java.util.Map">
+        select status, count(*) as count
+        from smart_marketing_tasks
+        group by status
+    </select>
+
+    <select id="countTasksByType" resultType="java.util.Map">
+        select task_type, count(*) as count
+        from smart_marketing_tasks
+        group by task_type
+    </select>
+
+    <select id="selectPendingHighPriorityTasks" resultMap="SmartMarketingTaskResult">
+        <include refid="selectSmartMarketingTaskVo"/>
+        where status = 'pending' and priority = 'high'
+        order by ai_confidence desc, recommend_time desc
+        <if test="limit != null">
+            limit #{limit}
+        </if>
+    </select>
+        
+    <insert id="insertSmartMarketingTask" parameterType="SmartMarketingTask" useGeneratedKeys="true" keyProperty="id">
+        insert into smart_marketing_tasks
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="taskId != null">task_id,</if>
+            <if test="taskName != null">task_name,</if>
+            <if test="taskType != null">task_type,</if>
+            <if test="targetGroup != null">target_group,</if>
+            <if test="memberCount != null">member_count,</if>
+            <if test="expectedEffect != null">expected_effect,</if>
+            <if test="recommendTime != null">recommend_time,</if>
+            <if test="status != null">status,</if>
+            <if test="priority != null">priority,</if>
+            <if test="aiConfidence != null">ai_confidence,</if>
+            <if test="targetMembers != null">target_members,</if>
+            <if test="taskConfig != null">task_config,</if>
+            <if test="executionResult != null">execution_result,</if>
+            <if test="executeTime != null">execute_time,</if>
+            <if test="completeTime != null">complete_time,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="taskId != null">#{taskId},</if>
+            <if test="taskName != null">#{taskName},</if>
+            <if test="taskType != null">#{taskType},</if>
+            <if test="targetGroup != null">#{targetGroup},</if>
+            <if test="memberCount != null">#{memberCount},</if>
+            <if test="expectedEffect != null">#{expectedEffect},</if>
+            <if test="recommendTime != null">#{recommendTime},</if>
+            <if test="status != null">#{status},</if>
+            <if test="priority != null">#{priority},</if>
+            <if test="aiConfidence != null">#{aiConfidence},</if>
+            <if test="targetMembers != null">#{targetMembers},</if>
+            <if test="taskConfig != null">#{taskConfig},</if>
+            <if test="executionResult != null">#{executionResult},</if>
+            <if test="executeTime != null">#{executeTime},</if>
+            <if test="completeTime != null">#{completeTime},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateSmartMarketingTask" parameterType="SmartMarketingTask">
+        update smart_marketing_tasks
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="taskId != null">task_id = #{taskId},</if>
+            <if test="taskName != null">task_name = #{taskName},</if>
+            <if test="taskType != null">task_type = #{taskType},</if>
+            <if test="targetGroup != null">target_group = #{targetGroup},</if>
+            <if test="memberCount != null">member_count = #{memberCount},</if>
+            <if test="expectedEffect != null">expected_effect = #{expectedEffect},</if>
+            <if test="recommendTime != null">recommend_time = #{recommendTime},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="priority != null">priority = #{priority},</if>
+            <if test="aiConfidence != null">ai_confidence = #{aiConfidence},</if>
+            <if test="targetMembers != null">target_members = #{targetMembers},</if>
+            <if test="taskConfig != null">task_config = #{taskConfig},</if>
+            <if test="executionResult != null">execution_result = #{executionResult},</if>
+            <if test="executeTime != null">execute_time = #{executeTime},</if>
+            <if test="completeTime != null">complete_time = #{completeTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteSmartMarketingTaskById" parameterType="Long">
+        delete from smart_marketing_tasks where id = #{id}
+    </delete>
+
+    <delete id="deleteSmartMarketingTaskByIds" parameterType="String">
+        delete from smart_marketing_tasks where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>
