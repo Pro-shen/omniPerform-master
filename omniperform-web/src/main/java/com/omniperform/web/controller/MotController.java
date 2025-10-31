@@ -81,7 +81,6 @@ public class MotController extends BaseController {
             result.put("page", page);
             result.put("size", size);
             
-            log.info("获取MOT任务列表成功，页码: {}, 大小: {}, 总数: {}", page, size, pageInfo.getTotal());
             return Result.success("获取MOT任务列表成功", result);
         } catch (Exception e) {
             log.error("获取MOT任务列表失败: {}", e.getMessage(), e);
@@ -346,7 +345,7 @@ public class MotController extends BaseController {
             script3.put("target", "提醒会员及时补充奶粉，避免断货，促进复购转化。");
             script3.put("scripts", new String[]{
                 "【称呼】您好，我是您的专属导购XX。根据您上次购买的奶粉用量，预计最近几天就要用完了，特地提前和您确认一下，是否需要为您准备新的奶粉？",
-                "【如果需要】太好了，我已经为您预留了新鲜库存。您方便什么时候来门店取货？如果您时间紧张，我们也提供配送服务。",
+                "【如果需要】太好了，我已经为您预留了新鲜库存。您方便什么时候来门店取货？如果您时间紧张，我也提供配送服务。",
                 "【如果犹豫】目前我们有限时的会员专属活动，复购可享受XX优惠。另外，保持同一品牌奶粉对宝宝肠道健康非常重要，避免频繁更换带来的适应问题。",
                 "【如果拒绝】感谢您的反馈。请问是对我们的产品有什么不满意的地方吗？（记录原因）我们非常重视您的体验，希望有机会继续为您和宝宝提供服务。"
             });
@@ -468,7 +467,6 @@ public class MotController extends BaseController {
             result.put("page", page);
             result.put("size", size);
             
-            log.info("获取今日MOT任务列表成功，页码: {}, 大小: {}, 总数: {}", page, size, pageInfo.getTotal());
             return Result.success("获取今日MOT任务列表成功", result);
         } catch (Exception e) {
             log.error("获取今日MOT任务列表失败: {}", e.getMessage(), e);

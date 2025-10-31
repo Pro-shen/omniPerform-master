@@ -56,7 +56,6 @@ public class AnalyticsController {
             trendData.put("avgOrderValue", 485.6);
             trendData.put("avgOrderValueGrowth", 3.8);
             
-            log.info("获取销售趋势分析成功");
             return Result.success("获取销售趋势分析成功", trendData);
         } catch (Exception e) {
             log.error("获取销售趋势分析失败: {}", e.getMessage(), e);
@@ -106,7 +105,6 @@ public class AnalyticsController {
             }
             behaviorData.put("activeHours", activeHours);
             
-            log.info("获取会员行为分析成功");
             return Result.success("获取会员行为分析成功", behaviorData);
         } catch (Exception e) {
             log.error("获取会员行为分析失败: {}", e.getMessage(), e);
@@ -168,7 +166,6 @@ public class AnalyticsController {
             priceSensitivity.put("competitorPriceGap", 5.8);
             productData.put("priceSensitivity", priceSensitivity);
             
-            log.info("获取产品分析报告成功");
             return Result.success("获取产品分析报告成功", productData);
         } catch (Exception e) {
             log.error("获取产品分析报告失败: {}", e.getMessage(), e);
@@ -219,7 +216,6 @@ public class AnalyticsController {
             competitionAnalysis.put("needsAttention", "西北区");
             regionData.put("competitionAnalysis", competitionAnalysis);
             
-            log.info("获取区域分析报告成功");
             return Result.success("获取区域分析报告成功", regionData);
         } catch (Exception e) {
             log.error("获取区域分析报告失败: {}", e.getMessage(), e);
@@ -295,7 +291,6 @@ public class AnalyticsController {
             
             forecastData.put("trendAlerts", trendAlerts);
             
-            log.info("获取预测分析成功");
             return Result.success("获取预测分析成功", forecastData);
         } catch (Exception e) {
             log.error("获取预测分析失败: {}", e.getMessage(), e);
@@ -321,7 +316,6 @@ public class AnalyticsController {
             report.put("createTime", LocalDate.now().toString());
             report.put("estimatedTime", "5-10分钟");
             
-            log.info("生成自定义报告成功，报告ID: {}", report.get("reportId"));
             return Result.success("生成自定义报告成功", report);
         } catch (Exception e) {
             log.error("生成自定义报告失败: {}", e.getMessage(), e);
@@ -362,7 +356,6 @@ public class AnalyticsController {
             result.put("page", page);
             result.put("size", size);
             
-            log.info("获取报告列表成功，页码: {}, 大小: {}", page, size);
             return Result.success("获取报告列表成功", result);
         } catch (Exception e) {
             log.error("获取报告列表失败: {}", e.getMessage(), e);

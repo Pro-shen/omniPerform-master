@@ -164,7 +164,6 @@ public class SmartOperationController {
             // 使用Service层获取会员画像数据
             Map<String, Object> profileData = memberProfileAnalysisService.getMemberProfileData(null, null);
             
-            log.info("获取会员画像分析数据成功");
             return Result.success("获取会员画像分析数据成功", profileData);
         } catch (Exception e) {
             log.error("获取会员画像分析数据失败: {}", e.getMessage(), e);
@@ -312,7 +311,6 @@ public class SmartOperationController {
             architectureData.put("data", data);
             architectureData.put("links", links);
             
-            log.info("获取智能运营技术架构数据成功");
             return Result.success("获取智能运营技术架构数据成功", architectureData);
         } catch (Exception e) {
             log.error("获取智能运营技术架构数据失败: {}", e.getMessage(), e);
@@ -349,7 +347,6 @@ public class SmartOperationController {
                 practices.add(practice);
             }
             
-            log.info("获取精英导购最佳实践数据成功");
             return Result.success("获取精英导购最佳实践数据成功", practices);
         } catch (Exception e) {
             log.error("获取精英导购最佳实践数据失败: {}", e.getMessage(), e);
@@ -387,7 +384,6 @@ public class SmartOperationController {
                 strategies.add(strategy);
             }
             
-            log.info("获取区域差异化策略数据成功");
             return Result.success("获取区域差异化策略数据成功", strategies);
         } catch (Exception e) {
             log.error("获取区域差异化策略数据失败: {}", e.getMessage(), e);
@@ -457,7 +453,7 @@ public class SmartOperationController {
         // 根据会员画像定制开头
         switch (memberProfile) {
             case "品质追求型":
-                content.append("亲爱的品质生活追求者，我们深知您对产品品质的严格要求。");
+                content.append("尊敬的客户，我们为您精心准备了专属推荐。");
                 break;
             case "成长探索型":
                 content.append("充满活力的探索者，我们为您准备了全新的发现之旅。");

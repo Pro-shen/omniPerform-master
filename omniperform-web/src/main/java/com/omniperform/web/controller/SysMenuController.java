@@ -34,6 +34,17 @@ public class SysMenuController {
     private ISysMenuService menuService;
     
     /**
+     * 测试匿名访问
+     */
+    @Anonymous
+    @GetMapping("/test")
+    @ApiOperation("测试匿名访问")
+    public Result testAnonymous() {
+        log.info("匿名访问测试成功");
+        return Result.success("匿名访问测试成功", "Hello Anonymous!");
+    }
+    
+    /**
      * 获取菜单列表
      */
     @Anonymous

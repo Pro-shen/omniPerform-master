@@ -219,38 +219,13 @@ public class SysUserServiceImpl implements ISysUserService
     @Transactional
     public int insertUser(SysUser user)
     {
-        log.info("开始执行用户插入操作，用户名: {}, 邮箱: {}, 手机号: {}", 
-                user.getLoginName(), user.getEmail(), user.getPhonenumber());
-        // 新增: 记录密码和盐字段状态
-        if (user.getPassword() == null || user.getPassword().isEmpty()) {
-            log.warn("🔐 [用户服务] 待插入用户密码为空");
-        } else {
-            log.debug("🔐 [用户服务] 待插入用户密码长度: {}", user.getPassword().length());
-        }
-        if (user.getSalt() == null || user.getSalt().isEmpty()) {
-            log.warn("🧂 [用户服务] 待插入用户盐值为空");
-        } else {
-            log.debug("🧂 [用户服务] 待插入用户盐值长度: {}", user.getSalt().length());
-        }
         try {
             // 新增用户信息
-            log.debug("开始插入用户信息到数据库");
             int rows = userMapper.insertUser(user);
-            log.info("用户信息插入完成，影响行数: {}, 用户ID: {}", rows, user.getUserId());
-            // 新增: 再次检查插入后对象中的密码/盐字段
-            log.debug("🔐 [用户服务] 插入后对象密码长度: {}", user.getPassword() != null ? user.getPassword().length() : -1);
-            log.debug("🧂 [用户服务] 插入后对象盐值长度: {}", user.getSalt() != null ? user.getSalt().length() : -1);
             // 新增用户岗位关联
-            log.debug("开始处理用户岗位关联");
             insertUserPost(user);
-            log.info("用户岗位关联处理完成");
-            
             // 新增用户与角色管理
-            log.debug("开始处理用户角色关联");
             insertUserRole(user.getUserId(), user.getRoleIds());
-            log.info("用户角色关联处理完成");
-            
-            log.info("用户插入操作成功完成，用户名: {}, 用户ID: {}", user.getLoginName(), user.getUserId());
             return rows;
         } catch (Exception e) {
             log.error("用户插入操作失败，用户名: {}, 错误信息: {}", user.getLoginName(), e.getMessage(), e);
@@ -339,9 +314,6 @@ public class SysUserServiceImpl implements ISysUserService
      */
     public void insertUserRole(Long userId, Long[] roleIds)
     {
-        log.debug("开始处理用户角色关联，用户ID: {}, 角色数量: {}", userId, 
-                roleIds != null ? roleIds.length : 0);
-        
         if (StringUtils.isNotNull(roleIds))
         {
             // 新增用户与角色管理
@@ -352,18 +324,11 @@ public class SysUserServiceImpl implements ISysUserService
                 ur.setUserId(userId);
                 ur.setRoleId(roleId);
                 list.add(ur);
-                log.debug("添加用户角色关联 - 用户ID: {}, 角色ID: {}", userId, roleId);
             }
             if (list.size() > 0)
             {
-                log.debug("开始批量插入用户角色关联，关联数量: {}", list.size());
                 userRoleMapper.batchUserRole(list);
-                log.info("用户角色关联批量插入完成，用户ID: {}, 关联数量: {}", userId, list.size());
             }
-        }
-        else
-        {
-            log.debug("用户角色关联为空，跳过处理，用户ID: {}", userId);
         }
     }
 
@@ -374,9 +339,6 @@ public class SysUserServiceImpl implements ISysUserService
      */
     public void insertUserPost(SysUser user)
     {
-        log.debug("开始处理用户岗位关联，用户ID: {}, 岗位数量: {}", user.getUserId(), 
-                user.getPostIds() != null ? user.getPostIds().length : 0);
-        
         Long[] posts = user.getPostIds();
         if (StringUtils.isNotNull(posts))
         {
@@ -388,18 +350,11 @@ public class SysUserServiceImpl implements ISysUserService
                 up.setUserId(user.getUserId());
                 up.setPostId(postId);
                 list.add(up);
-                log.debug("添加用户岗位关联 - 用户ID: {}, 岗位ID: {}", user.getUserId(), postId);
             }
             if (list.size() > 0)
             {
-                log.debug("开始批量插入用户岗位关联，关联数量: {}", list.size());
                 userPostMapper.batchUserPost(list);
-                log.info("用户岗位关联批量插入完成，用户ID: {}, 关联数量: {}", user.getUserId(), list.size());
             }
-        }
-        else
-        {
-            log.debug("用户岗位关联为空，跳过处理，用户ID: {}", user.getUserId());
         }
     }
 

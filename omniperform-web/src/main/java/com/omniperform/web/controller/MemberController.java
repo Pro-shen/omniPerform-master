@@ -75,9 +75,6 @@ public class MemberController {
             @RequestParam(required = false) String stage,
             @RequestParam(required = false) String tier) {
         try {
-            log.info("获取会员列表，页码: {}, 大小: {}, 月份: {}, 关键词: {}, 阶段: {}, 层级: {}", 
-                    page, size, month, keyword, stage, tier);
-            
             // 使用Service层获取会员列表数据
             MemberInfo memberInfo = new MemberInfo();
             if (keyword != null && !keyword.trim().isEmpty()) {
@@ -117,11 +114,10 @@ public class MemberController {
             result.put("total", total);
             result.put("page", page);
             result.put("size", size);
-            result.put("totalPages", (total + size - 1) / size);
             
-            return Result.success(result);
+            return Result.success("获取会员列表成功", result);
         } catch (Exception e) {
-            log.error("获取会员列表失败", e);
+            log.error("获取会员列表失败: {}", e.getMessage(), e);
             return Result.error("获取会员列表失败: " + e.getMessage());
         }
     }

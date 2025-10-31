@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import com.omniperform.common.annotation.Anonymous;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 设置Anonymous注解允许匿名访问的url
@@ -28,6 +30,7 @@ import com.omniperform.common.annotation.Anonymous;
 @Configuration
 public class PermitAllUrlProperties implements InitializingBean, ApplicationContextAware
 {
+    private static final Logger log = LoggerFactory.getLogger(PermitAllUrlProperties.class);
     private List<String> urls = new ArrayList<>();
 
     private ApplicationContext applicationContext;
@@ -35,9 +38,11 @@ public class PermitAllUrlProperties implements InitializingBean, ApplicationCont
     @Override
     public void afterPropertiesSet() throws Exception
     {
+        log.info("[PermitAllUrlProperties] 开始扫描@Anonymous注解...");
         Map<String, Object> controllers = applicationContext.getBeansWithAnnotation(Controller.class);
         Map<String, Object> restControllers = applicationContext.getBeansWithAnnotation(RestController.class);
         controllers.putAll(restControllers);
+        log.info("[PermitAllUrlProperties] 找到控制器数量: " + controllers.size());
         for (Object bean : controllers.values())
         {
             Class<?> beanClass;
@@ -66,10 +71,12 @@ public class PermitAllUrlProperties implements InitializingBean, ApplicationCont
 
             // 处理方法级别的匿名访问注解
             Method[] methods = beanClass.getDeclaredMethods();
+            log.info("[PermitAllUrlProperties] 检查控制器: " + beanClass.getSimpleName() + ", 方法数量: " + methods.length);
             for (Method method : methods)
             {
                 if (method.isAnnotationPresent(Anonymous.class))
                 {
+                    log.info("[PermitAllUrlProperties] 找到@Anonymous方法: " + beanClass.getSimpleName() + "." + method.getName());
                     RequestMapping baseMapping = beanClass.getAnnotation(RequestMapping.class);
                     String[] baseUrl = {};
                     if (Objects.nonNull(baseMapping))
@@ -109,6 +116,7 @@ public class PermitAllUrlProperties implements InitializingBean, ApplicationCont
                 }
             }
         }
+        log.info("[PermitAllUrlProperties] 扫描完成，匿名访问URL列表: " + urls);
     }
 
     private List<String> rebuildUrl(String[] bases, String[] uris)

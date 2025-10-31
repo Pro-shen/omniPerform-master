@@ -99,6 +99,7 @@ public class DashboardController {
             
             return Result.success("获取概览数据成功", data);
         } catch (Exception e) {
+            log.error("获取概览数据失败: {}", e.getMessage(), e);
             return Result.error("获取概览数据失败: " + e.getMessage());
         }
     }
@@ -127,6 +128,7 @@ public class DashboardController {
             
             return Result.success("获取核心指标成功", data);
         } catch (Exception e) {
+            log.error("获取核心指标失败: {}", e.getMessage(), e);
             return Result.error("获取核心指标失败: " + e.getMessage());
         }
     }

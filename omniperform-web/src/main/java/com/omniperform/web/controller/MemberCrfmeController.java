@@ -84,7 +84,7 @@ public class MemberCrfmeController {
             
             return Result.success("获取会员价值分层分布数据成功", data);
         } catch (Exception e) {
-            log.error("获取会员价值分层分布数据失败", e);
+            log.error("获取会员价值分层分布数据失败: {}", e.getMessage(), e);
             return Result.error("获取会员价值分层分布数据失败: " + e.getMessage());
         }
     }
@@ -160,7 +160,7 @@ public class MemberCrfmeController {
             
             return Result.success("获取会员价值分层统计数据成功", data);
         } catch (Exception e) {
-            log.error("获取会员价值分层统计数据失败", e);
+            log.error("获取会员价值分层统计数据失败: {}", e.getMessage(), e);
             return Result.error("获取会员价值分层统计数据失败: " + e.getMessage());
         }
     }
@@ -248,7 +248,7 @@ public class MemberCrfmeController {
             
             return Result.success("获取会员价值分层趋势数据成功", data);
         } catch (Exception e) {
-            log.error("获取会员价值分层趋势数据失败", e);
+            log.error("获取会员价值分层趋势数据失败: {}", e.getMessage(), e);
             return Result.error("获取会员价值分层趋势数据失败: " + e.getMessage());
         }
     }
@@ -271,9 +271,9 @@ public class MemberCrfmeController {
             List<String> months = new ArrayList<>(monthSet);
             Collections.sort(months, Collections.reverseOrder()); // 按时间倒序排列
             
-            return Result.success("获取可用月份列表成功", months);
+            return Result.success("获取可用月份成功", months);
         } catch (Exception e) {
-            log.error("获取可用月份列表失败", e);
+            log.error("获取可用月份失败: {}", e.getMessage(), e);
             return Result.error("获取可用月份列表失败: " + e.getMessage());
         }
     }
@@ -323,7 +323,7 @@ public class MemberCrfmeController {
                 return Result.success("恭喜您，数据已全部导入成功！共 " + successCount + " 条，数据如下：");
             }
         } catch (Exception e) {
-            log.error("导入会员价值分层数据失败", e);
+            log.error("导入会员价值分层数据失败: {}", e.getMessage(), e);
             return Result.error("导入失败：" + e.getMessage());
         }
     }

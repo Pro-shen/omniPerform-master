@@ -40,6 +40,8 @@ import com.omniperform.framework.shiro.web.filter.sync.SyncOnlineSessionFilter;
 import com.omniperform.framework.shiro.web.session.OnlineWebSessionManager;
 import com.omniperform.framework.shiro.web.session.SpringSessionValidationScheduler;
 import at.pollux.thymeleaf.shiro.dialect.ShiroDialect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 权限配置加载
@@ -49,6 +51,7 @@ import at.pollux.thymeleaf.shiro.dialect.ShiroDialect;
 @Configuration
 public class ShiroConfig
 {
+    private static final Logger log = LoggerFactory.getLogger(ShiroConfig.class);
     /**
      * Session超时时间，单位为毫秒（默认30分钟）
      */
@@ -316,9 +319,14 @@ public class ShiroConfig
         filterChainDefinitionMap.put("/captcha/captchaImage**", "anon");
         // 匿名访问不鉴权注解列表
         List<String> permitAllUrl = SpringUtils.getBean(PermitAllUrlProperties.class).getUrls();
+        log.info("[ShiroConfig] PermitAllUrlProperties扫描到的URL数量: " + (permitAllUrl != null ? permitAllUrl.size() : 0));
+        log.info("[ShiroConfig] PermitAllUrlProperties扫描到的URL列表: " + permitAllUrl);
         if (StringUtils.isNotEmpty(permitAllUrl))
         {
-            permitAllUrl.forEach(url -> filterChainDefinitionMap.put(url, "anon"));
+            permitAllUrl.forEach(url -> {
+                log.info("[ShiroConfig] 添加匿名访问URL: " + url);
+                filterChainDefinitionMap.put(url, "anon");
+            });
         }
         // 退出 logout地址，shiro去清除session
         filterChainDefinitionMap.put("/logout", "logout");
@@ -331,6 +339,8 @@ public class ShiroConfig
         filterChainDefinitionMap.put("/system/role/list", "anon");
         filterChainDefinitionMap.put("/system/role/menus", "anon");
         filterChainDefinitionMap.put("/system/role/menus/all", "anon");
+        // 菜单管理相关接口
+        filterChainDefinitionMap.put("/api/menu/**", "anon");
         // 系统权限列表
         // filterChainDefinitionMap.putAll(SpringUtils.getBean(IMenuService.class).selectPermsAll());
 

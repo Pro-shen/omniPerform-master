@@ -198,22 +198,13 @@ public class SysRoleServiceImpl implements ISysRoleService
     @Transactional
     public int updateRole(SysRole role)
     {
-        System.out.println("[updateRole] 开始更新角色, roleId=" + role.getRoleId() + 
-                          ", roleName=" + role.getRoleName() + 
-                          ", menuIds=" + java.util.Arrays.toString(role.getMenuIds()));
-        
         // 修改角色信息
         int updateResult = roleMapper.updateRole(role);
-        System.out.println("[updateRole] 角色信息更新结果: " + updateResult);
         
         // 删除角色与菜单关联
-        int deleteResult = roleMenuMapper.deleteRoleMenuByRoleId(role.getRoleId());
-        System.out.println("[updateRole] 删除旧的角色菜单关联结果: " + deleteResult);
+        roleMenuMapper.deleteRoleMenuByRoleId(role.getRoleId());
         
-        int insertResult = insertRoleMenu(role);
-        System.out.println("[updateRole] 插入新的角色菜单关联结果: " + insertResult);
-        
-        return insertResult;
+        return insertRoleMenu(role);
     }
 
     /**
@@ -241,9 +232,6 @@ public class SysRoleServiceImpl implements ISysRoleService
      */
     public int insertRoleMenu(SysRole role)
     {
-        System.out.println("[insertRoleMenu] 开始插入角色菜单关联, roleId=" + role.getRoleId());
-        System.out.println("[insertRoleMenu] role.getMenuIds()=" + java.util.Arrays.toString(role.getMenuIds()));
-        
         int rows = 1;
         // 新增用户与角色管理
         List<SysRoleMenu> list = new ArrayList<SysRoleMenu>();
@@ -251,21 +239,16 @@ public class SysRoleServiceImpl implements ISysRoleService
         if (role.getMenuIds() != null && role.getMenuIds().length > 0) {
             for (Long menuId : role.getMenuIds())
             {
-                System.out.println("[insertRoleMenu] 处理menuId: " + menuId);
                 SysRoleMenu rm = new SysRoleMenu();
                 rm.setRoleId(role.getRoleId());
                 rm.setMenuId(menuId);
                 list.add(rm);
             }
-            System.out.println("[insertRoleMenu] 准备批量插入的记录数: " + list.size());
             
             if (list.size() > 0)
             {
                 rows = roleMenuMapper.batchRoleMenu(list);
-                System.out.println("[insertRoleMenu] 批量插入结果: " + rows);
             }
-        } else {
-            System.out.println("[insertRoleMenu] menuIds为空或长度为0，跳过插入");
         }
         
         return rows;

@@ -2,8 +2,10 @@ package com.omniperform.web.controller;
 
 import com.omniperform.web.common.Result;
 import com.omniperform.common.core.domain.entity.SysUser;
+import com.omniperform.common.core.domain.entity.SysMenu;
 import com.omniperform.framework.shiro.service.SysLoginService;
 import com.omniperform.system.service.ISysUserService;
+import com.omniperform.system.service.ISysMenuService;
 import com.omniperform.common.utils.StringUtils;
 import com.omniperform.common.annotation.Anonymous;
 import io.swagger.annotations.Api;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 /**
  * 用户认证控制器
@@ -33,6 +36,9 @@ public class AuthController {
     
     @Autowired
     private ISysUserService userService;
+    
+    @Autowired
+    private ISysMenuService menuService;
 
     /**
      * 用户登录
@@ -63,6 +69,10 @@ public class AuthController {
                 data.put("user", createUserInfo(user));
                 
                 log.info("用户登录成功: username={}, userId={}", username, user.getUserId());
+                
+                // 获取并打印用户可访问的菜单列表
+                printUserMenuPermissions(user);
+                
                 return Result.success("登录成功", data);
             } else {
                 log.warn("用户登录失败: username={}", username);
@@ -83,7 +93,6 @@ public class AuthController {
     public Result logout() {
         try {
             // 这里可以添加清除session等逻辑
-            log.info("用户退出成功");
             return Result.success("退出成功");
         } catch (Exception e) {
             log.error("退出异常: {}", e.getMessage(), e);
@@ -236,5 +245,127 @@ public class AuthController {
         userInfo.put("status", user.getStatus());
         userInfo.put("deptId", user.getDeptId());
         return userInfo;
+    }
+    
+    /**
+     * 打印用户菜单权限信息
+     */
+    private void printUserMenuPermissions(SysUser user) {
+        try {
+            log.info("========== 用户菜单权限信息 ==========");
+            log.info("用户ID: {}", user.getUserId());
+            log.info("用户名: {} ({})", user.getUserName(), user.getLoginName());
+            
+            // 直接获取用户的所有菜单权限（不经过层级过滤）
+            List<SysMenu> allUserMenus;
+            if (user.isAdmin()) {
+                allUserMenus = menuService.selectMenuAll(user.getUserId());
+            } else {
+                // 直接调用mapper获取完整的菜单列表
+                allUserMenus = menuService.selectMenuList(new SysMenu(), user.getUserId());
+            }
+            
+            if (allUserMenus == null || allUserMenus.isEmpty()) {
+                log.info("该用户没有分配任何菜单权限");
+                log.info("=====================================");
+                return;
+            }
+            
+            log.info("用户可访问的界面列表 (共{}个):", allUserMenus.size());
+            log.info("-------------------------------------");
+            
+            // 按层级打印菜单，包括孤儿菜单
+            printMenuHierarchyWithOrphans(allUserMenus);
+            
+            // 打印所有可访问的URL
+            log.info("-------------------------------------");
+            log.info("可访问的URL列表:");
+            for (SysMenu menu : allUserMenus) {
+                if (StringUtils.isNotEmpty(menu.getUrl()) && !"#".equals(menu.getUrl())) {
+                    log.info("  - {} ({}) [ID:{}]", menu.getUrl(), menu.getMenuName(), menu.getMenuId());
+                }
+            }
+            
+            log.info("=====================================");
+            
+        } catch (Exception e) {
+            log.error("打印用户菜单权限信息时发生异常: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 打印菜单层级结构，包括孤儿菜单处理
+     */
+    private void printMenuHierarchyWithOrphans(List<SysMenu> menus) {
+        // 创建一个Set来存储所有存在的菜单ID
+        java.util.Set<Long> existingMenuIds = new java.util.HashSet<>();
+        for (SysMenu menu : menus) {
+            existingMenuIds.add(menu.getMenuId());
+        }
+        
+        // 首先打印所有顶级菜单（parentId = 0）
+        printMenuHierarchy(menus, 0, "");
+        
+        // 然后找出并打印孤儿菜单（父级不在用户权限中的菜单）
+        for (SysMenu menu : menus) {
+            if (menu.getParentId() != null && menu.getParentId() != 0 && !existingMenuIds.contains(menu.getParentId())) {
+                // 这是一个孤儿菜单，将其作为顶级菜单显示
+                if ("M".equals(menu.getMenuType()) || "C".equals(menu.getMenuType())) {
+                    String menuInfo = String.format("├─ %s [ID:%d]", menu.getMenuName(), menu.getMenuId());
+                    if (StringUtils.isNotEmpty(menu.getUrl()) && !"#".equals(menu.getUrl())) {
+                        menuInfo += String.format(" [%s]", menu.getUrl());
+                    }
+                    if (StringUtils.isNotEmpty(menu.getMenuType())) {
+                        String typeDesc = getMenuTypeDescription(menu.getMenuType());
+                        menuInfo += String.format(" (%s)", typeDesc);
+                    }
+                    log.info(menuInfo);
+                    
+                    // 递归打印这个孤儿菜单的子菜单
+                    printMenuHierarchy(menus, menu.getMenuId(), "│  ");
+                }
+            }
+        }
+    }
+    
+    /**
+     * 递归打印菜单层级结构
+     */
+    private void printMenuHierarchy(List<SysMenu> menus, long parentId, String prefix) {
+        for (SysMenu menu : menus) {
+            if (menu.getParentId() != null && menu.getParentId().equals(parentId)) {
+                // 只显示目录(M)和菜单(C)，过滤掉按钮(F)
+                if ("M".equals(menu.getMenuType()) || "C".equals(menu.getMenuType())) {
+                    String menuInfo = String.format("%s├─ %s [ID:%d]", prefix, menu.getMenuName(), menu.getMenuId());
+                    if (StringUtils.isNotEmpty(menu.getUrl()) && !"#".equals(menu.getUrl())) {
+                        menuInfo += String.format(" [%s]", menu.getUrl());
+                    }
+                    if (StringUtils.isNotEmpty(menu.getMenuType())) {
+                        String typeDesc = getMenuTypeDescription(menu.getMenuType());
+                        menuInfo += String.format(" (%s)", typeDesc);
+                    }
+                    log.info(menuInfo);
+                }
+                
+                // 递归打印子菜单（包括按钮的子菜单，但按钮本身不显示）
+                printMenuHierarchy(menus, menu.getMenuId(), prefix + "│  ");
+            }
+        }
+    }
+    
+    /**
+     * 获取菜单类型描述
+     */
+    private String getMenuTypeDescription(String menuType) {
+        switch (menuType) {
+            case "M":
+                return "目录";
+            case "C":
+                return "菜单";
+            case "F":
+                return "按钮";
+            default:
+                return "未知";
+        }
     }
 }

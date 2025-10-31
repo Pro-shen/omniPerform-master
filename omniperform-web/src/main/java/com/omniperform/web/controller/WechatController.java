@@ -98,7 +98,6 @@ public class WechatController {
             result.put("page", page);
             result.put("size", size);
             
-            log.info("获取联系人列表成功，页码: {}, 大小: {}", page, size);
             return Result.success("获取联系人列表成功", result);
         } catch (Exception e) {
             log.error("获取联系人列表失败: {}", e.getMessage(), e);

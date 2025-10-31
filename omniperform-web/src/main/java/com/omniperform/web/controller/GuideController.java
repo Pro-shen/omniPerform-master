@@ -97,7 +97,6 @@ public class GuideController {
             result.put("page", page);
             result.put("size", size);
             
-            log.info("获取导购列表成功，页码: {}, 大小: {}, 总数: {}", page, size, total);
             return Result.success("获取导购列表成功", result);
         } catch (Exception e) {
             log.error("获取导购列表失败: {}", e.getMessage(), e);
@@ -276,22 +275,7 @@ public class GuideController {
             int result = guideInfoService.insertGuideInfo(guideInfo);
             
             if (result > 0) {
-                // 返回创建的导购信息
-                Map<String, Object> guide = new HashMap<>();
-                guide.put("id", guideInfo.getGuideId());
-                guide.put("name", guideInfo.getGuideName());
-                guide.put("employeeId", guideInfo.getGuideCode());
-                guide.put("region", guideInfo.getRegionName());
-                guide.put("status", "在职");
-                guide.put("phone", guideInfo.getPhone());
-                guide.put("email", guideInfo.getEmail());
-                guide.put("joinDate", guideInfo.getHireDate() != null ? guideInfo.getHireDate().toString() : "");
-                guide.put("level", guideInfo.getLevel());
-                guide.put("department", guideInfo.getDepartment());
-                guide.put("manager", guideInfo.getSupervisorName());
-                
-                log.info("创建导购成功，导购ID: {}", guideInfo.getGuideId());
-                return Result.success("创建导购成功", guide);
+                return Result.success("创建导购成功", guideInfo);
             } else {
                 return Result.error("创建导购失败");
             }

@@ -129,7 +129,6 @@ public class SysRoleController {
             
             int result = roleService.updateRole(role);
             if (result > 0) {
-                log.info("更新角色成功: {}", role.getRoleName());
                 return Result.success("更新成功", role);
             } else {
                 return Result.error("更新失败");
@@ -164,7 +163,6 @@ public class SysRoleController {
             
             boolean result = roleService.deleteRoleById(roleId);
             if (result) {
-                log.info("删除角色成功: {}", role.getRoleName());
                 return Result.success("删除成功");
             } else {
                 return Result.error("删除失败");
@@ -258,7 +256,6 @@ public class SysRoleController {
             
             int result = roleService.changeStatus(role);
             if (result > 0) {
-                log.info("修改角色状态成功: {} -> {}", role.getRoleName(), role.getStatus());
                 return Result.success("修改成功");
             } else {
                 return Result.error("修改失败");
