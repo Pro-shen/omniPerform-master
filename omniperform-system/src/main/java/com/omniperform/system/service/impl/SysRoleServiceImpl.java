@@ -420,4 +420,3 @@ public class SysRoleServiceImpl implements ISysRoleService
         return roleMenuMapper.selectMenuIdsByRoleId(roleId);
     }
 }
-

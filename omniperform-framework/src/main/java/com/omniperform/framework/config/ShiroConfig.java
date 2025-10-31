@@ -327,6 +327,10 @@ public class ShiroConfig
         filterChainDefinitionMap.put("/api/login", "anon,captchaValidate");
         // 注册相关
         filterChainDefinitionMap.put("/register", "anon,captchaValidate");
+        // 角色管理相关接口
+        filterChainDefinitionMap.put("/system/role/list", "anon");
+        filterChainDefinitionMap.put("/system/role/menus", "anon");
+        filterChainDefinitionMap.put("/system/role/menus/all", "anon");
         // 系统权限列表
         // filterChainDefinitionMap.putAll(SpringUtils.getBean(IMenuService.class).selectPermsAll());
 

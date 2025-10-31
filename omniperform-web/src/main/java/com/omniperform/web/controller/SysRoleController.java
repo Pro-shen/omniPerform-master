@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -175,33 +176,68 @@ public class SysRoleController {
     }
 
     /**
-     * 获取角色菜单权限
+     * 获取角色权限菜单（包含已分配和可选菜单）
      */
     @Anonymous
-    @GetMapping("/{roleId}/menus")
-    @ApiOperation("获取角色菜单权限")
-    public Result getRoleMenus(@PathVariable Long roleId) {
+    @GetMapping("/menus")
+    @ApiOperation("获取角色权限菜单")
+    public Result getRolePermissions(@RequestParam Long roleId) {
         try {
+            log.info("请求获取角色菜单权限, roleId={}", roleId);
+            
             SysRole role = roleService.selectRoleById(roleId);
             if (role == null) {
+                log.warn("角色不存在, roleId={}", roleId);
                 return Result.error("角色不存在");
             }
             
             // 获取所有菜单和角色已分配的菜单
-            List<SysMenu> allMenus = menuService.selectMenuAll(null);
+            // 使用管理员权限(userId=1L)获取所有菜单
+            List<SysMenu> allMenus = menuService.selectMenuAll(1L);
             List<Long> checkedMenuIds = roleService.selectMenuIdsByRoleId(roleId);
 
+            log.info("系统全部菜单数量={}, 返回给前端的 checkedKeys 数量={}", 
+                     allMenus.size(), checkedMenuIds.size());
             log.info("角色[{}] 已分配菜单ID: {}", role.getRoleName(), checkedMenuIds);
+            
+            // 打印前几个菜单的详细信息用于调试
+            if (!allMenus.isEmpty()) {
+                log.info("前5个菜单示例:");
+                for (int i = 0; i < Math.min(5, allMenus.size()); i++) {
+                    SysMenu menu = allMenus.get(i);
+                    log.info("  菜单ID={}, 菜单名={}, 父级ID={}", 
+                             menu.getMenuId(), menu.getMenuName(), menu.getParentId());
+                }
+            }
             
             Map<String, Object> data = new HashMap<>();
             data.put("role", role);
             data.put("menus", allMenus);
             data.put("checkedKeys", checkedMenuIds);
             
+            log.info("成功返回角色菜单权限数据, data.keys={}", data.keySet());
             return Result.success("获取成功", data);
         } catch (Exception e) {
             log.error("获取角色菜单权限失败: {}", e.getMessage(), e);
             return Result.error("获取角色菜单权限失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取所有可用权限菜单
+     */
+    @Anonymous
+    @GetMapping("/menus/all")
+    @ApiOperation("获取所有可用权限菜单")
+    public Result getAllPermissions() {
+        try {
+            // 使用管理员权限(userId=1L)获取所有菜单
+            List<SysMenu> allMenus = menuService.selectMenuAll(1L);
+            log.info("获取所有权限菜单成功，共{}个菜单", allMenus.size());
+            return Result.success("获取成功", allMenus);
+        } catch (Exception e) {
+            log.error("获取所有权限菜单失败: {}", e.getMessage(), e);
+            return Result.error("获取所有权限菜单失败: " + e.getMessage());
         }
     }
 
@@ -234,12 +270,12 @@ public class SysRoleController {
     }
 
     /**
-     * 为角色分配菜单权限
+     * 分配角色权限
      */
     @Anonymous
-    @PutMapping("/{roleId}/menus")
-    @ApiOperation("为角色分配菜单权限")
-    public Result assignMenusToRole(@PathVariable Long roleId, @RequestBody Map<String, Object> menuData) {
+    @PutMapping("/menus")
+    @ApiOperation("分配角色权限")
+    public Result assignRolePermissions(@RequestParam Long roleId, @RequestBody Map<String, Object> permissionData) {
         try {
             SysRole role = roleService.selectRoleById(roleId);
             if (role == null) {
@@ -250,7 +286,13 @@ public class SysRoleController {
             roleService.checkRoleAllowed(role);
             
             @SuppressWarnings("unchecked")
-            List<Long> menuIds = (List<Long>) menuData.get("menuIds");
+            List<Object> menuIdObjects = (List<Object>) permissionData.get("menuIds");
+            List<Long> menuIds = new ArrayList<>();
+            for (Object obj : menuIdObjects) {
+                if (obj instanceof Number) {
+                    menuIds.add(((Number) obj).longValue());
+                }
+            }
             role.setMenuIds(menuIds.toArray(new Long[0]));
             
             int result = roleService.updateRole(role);
