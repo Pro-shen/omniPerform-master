@@ -41,4 +41,12 @@ public interface SysRoleMenuMapper
      * @return 结果
      */
     public int batchRoleMenu(List<SysRoleMenu> roleMenuList);
+    
+    /**
+     * 根据角色ID查询已分配的菜单ID集合
+     *
+     * @param roleId 角色ID
+     * @return 菜单ID列表
+     */
+    public List<Long> selectMenuIdsByRoleId(Long roleId);
 }

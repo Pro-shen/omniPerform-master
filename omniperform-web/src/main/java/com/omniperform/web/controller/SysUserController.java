@@ -1,5 +1,7 @@
 package com.omniperform.web.controller;
 
+import com.omniperform.common.utils.ShiroUtils;
+import com.omniperform.framework.shiro.service.SysPasswordService;
 import com.omniperform.web.common.Result;
 import com.omniperform.common.core.domain.entity.SysUser;
 import com.omniperform.common.core.domain.entity.SysRole;
@@ -40,6 +42,10 @@ public class SysUserController {
     
     @Autowired
     private ISysMenuService menuService;
+
+    // 新增: 注入密码工具服务
+    @Autowired
+    private SysPasswordService passwordService;
 
     /**
      * 获取用户列表
@@ -133,30 +139,63 @@ public class SysUserController {
     @ApiOperation("创建用户")
     public Result createUser(@RequestBody SysUser user) {
         try {
+            log.info("🔔 [用户创建] 收到创建用户请求: loginName={}, userName={}, email={}, phone={}", 
+                    user.getLoginName(), user.getUserName(), user.getEmail(), user.getPhonenumber());
+            // 新增: 记录密码字段是否为空及长度，避免直接打印明文密码
+            if (user.getPassword() == null || user.getPassword().isEmpty()) {
+                log.warn("🔐 [用户创建] 收到的密码字段为空");
+            } else {
+                log.debug("🔐 [用户创建] 收到的密码字段长度: {}", user.getPassword().length());
+            }
+            
             // 校验用户名唯一性
             if (!userService.checkLoginNameUnique(user)) {
+                log.warn("❌ [用户创建] 用户名已存在: {}", user.getLoginName());
                 return Result.error("用户名已存在");
             }
+            log.info("✅ [用户创建] 用户名唯一性校验通过: {}", user.getLoginName());
             
             // 校验邮箱唯一性
             if (!userService.checkEmailUnique(user)) {
+                log.warn("❌ [用户创建] 邮箱已存在: {}", user.getEmail());
                 return Result.error("邮箱已存在");
             }
+            log.info("✅ [用户创建] 邮箱唯一性校验通过: {}", user.getEmail());
             
             // 校验手机号唯一性
             if (!userService.checkPhoneUnique(user)) {
+                log.warn("❌ [用户创建] 手机号已存在: {}", user.getPhonenumber());
                 return Result.error("手机号已存在");
             }
-            
+            log.info("✅ [用户创建] 手机号唯一性校验通过: {}", user.getPhonenumber());
+
+            // ================= 若依模式: 生成盐并加密密码 =================
+            if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+                String rawPassword = user.getPassword();
+                String salt = ShiroUtils.randomSalt();
+                user.setSalt(salt);
+                user.setPassword(passwordService.encryptPassword(user.getLoginName(), rawPassword, salt));
+                log.debug("🔐 [用户创建] 原始密码已加密, 加密后长度: {}", user.getPassword().length());
+            } else {
+                log.warn("🔐 [用户创建] 未提供密码或为空, 将保持原状");
+            }
+            // ==========================================================
+
+            log.info("🔄 [用户创建] 开始插入用户数据到数据库");
             int result = userService.insertUser(user);
+            
             if (result > 0) {
-                log.info("创建用户成功: {}", user.getLoginName());
+                log.info("🎉 [用户创建] 创建用户成功: loginName={}, userId={}", user.getLoginName(), user.getUserId());
+                log.info("📋 [用户创建] 用户详细信息: userName={}, email={}, phone={}, status={}", 
+                        user.getUserName(), user.getEmail(), user.getPhonenumber(), user.getStatus());
                 return Result.success("创建成功", user);
             } else {
+                log.error("❌ [用户创建] 数据库插入操作失败，返回结果: {}", result);
                 return Result.error("创建失败");
             }
         } catch (Exception e) {
-            log.error("创建用户失败: {}", e.getMessage(), e);
+            log.error("💥 [用户创建] 创建用户失败: {}", e.getMessage(), e);
+            log.error("💥 [用户创建] 异常堆栈信息:", e);
             return Result.error("创建用户失败: " + e.getMessage());
         }
     }

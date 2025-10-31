@@ -189,10 +189,14 @@ public class SysRoleController {
             
             // 获取所有菜单和角色已分配的菜单
             List<SysMenu> allMenus = menuService.selectMenuAll(null);
+            List<Long> checkedMenuIds = roleService.selectMenuIdsByRoleId(roleId);
+
+            log.info("角色[{}] 已分配菜单ID: {}", role.getRoleName(), checkedMenuIds);
             
             Map<String, Object> data = new HashMap<>();
             data.put("role", role);
             data.put("menus", allMenus);
+            data.put("checkedKeys", checkedMenuIds);
             
             return Result.success("获取成功", data);
         } catch (Exception e) {

@@ -163,4 +163,11 @@ public interface ISysRoleService
      * @return 结果
      */
     public int insertAuthUsers(Long roleId, String userIds);
+
+    /**
+     * 根据角色ID获取已分配菜单ID列表
+     * @param roleId 角色ID
+     * @return 菜单ID集合
+     */
+    public List<Long> selectMenuIdsByRoleId(Long roleId);
 }
