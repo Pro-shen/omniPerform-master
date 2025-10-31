@@ -277,8 +277,11 @@ public class SysRoleController {
     @ApiOperation("分配角色权限")
     public Result assignRolePermissions(@RequestParam Long roleId, @RequestBody Map<String, Object> permissionData) {
         try {
+            log.info("开始分配角色权限, roleId={}, permissionData={}", roleId, permissionData);
+            
             SysRole role = roleService.selectRoleById(roleId);
             if (role == null) {
+                log.warn("角色不存在, roleId={}", roleId);
                 return Result.error("角色不存在");
             }
             
@@ -287,19 +290,41 @@ public class SysRoleController {
             
             @SuppressWarnings("unchecked")
             List<Object> menuIdObjects = (List<Object>) permissionData.get("menuIds");
+            log.info("接收到的menuIds原始数据: {}, 类型: {}", menuIdObjects, 
+                     menuIdObjects != null ? menuIdObjects.getClass().getSimpleName() : "null");
+            
             List<Long> menuIds = new ArrayList<>();
-            for (Object obj : menuIdObjects) {
-                if (obj instanceof Number) {
-                    menuIds.add(((Number) obj).longValue());
+            if (menuIdObjects != null) {
+                for (Object obj : menuIdObjects) {
+                    log.debug("处理menuId对象: {}, 类型: {}", obj, obj != null ? obj.getClass().getSimpleName() : "null");
+                    try {
+                        if (obj instanceof Number) {
+                            menuIds.add(((Number) obj).longValue());
+                        } else if (obj instanceof String) {
+                            // 处理字符串类型的menuId
+                            String strValue = (String) obj;
+                            if (!strValue.trim().isEmpty()) {
+                                menuIds.add(Long.parseLong(strValue));
+                            }
+                        }
+                    } catch (NumberFormatException e) {
+                        log.warn("无法转换menuId: {}, 错误: {}", obj, e.getMessage());
+                    }
                 }
             }
+            
+            log.info("转换后的menuIds: {}, 数量: {}", menuIds, menuIds.size());
             role.setMenuIds(menuIds.toArray(new Long[0]));
+            log.info("设置到role对象的menuIds: {}", java.util.Arrays.toString(role.getMenuIds()));
             
             int result = roleService.updateRole(role);
+            log.info("updateRole执行结果: {}", result);
+            
             if (result > 0) {
                 log.info("为角色分配菜单权限成功: {} -> {}", role.getRoleName(), menuIds);
                 return Result.success("分配成功");
             } else {
+                log.error("updateRole返回结果为0，分配失败");
                 return Result.error("分配失败");
             }
         } catch (Exception e) {
