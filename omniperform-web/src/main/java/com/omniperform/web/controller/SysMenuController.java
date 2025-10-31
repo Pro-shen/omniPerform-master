@@ -189,4 +189,48 @@ public class SysMenuController {
             return Result.error("获取菜单树失败: " + e.getMessage());
         }
     }
+    
+    /**
+     * 根据用户ID获取有权限访问的菜单（用于前端权限控制）
+     */
+    @Anonymous
+    @GetMapping("/permissions/{userId}")
+    @ApiOperation("根据用户ID获取有权限访问的菜单")
+    public Result getUserMenuPermissions(@PathVariable Long userId) {
+        try {
+            log.info("获取用户{}的菜单权限", userId);
+            
+            SysUser user = new SysUser();
+            user.setUserId(userId);
+            
+            // 获取用户有权限的菜单
+            List<SysMenu> userMenus = menuService.selectMenusByUser(user);
+            
+            // 构建权限数据，包含菜单ID、名称、URL等信息
+            Map<String, Object> permissionData = new HashMap<>();
+            permissionData.put("userId", userId);
+            permissionData.put("menus", userMenus);
+            
+            // 提取菜单URL列表，用于前端快速权限检查
+            List<String> allowedUrls = new java.util.ArrayList<>();
+            List<Long> allowedMenuIds = new java.util.ArrayList<>();
+            
+            for (SysMenu menu : userMenus) {
+                if (menu.getUrl() != null && !menu.getUrl().isEmpty()) {
+                    allowedUrls.add(menu.getUrl());
+                }
+                allowedMenuIds.add(menu.getMenuId());
+            }
+            
+            permissionData.put("allowedUrls", allowedUrls);
+            permissionData.put("allowedMenuIds", allowedMenuIds);
+            
+            log.info("用户{}有权限访问{}个菜单，包含{}个URL", userId, userMenus.size(), allowedUrls.size());
+            
+            return Result.success("获取成功", permissionData);
+        } catch (Exception e) {
+            log.error("获取用户菜单权限失败: {}", e.getMessage(), e);
+            return Result.error("获取用户菜单权限失败: " + e.getMessage());
+        }
+    }
 }
