@@ -25,7 +25,7 @@ import io.swagger.annotations.ApiOperation;
  */
 @Api(tags = "菜单管理")
 @RestController
-@RequestMapping("/api/menu")
+@RequestMapping("/menu")
 public class SysMenuController {
     
     private static final Logger log = LoggerFactory.getLogger(SysMenuController.class);

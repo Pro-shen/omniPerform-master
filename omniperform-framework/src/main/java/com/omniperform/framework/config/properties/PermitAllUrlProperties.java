@@ -72,8 +72,30 @@ public class PermitAllUrlProperties implements InitializingBean, ApplicationCont
             // 处理方法级别的匿名访问注解
             Method[] methods = beanClass.getDeclaredMethods();
             log.info("[PermitAllUrlProperties] 检查控制器: " + beanClass.getSimpleName() + ", 方法数量: " + methods.length);
+            
+            // 特别关注AuthController
+            if (beanClass.getSimpleName().equals("AuthController")) {
+                log.info("[PermitAllUrlProperties] *** 正在扫描AuthController ***");
+                RequestMapping baseMapping = beanClass.getAnnotation(RequestMapping.class);
+                if (baseMapping != null) {
+                    log.info("[PermitAllUrlProperties] AuthController基础路径: " + String.join(",", baseMapping.value()));
+                }
+            }
+            
             for (Method method : methods)
             {
+                // 特别关注AuthController的getUserPermissions方法
+                if (beanClass.getSimpleName().equals("AuthController") && method.getName().equals("getUserPermissions")) {
+                    log.info("[PermitAllUrlProperties] *** 检查getUserPermissions方法 ***");
+                    log.info("[PermitAllUrlProperties] 方法名: " + method.getName());
+                    log.info("[PermitAllUrlProperties] 是否有@Anonymous注解: " + method.isAnnotationPresent(Anonymous.class));
+                    log.info("[PermitAllUrlProperties] 是否有@GetMapping注解: " + method.isAnnotationPresent(GetMapping.class));
+                    if (method.isAnnotationPresent(GetMapping.class)) {
+                        GetMapping getMapping = method.getAnnotation(GetMapping.class);
+                        log.info("[PermitAllUrlProperties] @GetMapping值: " + String.join(",", getMapping.value()));
+                    }
+                }
+                
                 if (method.isAnnotationPresent(Anonymous.class))
                 {
                     log.info("[PermitAllUrlProperties] 找到@Anonymous方法: " + beanClass.getSimpleName() + "." + method.getName());
@@ -82,18 +104,23 @@ public class PermitAllUrlProperties implements InitializingBean, ApplicationCont
                     if (Objects.nonNull(baseMapping))
                     {
                         baseUrl = baseMapping.value();
+                        log.info("[PermitAllUrlProperties] 基础URL: " + String.join(",", baseUrl));
                     }
                     if (method.isAnnotationPresent(RequestMapping.class))
                     {
                         RequestMapping requestMapping = method.getAnnotation(RequestMapping.class);
                         String[] uri = requestMapping.value();
-                        urls.addAll(rebuildUrl(baseUrl, uri));
+                        List<String> builtUrls = rebuildUrl(baseUrl, uri);
+                        urls.addAll(builtUrls);
+                        log.info("[PermitAllUrlProperties] 添加RequestMapping URL: " + builtUrls);
                     }
                     else if (method.isAnnotationPresent(GetMapping.class))
                     {
                         GetMapping requestMapping = method.getAnnotation(GetMapping.class);
                         String[] uri = requestMapping.value();
-                        urls.addAll(rebuildUrl(baseUrl, uri));
+                        List<String> builtUrls = rebuildUrl(baseUrl, uri);
+                        urls.addAll(builtUrls);
+                        log.info("[PermitAllUrlProperties] 添加GetMapping URL: " + builtUrls);
                     }
                     else if (method.isAnnotationPresent(PostMapping.class))
                     {

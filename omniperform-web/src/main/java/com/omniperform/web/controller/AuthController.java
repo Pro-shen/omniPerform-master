@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * 用户认证控制器
@@ -70,8 +71,8 @@ public class AuthController {
                 
                 log.info("用户登录成功: username={}, userId={}", username, user.getUserId());
                 
-                // 获取并打印用户可访问的菜单列表
-                printUserMenuPermissions(user);
+//                // 获取并打印用户可访问的菜单列表
+//                printUserMenuPermissions(user);
                 
                 return Result.success("登录成功", data);
             } else {
@@ -367,5 +368,130 @@ public class AuthController {
             default:
                 return "未知";
         }
+    }
+    
+    /**
+     * 获取用户权限信息
+     */
+    @Anonymous
+    @GetMapping("/user-permissions/{userId}")
+    @ApiOperation("获取用户权限信息")
+    public Result getUserPermissions(@PathVariable Long userId) {
+        log.info("=== 开始处理用户权限请求 ===");
+        log.info("请求路径: /auth/user-permissions/{}", userId);
+        log.info("@Anonymous注解已添加");
+        log.info("用户ID参数: {}", userId);
+        
+        try {
+            log.info("开始获取用户权限信息，用户ID: {}", userId);
+            
+            if (userId == null) {
+                log.warn("用户ID为空");
+                return Result.error("用户ID不能为空");
+            }
+            
+            // 根据用户ID查询用户信息
+            SysUser user = userService.selectUserById(userId);
+            if (user == null) {
+                log.warn("用户不存在，用户ID: {}", userId);
+                return Result.error("用户不存在");
+            }
+            
+            log.info("找到用户: {}, 登录名: {}", user.getUserName(), user.getLoginName());
+            
+            // 获取用户权限数据
+            Map<String, Object> permissionData = getUserMenuPermissionsData(user);
+            
+            log.info("成功获取用户权限信息，菜单数量: {}", permissionData.get("menuCount"));
+            log.info("=== 用户权限请求处理完成 ===");
+            
+            return Result.success("获取用户权限信息成功", permissionData);
+            
+        } catch (Exception e) {
+            log.error("获取用户权限信息失败，用户ID: {}", userId, e);
+            log.error("=== 用户权限请求处理失败 ===");
+            return Result.error("获取用户权限信息失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取用户菜单权限数据（返回数据而不仅仅是打印日志）
+     */
+    private Map<String, Object> getUserMenuPermissionsData(SysUser user) {
+        Map<String, Object> result = new HashMap<>();
+        List<Map<String, Object>> menuList = new ArrayList<>();
+        List<String> urlList = new ArrayList<>();
+        
+        try {
+            log.info("========== 用户菜单权限信息 ==========");
+            log.info("用户ID: {}", user.getUserId());
+            log.info("用户名: {} ({})", user.getUserName(), user.getLoginName());
+            
+            // 直接获取用户的所有菜单权限（不经过层级过滤）
+            List<SysMenu> allUserMenus;
+            if (user.isAdmin()) {
+                allUserMenus = menuService.selectMenuAll(user.getUserId());
+            } else {
+                // 直接调用mapper获取完整的菜单列表
+                allUserMenus = menuService.selectMenuList(new SysMenu(), user.getUserId());
+            }
+            
+            if (allUserMenus == null || allUserMenus.isEmpty()) {
+                log.info("该用户没有分配任何菜单权限");
+                log.info("=====================================");
+                result.put("userId", user.getUserId());
+                result.put("userName", user.getUserName());
+                result.put("loginName", user.getLoginName());
+                result.put("menuCount", 0);
+                result.put("menus", menuList);
+                result.put("urls", urlList);
+                return result;
+            }
+            
+            log.info("用户可访问的界面列表 (共{}个):", allUserMenus.size());
+            log.info("-------------------------------------");
+            
+            // 构建菜单数据
+            for (SysMenu menu : allUserMenus) {
+                Map<String, Object> menuData = new HashMap<>();
+                menuData.put("menuId", menu.getMenuId());
+                menuData.put("menuName", menu.getMenuName());
+                menuData.put("parentId", menu.getParentId());
+                menuData.put("url", menu.getUrl());
+                menuData.put("menuType", menu.getMenuType());
+                menuData.put("visible", menu.getVisible());
+                menuData.put("orderNum", menu.getOrderNum());
+                menuList.add(menuData);
+                
+                // 收集URL
+                if (StringUtils.isNotEmpty(menu.getUrl()) && !"#".equals(menu.getUrl())) {
+                    urlList.add(menu.getUrl());
+                    log.info("  - {} ({}) [ID:{}]", menu.getUrl(), menu.getMenuName(), menu.getMenuId());
+                }
+            }
+            
+            // 按层级打印菜单，包括孤儿菜单
+            printMenuHierarchyWithOrphans(allUserMenus);
+            
+            log.info("-------------------------------------");
+            log.info("可访问的URL列表:");
+            for (String url : urlList) {
+                log.info("  - {}", url);
+            }
+            log.info("=====================================");
+            
+            result.put("userId", user.getUserId());
+            result.put("userName", user.getUserName());
+            result.put("loginName", user.getLoginName());
+            result.put("menuCount", allUserMenus.size());
+            result.put("menus", menuList);
+            result.put("urls", urlList);
+            
+        } catch (Exception e) {
+            log.error("获取用户菜单权限数据时发生异常: {}", e.getMessage(), e);
+            result.put("error", e.getMessage());
+        }
+        
+        return result;
     }
 }

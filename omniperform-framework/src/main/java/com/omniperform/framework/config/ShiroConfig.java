@@ -319,8 +319,24 @@ public class ShiroConfig
         filterChainDefinitionMap.put("/captcha/captchaImage**", "anon");
         // 匿名访问不鉴权注解列表
         List<String> permitAllUrl = SpringUtils.getBean(PermitAllUrlProperties.class).getUrls();
+        log.info("[ShiroConfig] *** 开始配置过滤器链 ***");
         log.info("[ShiroConfig] PermitAllUrlProperties扫描到的URL数量: " + (permitAllUrl != null ? permitAllUrl.size() : 0));
         log.info("[ShiroConfig] PermitAllUrlProperties扫描到的URL列表: " + permitAllUrl);
+        
+        // 检查是否包含我们的API
+        if (permitAllUrl != null) {
+            boolean foundAuthUserPermissions = false;
+            for (String url : permitAllUrl) {
+                if (url.contains("user-permissions")) {
+                    foundAuthUserPermissions = true;
+                    log.info("[ShiroConfig] *** 找到user-permissions相关URL: " + url + " ***");
+                }
+            }
+            if (!foundAuthUserPermissions) {
+                log.warn("[ShiroConfig] *** 警告：未找到user-permissions相关URL ***");
+            }
+        }
+        
         if (StringUtils.isNotEmpty(permitAllUrl))
         {
             permitAllUrl.forEach(url -> {
@@ -335,12 +351,21 @@ public class ShiroConfig
         filterChainDefinitionMap.put("/api/login", "anon,captchaValidate");
         // 注册相关
         filterChainDefinitionMap.put("/register", "anon,captchaValidate");
+        // 认证控制器相关接口
+        filterChainDefinitionMap.put("/auth/**", "anon");
+        filterChainDefinitionMap.put("/api/auth/**", "anon");
+        // 用户管理相关接口
+        filterChainDefinitionMap.put("/system/user/**", "anon");
         // 角色管理相关接口
         filterChainDefinitionMap.put("/system/role/list", "anon");
         filterChainDefinitionMap.put("/system/role/menus", "anon");
         filterChainDefinitionMap.put("/system/role/menus/all", "anon");
+        filterChainDefinitionMap.put("/system/role/**", "anon");
         // 菜单管理相关接口
-        filterChainDefinitionMap.put("/api/menu/**", "anon");
+        filterChainDefinitionMap.put("/menu/**", "anon");
+        // 用户权限相关接口
+        filterChainDefinitionMap.put("/menu/permissions/**", "anon");
+        filterChainDefinitionMap.put("/menu/user/**", "anon");
         // 系统权限列表
         // filterChainDefinitionMap.putAll(SpringUtils.getBean(IMenuService.class).selectPermsAll());
 
@@ -354,8 +379,15 @@ public class ShiroConfig
         filters.put("logout", logoutFilter());
         shiroFilterFactoryBean.setFilters(filters);
 
-        // 所有请求需要认证
-        filterChainDefinitionMap.put("/**", "user,kickout,onlineSession,syncOnlineSession,csrfValidateFilter");
+        // 所有其他请求需要认证
+        filterChainDefinitionMap.put("/**", "authc,kickout,onlineSession,syncOnlineSession,csrfValidateFilter");
+        
+        log.info("[ShiroConfig] *** 最终过滤器链配置 ***");
+        filterChainDefinitionMap.forEach((pattern, filter) -> {
+            log.info("[ShiroConfig] 过滤器链: " + pattern + " -> " + filter);
+        });
+        log.info("[ShiroConfig] *** 过滤器链配置完成 ***");
+        
         shiroFilterFactoryBean.setFilterChainDefinitionMap(filterChainDefinitionMap);
 
         return shiroFilterFactoryBean;
