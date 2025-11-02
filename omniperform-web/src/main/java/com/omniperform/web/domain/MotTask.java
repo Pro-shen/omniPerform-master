@@ -47,7 +47,7 @@ public class MotTask extends BaseEntity
 
     /** 负责导购ID */
     @Excel(name = "负责导购ID")
-    private Long guideId;
+    private String guideId;
 
     /** 负责导购姓名 */
     @Excel(name = "负责导购姓名")
@@ -158,12 +158,12 @@ public class MotTask extends BaseEntity
     {
         return status;
     }
-    public void setGuideId(Long guideId) 
+    public void setGuideId(String guideId) 
     {
         this.guideId = guideId;
     }
 
-    public Long getGuideId() 
+    public String getGuideId() 
     {
         return guideId;
     }

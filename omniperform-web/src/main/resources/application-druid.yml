@@ -3,19 +3,10 @@ spring:
     datasource:
         type: com.alibaba.druid.pool.DruidDataSource
         driverClassName: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://sh-cynosdbmysql-grp-ajuvq89i.sql.tencentcdb.com:20442/omniperform?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&allowMultiQueries=true
+        username: root
+        password: SC020917sc
         druid:
-            # 主库数据源
-            master:
-                url: jdbc:mysql://sh-cynosdbmysql-grp-ajuvq89i.sql.tencentcdb.com:20442/omniperform?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&allowMultiQueries=true
-                username: root
-                password: SC020917sc
-            # 从库数据源
-            slave:
-                # 从数据源开关/默认关闭
-                enabled: false
-                url: 
-                username: 
-                password: 
             # 初始连接数
             initialSize: 5
             # 最小连接池数量

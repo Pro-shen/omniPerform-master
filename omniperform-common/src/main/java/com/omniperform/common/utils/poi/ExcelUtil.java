@@ -10,6 +10,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -211,6 +213,407 @@ public class ExcelUtil<T>
     }
 
     /**
+     * 验证Excel模板格式
+     * 
+     * @param clazz 实体类
+     * @param sheet 工作表
+     * @return 验证结果
+     */
+    public ExcelValidationResult validateExcelTemplate(Class<T> clazz, Sheet sheet)
+    {
+        ExcelValidationResult result = new ExcelValidationResult();
+        
+        try 
+        {
+            // 获取表头行 - 假设第一行是表头
+            int headerRowIndex = 0;
+            Row headerRow = sheet.getRow(headerRowIndex);
+            if (headerRow == null)
+            {
+                result.addError("未找到表头行，请检查Excel文件格式");
+                log.error("Excel模板验证 - 未找到表头行: headerRowIndex={}", headerRowIndex);
+                return result;
+            }
+            
+            // 获取实体类字段信息
+            List<Object[]> fields = this.getFields();
+            Map<String, String> requiredHeaders = new HashMap<>();
+            Map<String, Boolean> fieldRequiredMap = new HashMap<>();
+            
+            for (Object[] os : fields)
+            {
+                Excel attr = (Excel) os[1];
+                String headerName = attr.name();
+                requiredHeaders.put(headerName, ((Field) os[0]).getName());
+                fieldRequiredMap.put(headerName, false); // Excel注解中没有isRequired方法，默认为false
+                log.debug("Excel模板验证 - 期望表头: {}, 字段: {}, 必填: {}", 
+                        headerName, ((Field) os[0]).getName(), false);
+            }
+            
+            // 验证表头
+            List<String> actualHeaders = new ArrayList<>();
+            List<String> missingHeaders = new ArrayList<>();
+            List<String> extraHeaders = new ArrayList<>();
+            
+            // 读取实际表头
+            for (int i = 0; i < headerRow.getLastCellNum(); i++)
+            {
+                Cell cell = headerRow.getCell(i);
+                String headerValue = getCellValue(headerRow, i).toString().trim();
+                if (StringUtils.isNotEmpty(headerValue))
+                {
+                    actualHeaders.add(headerValue);
+                    log.debug("Excel模板验证 - 实际表头[{}]: {}", i, headerValue);
+                }
+            }
+            
+            // 检查缺失的必填表头
+            for (Map.Entry<String, Boolean> entry : fieldRequiredMap.entrySet())
+            {
+                String requiredHeader = entry.getKey();
+                Boolean isRequired = entry.getValue();
+                
+                if (!actualHeaders.contains(requiredHeader))
+                {
+                    if (isRequired)
+                    {
+                        missingHeaders.add(requiredHeader);
+                        result.addError("缺少必填表头: " + requiredHeader);
+                        log.error("Excel模板验证 - 缺少必填表头: {}", requiredHeader);
+                    }
+                    else
+                    {
+                        log.warn("Excel模板验证 - 缺少可选表头: {}", requiredHeader);
+                    }
+                }
+            }
+            
+            // 检查多余的表头
+            for (String actualHeader : actualHeaders)
+            {
+                if (!requiredHeaders.containsKey(actualHeader))
+                {
+                    extraHeaders.add(actualHeader);
+                    result.addWarning("发现未定义的表头: " + actualHeader);
+                    log.warn("Excel模板验证 - 未定义的表头: {}", actualHeader);
+                }
+            }
+            
+            // 检查表头顺序建议
+            List<String> expectedOrder = new ArrayList<>(requiredHeaders.keySet());
+            if (!actualHeaders.equals(expectedOrder))
+            {
+                result.addWarning("表头顺序与建议顺序不一致，建议顺序: " + String.join(", ", expectedOrder));
+                log.warn("Excel模板验证 - 表头顺序不一致，期望: {}, 实际: {}", expectedOrder, actualHeaders);
+            }
+            
+            // 设置验证结果统计信息
+            result.setTotalExpectedHeaders(requiredHeaders.size());
+            result.setTotalActualHeaders(actualHeaders.size());
+            result.setMissingHeaders(missingHeaders);
+            result.setExtraHeaders(extraHeaders);
+            
+            log.info("Excel模板验证完成 - 期望表头数: {}, 实际表头数: {}, 缺失: {}, 多余: {}, 错误数: {}, 警告数: {}", 
+                    requiredHeaders.size(), actualHeaders.size(), missingHeaders.size(), 
+                    extraHeaders.size(), result.getErrors().size(), result.getWarnings().size());
+        }
+        catch (Exception e)
+        {
+            result.addError("Excel模板验证异常: " + e.getMessage());
+            log.error("Excel模板验证异常", e);
+        }
+        
+        return result;
+    }
+
+    /**
+     * 验证Excel数据行格式
+     * 
+     * @param sheet 工作表
+     * @param maxRows 最大检查行数，-1表示检查所有行
+     * @return 验证结果
+     */
+    public ExcelValidationResult validateExcelData(Sheet sheet, int maxRows)
+    {
+        ExcelValidationResult result = new ExcelValidationResult();
+        
+        try 
+        {
+            int headerRowIndex = 0; // 假设第一行是表头
+            int lastRowNum = sheet.getLastRowNum();
+            int checkRows = maxRows > 0 ? Math.min(lastRowNum, headerRowIndex + maxRows) : lastRowNum;
+            
+            log.info("Excel数据验证开始 - 总行数: {}, 检查行数: {}", lastRowNum, checkRows - headerRowIndex);
+            
+            for (int i = headerRowIndex + 1; i <= checkRows; i++)
+            {
+                Row row = sheet.getRow(i);
+                if (row == null)
+                {
+                    result.addWarning("第" + (i + 1) + "行为空行");
+                    continue;
+                }
+                
+                // 检查行是否完全为空
+                if (isRowEmpty(row))
+                {
+                    result.addWarning("第" + (i + 1) + "行为空行");
+                    continue;
+                }
+                
+                // 检查每个单元格的数据格式
+                validateRowData(row, result);
+            }
+            
+            log.info("Excel数据验证完成 - 检查了{}行数据，错误数: {}, 警告数: {}", 
+                    checkRows - headerRowIndex, result.getErrors().size(), result.getWarnings().size());
+        }
+        catch (Exception e)
+        {
+            result.addError("Excel数据验证异常: " + e.getMessage());
+            log.error("Excel数据验证异常", e);
+        }
+        
+        return result;
+    }
+
+    /**
+     * 验证单行数据
+     * 
+     * @param row 数据行
+     * @param result 验证结果
+     */
+    private void validateRowData(Row row, ExcelValidationResult result)
+    {
+        try 
+        {
+            List<Object[]> fields = this.getFields();
+            
+            for (Object[] os : fields)
+            {
+                Field field = (Field) os[0];
+                Excel attr = (Excel) os[1];
+                int columnIndex = 0; // 简化处理，使用默认列索引
+                
+                if (columnIndex >= 0)
+                {
+                    Cell cell = row.getCell(columnIndex);
+                    Object cellValue = getCellValue(row, columnIndex);
+                    
+                    // 检查必填字段 - 默认为非必填
+                    boolean isRequired = false; // Excel注解没有isRequired方法，默认为false
+                    if (isRequired && (cellValue == null || "".equals(cellValue.toString().trim())))
+                    {
+                        result.addError("第" + (row.getRowNum() + 1) + "行，列'" + attr.name() + "'为必填项，不能为空");
+                        continue;
+                    }
+                    
+                    // 检查数据类型兼容性
+                    if (cellValue != null && !"".equals(cellValue.toString().trim()))
+                    {
+                        validateDataType(row.getRowNum() + 1, attr.name(), cellValue, field.getType(), result);
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            result.addError("第" + (row.getRowNum() + 1) + "行数据验证异常: " + e.getMessage());
+            log.error("行数据验证异常 - 行号: {}", row.getRowNum() + 1, e);
+        }
+    }
+
+    /**
+     * 验证数据类型兼容性
+     * 
+     * @param rowNum 行号
+     * @param fieldName 字段名
+     * @param value 值
+     * @param targetType 目标类型
+     * @param result 验证结果
+     */
+    private void validateDataType(int rowNum, String fieldName, Object value, Class<?> targetType, ExcelValidationResult result)
+    {
+        try 
+        {
+            String strValue = value.toString().trim();
+            
+            if (Integer.TYPE == targetType || Integer.class == targetType)
+            {
+                if (!StringUtils.isNumeric(strValue))
+                {
+                    result.addError("第" + rowNum + "行，列'" + fieldName + "'应为整数，实际值: " + strValue);
+                }
+            }
+            else if (Long.TYPE == targetType || Long.class == targetType)
+            {
+                if (!StringUtils.isNumeric(strValue))
+                {
+                    result.addError("第" + rowNum + "行，列'" + fieldName + "'应为长整数，实际值: " + strValue);
+                }
+            }
+            else if (Double.TYPE == targetType || Double.class == targetType || 
+                     Float.TYPE == targetType || Float.class == targetType)
+            {
+                try 
+                {
+                    Double.parseDouble(strValue);
+                }
+                catch (NumberFormatException e)
+                {
+                    result.addError("第" + rowNum + "行，列'" + fieldName + "'应为数字，实际值: " + strValue);
+                }
+            }
+            else if (BigDecimal.class == targetType)
+            {
+                try 
+                {
+                    new BigDecimal(strValue);
+                }
+                catch (NumberFormatException e)
+                {
+                    result.addError("第" + rowNum + "行，列'" + fieldName + "'应为数字，实际值: " + strValue);
+                }
+            }
+            else if (Date.class == targetType)
+            {
+                // 日期验证相对复杂，这里做基本检查
+                if (!(value instanceof Date) && !isValidDateString(strValue))
+                {
+                    result.addWarning("第" + rowNum + "行，列'" + fieldName + "'可能不是有效的日期格式: " + strValue);
+                }
+            }
+            else if (Boolean.TYPE == targetType || Boolean.class == targetType)
+            {
+                String lowerValue = strValue.toLowerCase();
+                if (!("true".equals(lowerValue) || "false".equals(lowerValue) || 
+                      "1".equals(strValue) || "0".equals(strValue) ||
+                      "是".equals(strValue) || "否".equals(strValue)))
+                {
+                    result.addWarning("第" + rowNum + "行，列'" + fieldName + "'应为布尔值，实际值: " + strValue);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            log.warn("数据类型验证异常 - 行: {}, 字段: {}, 值: {}", rowNum, fieldName, value, e);
+        }
+    }
+
+    /**
+     * 检查字符串是否为有效日期格式
+     * 
+     * @param dateStr 日期字符串
+     * @return 是否有效
+     */
+    private boolean isValidDateString(String dateStr)
+    {
+        if (StringUtils.isEmpty(dateStr))
+        {
+            return false;
+        }
+        
+        // 常见日期格式
+        String[] dateFormats = {
+            "yyyy-MM-dd", "yyyy/MM/dd", "yyyy.MM.dd",
+            "yyyy-MM-dd HH:mm:ss", "yyyy/MM/dd HH:mm:ss",
+            "MM/dd/yyyy", "dd/MM/yyyy", "dd-MM-yyyy"
+        };
+        
+        for (String format : dateFormats)
+        {
+            try 
+            {
+                SimpleDateFormat sdf = new SimpleDateFormat(format);
+                sdf.setLenient(false);
+                sdf.parse(dateStr);
+                return true;
+            }
+            catch (ParseException e)
+            {
+                // 继续尝试下一个格式
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Excel验证结果类
+     */
+    public static class ExcelValidationResult
+    {
+        private List<String> errors = new ArrayList<>();
+        private List<String> warnings = new ArrayList<>();
+        private int totalExpectedHeaders = 0;
+        private int totalActualHeaders = 0;
+        private List<String> missingHeaders = new ArrayList<>();
+        private List<String> extraHeaders = new ArrayList<>();
+        
+        public void addError(String error)
+        {
+            errors.add(error);
+        }
+        
+        public void addWarning(String warning)
+        {
+            warnings.add(warning);
+        }
+        
+        public boolean isValid()
+        {
+            return errors.isEmpty();
+        }
+        
+        public boolean hasWarnings()
+        {
+            return !warnings.isEmpty();
+        }
+        
+        // Getters and Setters
+        public List<String> getErrors() { return errors; }
+        public List<String> getWarnings() { return warnings; }
+        public int getTotalExpectedHeaders() { return totalExpectedHeaders; }
+        public void setTotalExpectedHeaders(int totalExpectedHeaders) { this.totalExpectedHeaders = totalExpectedHeaders; }
+        public int getTotalActualHeaders() { return totalActualHeaders; }
+        public void setTotalActualHeaders(int totalActualHeaders) { this.totalActualHeaders = totalActualHeaders; }
+        public List<String> getMissingHeaders() { return missingHeaders; }
+        public void setMissingHeaders(List<String> missingHeaders) { this.missingHeaders = missingHeaders; }
+        public List<String> getExtraHeaders() { return extraHeaders; }
+        public void setExtraHeaders(List<String> extraHeaders) { this.extraHeaders = extraHeaders; }
+        
+        @Override
+        public String toString()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Excel验证结果:\n");
+            sb.append("- 有效: ").append(isValid()).append("\n");
+            sb.append("- 错误数: ").append(errors.size()).append("\n");
+            sb.append("- 警告数: ").append(warnings.size()).append("\n");
+            
+            if (!errors.isEmpty())
+            {
+                sb.append("错误详情:\n");
+                for (String error : errors)
+                {
+                    sb.append("  - ").append(error).append("\n");
+                }
+            }
+            
+            if (!warnings.isEmpty())
+            {
+                sb.append("警告详情:\n");
+                for (String warning : warnings)
+                {
+                    sb.append("  - ").append(warning).append("\n");
+                }
+            }
+            
+            return sb.toString();
+        }
+    }
+
+    /**
      * 仅在Excel中显示列属性
      *
      * @param fields 列属性名 示例[单个"name"/多个"id","name"]
@@ -378,6 +781,28 @@ public class ExcelUtil<T>
             Map<String, Integer> cellMap = new HashMap<String, Integer>();
             // 获取表头
             Row heard = sheet.getRow(titleNum);
+            if (heard == null) {
+                log.error("Excel解析 - 表头行为空: 行号={}", titleNum);
+                throw new RuntimeException("Excel文件表头行为空，行号: " + titleNum);
+            }
+            
+            log.info("Excel解析 - 表头行数据: 行号={}, 物理列数={}, 最后列号={}", 
+                titleNum, heard.getPhysicalNumberOfCells(), heard.getLastCellNum());
+            
+            // 打印表头行的所有单元格内容
+            StringBuilder headerContent = new StringBuilder("Excel解析 - 表头行完整内容: [");
+            for (int i = 0; i < heard.getPhysicalNumberOfCells(); i++)
+            {
+                Cell cell = heard.getCell(i);
+                Object cellValue = this.getCellValue(heard, i);
+                headerContent.append("列").append(i).append("='").append(cellValue).append("'");
+                if (i < heard.getPhysicalNumberOfCells() - 1) {
+                    headerContent.append(", ");
+                }
+            }
+            headerContent.append("]");
+            log.info(headerContent.toString());
+            
             for (int i = 0; i < heard.getPhysicalNumberOfCells(); i++)
             {
                 Cell cell = heard.getCell(i);
@@ -385,15 +810,31 @@ public class ExcelUtil<T>
                 {
                     String value = this.getCellValue(heard, i).toString();
                     cellMap.put(value, i);
+                    log.info("Excel解析 - 表头映射: 列{}='{}' -> 索引{}", i, value, i);
                 }
                 else
                 {
                     cellMap.put(null, i);
+                    log.warn("Excel解析 - 表头为空: 列{}", i);
                 }
             }
+            log.info("Excel解析 - 表头映射完成: cellMap大小={}, 内容={}", cellMap.size(), cellMap);
             // 有数据时才处理 得到类的所有field.
             List<Object[]> fields = this.getFields();
+            log.info("Excel解析 - 实体类字段数量: {}", fields.size());
+            
+            // 打印所有@Excel注解的字段信息
+            log.info("Excel解析 - 实体类@Excel字段详情:");
+            for (Object[] objects : fields)
+            {
+                Field field = (Field) objects[0];
+                Excel attr = (Excel) objects[1];
+                log.info("  字段名: {}, @Excel(name='{}')", field.getName(), attr.name());
+            }
+            
             Map<Integer, Object[]> fieldsMap = new HashMap<Integer, Object[]>();
+            List<String> unmatchedFields = new ArrayList<>();
+            
             for (Object[] objects : fields)
             {
                 Excel attr = (Excel) objects[1];
@@ -401,21 +842,47 @@ public class ExcelUtil<T>
                 if (column != null)
                 {
                     fieldsMap.put(column, objects);
+                    log.info("Excel解析 - 字段映射成功: @Excel(name='{}') -> 列索引{} -> 字段'{}'", 
+                        attr.name(), column, ((Field) objects[0]).getName());
+                }
+                else
+                {
+                    unmatchedFields.add(attr.name());
+                    log.warn("Excel解析 - 字段映射失败: @Excel(name='{}') 在表头中未找到对应列", attr.name());
+                }
+            }
+            
+            log.info("Excel解析 - 字段映射完成: fieldsMap大小={}", fieldsMap.size());
+            if (!unmatchedFields.isEmpty()) {
+                log.error("Excel解析 - 未匹配的字段列表: {}", unmatchedFields);
+                log.error("Excel解析 - 可用的表头列表: {}", cellMap.keySet());
+                
+                // 进行模糊匹配分析
+                log.info("Excel解析 - 开始模糊匹配分析:");
+                for (String unmatchedField : unmatchedFields) {
+                    for (String headerKey : cellMap.keySet()) {
+                        if (headerKey != null && (headerKey.contains(unmatchedField) || unmatchedField.contains(headerKey))) {
+                            log.info("  可能匹配: '{}' <-> '{}'", unmatchedField, headerKey);
+                        }
+                    }
                 }
             }
             for (int i = titleNum + 1; i <= rows; i++)
             {
                 // 从第2行开始取数据,默认第一行是表头.
                 Row row = sheet.getRow(i);
+                log.info("Excel解析 - 处理数据行: 行号={}", i);
                 // 判断当前行是否是空行
                 if (isRowEmpty(row))
                 {
+                    log.info("Excel解析 - 跳过空行: 行号={}", i);
                     continue;
                 }
                 T entity = null;
                 for (Map.Entry<Integer, Object[]> entry : fieldsMap.entrySet())
                 {
                     Object val = this.getCellValue(row, entry.getKey());
+                    log.debug("Excel解析 - 读取单元格值: 行{}列{} = '{}'", i, entry.getKey(), val);
 
                     // 如果不存在实例则新建.
                     entity = (entity == null ? clazz.newInstance() : entity);
@@ -424,104 +891,587 @@ public class ExcelUtil<T>
                     Excel attr = (Excel) entry.getValue()[1];
                     // 取得类型,并根据对象类型设置值.
                     Class<?> fieldType = field.getType();
-                    if (String.class == fieldType)
+                    
+                    Object originalVal = val; // 保存原始值用于错误日志
+                    
+                    try 
                     {
-                        String s = Convert.toStr(val);
-                        if (s.matches("^\\d+\\.0$"))
+                        // 数据类型转换
+                        val = convertFieldValue(val, fieldType, field, attr, i, entry.getKey());
+                        
+                        if (StringUtils.isNotNull(fieldType))
                         {
-                            val = StringUtils.substringBefore(s, ".0");
-                        }
-                        else
-                        {
-                            String dateFormat = field.getAnnotation(Excel.class).dateFormat();
-                            if (StringUtils.isNotEmpty(dateFormat))
+                            String propertyName = field.getName();
+                            if (StringUtils.isNotEmpty(attr.targetAttr()))
                             {
-                                val = parseDateToStr(dateFormat, val);
+                                propertyName = field.getName() + "." + attr.targetAttr();
                             }
-                            else
+                            
+                            // 应用转换器和字典映射
+                            val = applyConvertersAndDictionary(val, attr, row, entry.getKey());
+                            
+                            // 设置字段值
+                            try 
                             {
-                                val = Convert.toStr(val);
+                                ReflectUtils.invokeSetter(entity, propertyName, val);
+                                log.debug("Excel解析 - 字段赋值成功: 字段'{}' = '{}'", propertyName, val);
                             }
-                        }
-                    }
-                    else if ((Integer.TYPE == fieldType || Integer.class == fieldType) && StringUtils.isNumeric(Convert.toStr(val)))
-                    {
-                        val = Convert.toInt(val);
-                    }
-                    else if ((Long.TYPE == fieldType || Long.class == fieldType) && StringUtils.isNumeric(Convert.toStr(val)))
-                    {
-                        val = Convert.toLong(val);
-                    }
-                    else if (Double.TYPE == fieldType || Double.class == fieldType)
-                    {
-                        val = Convert.toDouble(val);
-                    }
-                    else if (Float.TYPE == fieldType || Float.class == fieldType)
-                    {
-                        val = Convert.toFloat(val);
-                    }
-                    else if (BigDecimal.class == fieldType)
-                    {
-                        val = Convert.toBigDecimal(val);
-                    }
-                    else if (Date.class == fieldType)
-                    {
-                        if (val instanceof String)
-                        {
-                            val = DateUtils.parseDate(val);
-                        }
-                        else if (val instanceof Double)
-                        {
-                            val = DateUtil.getJavaDate((Double) val);
-                        }
-                    }
-                    else if (Boolean.TYPE == fieldType || Boolean.class == fieldType)
-                    {
-                        val = Convert.toBool(val, false);
-                    }
-                    if (StringUtils.isNotNull(fieldType))
-                    {
-                        String propertyName = field.getName();
-                        if (StringUtils.isNotEmpty(attr.targetAttr()))
-                        {
-                            propertyName = field.getName() + "." + attr.targetAttr();
-                        }
-                        if (StringUtils.isNotEmpty(attr.readConverterExp()))
-                        {
-                            val = reverseByExp(Convert.toStr(val), attr.readConverterExp(), attr.separator());
-                        }
-                        else if (StringUtils.isNotEmpty(attr.dictType()))
-                        {
-                            if (!sysDictMap.containsKey(attr.dictType() + val))
+                            catch (Exception setterException)
                             {
-                                String dictValue = reverseDictByExp(Convert.toStr(val), attr.dictType(), attr.separator());
-                                sysDictMap.put(attr.dictType() + val, dictValue);
+                                log.error("Excel解析 - 字段赋值失败: 行={}, 列={}, 字段='{}', 值='{}', 类型={}, 异常={}", 
+                                        i, entry.getKey(), propertyName, val, fieldType.getSimpleName(), setterException.getMessage());
+                                // 尝试设置为null或默认值
+                                try 
+                                {
+                                    ReflectUtils.invokeSetter(entity, propertyName, getDefaultValue(fieldType));
+                                    log.info("Excel解析 - 字段赋值回退成功: 字段'{}' 设置为默认值", propertyName);
+                                }
+                                catch (Exception fallbackException)
+                                {
+                                    log.warn("Excel解析 - 字段赋值回退也失败: 字段='{}', 回退异常={}", 
+                                            propertyName, fallbackException.getMessage());
+                                }
                             }
-                            val = sysDictMap.get(attr.dictType() + val);
                         }
-                        else if (!attr.handler().equals(ExcelHandlerAdapter.class))
-                        {
-                            val = dataFormatHandlerAdapter(val, attr, null);
-                        }
-                        else if (ColumnType.IMAGE == attr.cellType() && StringUtils.isNotEmpty(pictures))
-                        {
-                            StringBuilder propertyString = new StringBuilder();
-                            List<PictureData> images = pictures.get(row.getRowNum() + "_" + entry.getKey());
-                            for (PictureData picture : images)
-                            {
-                                byte[] data = picture.getData();
-                                String fileName = FileUtils.writeImportBytes(data);
-                                propertyString.append(fileName).append(SEPARATOR);
-                            }
-                            val = StringUtils.stripEnd(propertyString.toString(), SEPARATOR);
-                        }
-                        ReflectUtils.invokeSetter(entity, propertyName, val);
                     }
+                    catch (Exception conversionException)
+                    {
+                        log.error("Excel解析 - 数据转换失败: 行={}, 列={}, 字段='{}', 原值='{}', 目标类型={}, 异常={}", 
+                                i, entry.getKey(), field.getName(), originalVal, fieldType.getSimpleName(), conversionException.getMessage());
+                        // 转换失败时跳过该字段，继续处理其他字段
+                    }
+                }
+                if (entity != null) {
+                    log.info("Excel解析 - 添加实体到列表: 行号={}, 实体={}", i, entity);
                 }
                 list.add(entity);
             }
         }
+        log.info("Excel解析 - 解析完成: 总共解析{}条数据", list.size());
         return list;
+    }
+
+    /**
+     * 增强的Excel导入方法，支持智能表头识别和模糊匹配
+     * 
+     * @param is 输入流
+     * @param titleNum 表头行号（从0开始）
+     * @return 导入结果包装类
+     */
+    public ExcelImportResult<T> importExcelEnhanced(InputStream is, int titleNum) {
+        ExcelImportResult<T> result = new ExcelImportResult<>();
+        try {
+            this.type = Type.IMPORT;
+            this.wb = WorkbookFactory.create(is);
+            List<T> list = new ArrayList<T>();
+            
+            // 如果指定sheet名,则取指定sheet中的内容 否则默认指向第1个sheet
+            Sheet sheet = wb.getSheetAt(0);
+            if (sheet == null) {
+                result.addError("Excel文件sheet不存在");
+                return result;
+            }
+            
+            // 获取最后一个非空行的行下标
+            int rows = sheet.getLastRowNum();
+            if (rows <= titleNum) {
+                result.addError("Excel文件数据行不足，至少需要" + (titleNum + 2) + "行（包含表头和数据行）");
+                return result;
+            }
+            
+            // 智能表头识别
+            HeaderMatchResult headerResult = smartHeaderMatching(sheet, titleNum);
+            if (!headerResult.isSuccess()) {
+                result.addError("表头识别失败：" + headerResult.getErrorMessage());
+                result.addWarning("建议使用标准模板，确保表头与字段名称匹配");
+                return result;
+            }
+            
+            Map<Integer, Object[]> fieldsMap = headerResult.getFieldsMap();
+            result.addInfo("成功识别" + fieldsMap.size() + "个字段映射");
+            
+            // 数据行处理
+            for (int i = titleNum + 1; i <= rows; i++) {
+                Row row = sheet.getRow(i);
+                if (isRowEmpty(row)) {
+                    result.addWarning("第" + (i + 1) + "行为空行，已跳过");
+                    continue;
+                }
+                
+                try {
+                    T entity = parseRowToEntity(row, fieldsMap, i);
+                    if (entity != null) {
+                        list.add(entity);
+                        result.incrementSuccessCount();
+                    } else {
+                        result.addError("第" + (i + 1) + "行数据解析失败：所有字段都为空或无效");
+                        result.incrementFailCount();
+                    }
+                } catch (Exception e) {
+                    result.addError("第" + (i + 1) + "行数据解析异常：" + e.getMessage());
+                    result.incrementFailCount();
+                    log.error("Excel解析 - 第{}行数据解析异常", i + 1, e);
+                }
+            }
+            
+            result.setData(list);
+            result.addInfo("Excel导入完成，成功：" + result.getSuccessCount() + "条，失败：" + result.getFailCount() + "条");
+            
+        } catch (Exception e) {
+            result.addError("Excel文件解析失败：" + e.getMessage());
+            log.error("Excel解析异常", e);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 智能表头匹配
+     */
+    private HeaderMatchResult smartHeaderMatching(Sheet sheet, int titleNum) {
+        HeaderMatchResult result = new HeaderMatchResult();
+        
+        try {
+            // 获取表头行
+            Row headerRow = sheet.getRow(titleNum);
+            if (headerRow == null) {
+                result.setErrorMessage("表头行（第" + (titleNum + 1) + "行）为空");
+                return result;
+            }
+            
+            // 读取表头内容
+            Map<String, Integer> cellMap = new HashMap<>();
+            List<String> actualHeaders = new ArrayList<>();
+            
+            for (int i = 0; i < headerRow.getPhysicalNumberOfCells(); i++) {
+                Cell cell = headerRow.getCell(i);
+                if (cell != null) {
+                    String value = getCellValue(headerRow, i).toString().trim();
+                    if (!value.isEmpty()) {
+                        cellMap.put(value, i);
+                        actualHeaders.add(value);
+                    }
+                }
+            }
+            
+            log.info("Excel解析 - 实际表头: {}", actualHeaders);
+            
+            // 获取实体类字段
+            List<Object[]> fields = this.getFields();
+            Map<Integer, Object[]> fieldsMap = new HashMap<>();
+            List<String> unmatchedFields = new ArrayList<>();
+            List<String> matchedFields = new ArrayList<>();
+            
+            // 精确匹配
+            for (Object[] objects : fields) {
+                Excel attr = (Excel) objects[1];
+                String expectedHeader = attr.name();
+                
+                Integer column = cellMap.get(expectedHeader);
+                if (column != null) {
+                    fieldsMap.put(column, objects);
+                    matchedFields.add(expectedHeader);
+                    log.info("Excel解析 - 精确匹配: '{}' -> 列{}", expectedHeader, column);
+                } else {
+                    unmatchedFields.add(expectedHeader);
+                }
+            }
+            
+            // 模糊匹配未匹配的字段
+            if (!unmatchedFields.isEmpty()) {
+                log.info("Excel解析 - 开始模糊匹配，未匹配字段: {}", unmatchedFields);
+                
+                for (String unmatchedField : new ArrayList<>(unmatchedFields)) {
+                    String bestMatch = findBestHeaderMatch(unmatchedField, actualHeaders, matchedFields);
+                    if (bestMatch != null) {
+                        Integer column = cellMap.get(bestMatch);
+                        if (column != null) {
+                            // 找到对应的字段对象
+                            for (Object[] objects : fields) {
+                                Excel attr = (Excel) objects[1];
+                                if (attr.name().equals(unmatchedField)) {
+                                    fieldsMap.put(column, objects);
+                                    matchedFields.add(bestMatch);
+                                    unmatchedFields.remove(unmatchedField);
+                                    log.info("Excel解析 - 模糊匹配: '{}' -> '{}' -> 列{}", unmatchedField, bestMatch, column);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            result.setFieldsMap(fieldsMap);
+            result.setMatchedHeaders(matchedFields);
+            result.setUnmatchedFields(unmatchedFields);
+            result.setActualHeaders(actualHeaders);
+            
+            if (fieldsMap.isEmpty()) {
+                result.setErrorMessage("没有找到任何匹配的字段，请检查表头是否正确");
+                return result;
+            }
+            
+            result.setSuccess(true);
+            log.info("Excel解析 - 表头匹配完成: 成功匹配{}个字段，未匹配{}个字段", 
+                    fieldsMap.size(), unmatchedFields.size());
+            
+        } catch (Exception e) {
+            result.setErrorMessage("表头匹配异常：" + e.getMessage());
+            log.error("Excel解析 - 表头匹配异常", e);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 寻找最佳表头匹配
+     */
+    private String findBestHeaderMatch(String expectedHeader, List<String> actualHeaders, List<String> excludeHeaders) {
+        String bestMatch = null;
+        int maxScore = 0;
+        
+        for (String actualHeader : actualHeaders) {
+            if (excludeHeaders.contains(actualHeader)) {
+                continue; // 跳过已经匹配的表头
+            }
+            
+            int score = calculateSimilarityScore(expectedHeader, actualHeader);
+            if (score > maxScore && score >= 60) { // 相似度阈值60%
+                maxScore = score;
+                bestMatch = actualHeader;
+            }
+        }
+        
+        return bestMatch;
+    }
+    
+    /**
+     * 计算字符串相似度得分（0-100）
+     */
+    private int calculateSimilarityScore(String str1, String str2) {
+        if (str1 == null || str2 == null) return 0;
+        if (str1.equals(str2)) return 100;
+        
+        // 包含关系检查
+        if (str1.contains(str2) || str2.contains(str1)) {
+            return 80;
+        }
+        
+        // 去除空格后比较
+        String clean1 = str1.replaceAll("\\s+", "");
+        String clean2 = str2.replaceAll("\\s+", "");
+        if (clean1.equals(clean2)) {
+            return 90;
+        }
+        
+        // 简单的编辑距离算法
+        int distance = levenshteinDistance(clean1, clean2);
+        int maxLen = Math.max(clean1.length(), clean2.length());
+        if (maxLen == 0) return 100;
+        
+        return Math.max(0, 100 - (distance * 100 / maxLen));
+    }
+    
+    /**
+     * 计算编辑距离
+     */
+    private int levenshteinDistance(String str1, String str2) {
+        int[][] dp = new int[str1.length() + 1][str2.length() + 1];
+        
+        for (int i = 0; i <= str1.length(); i++) {
+            dp[i][0] = i;
+        }
+        for (int j = 0; j <= str2.length(); j++) {
+            dp[0][j] = j;
+        }
+        
+        for (int i = 1; i <= str1.length(); i++) {
+            for (int j = 1; j <= str2.length(); j++) {
+                if (str1.charAt(i - 1) == str2.charAt(j - 1)) {
+                    dp[i][j] = dp[i - 1][j - 1];
+                } else {
+                    dp[i][j] = Math.min(Math.min(dp[i - 1][j], dp[i][j - 1]), dp[i - 1][j - 1]) + 1;
+                }
+            }
+        }
+        
+        return dp[str1.length()][str2.length()];
+    }
+    
+    /**
+     * 解析行数据为实体对象
+     */
+    private T parseRowToEntity(Row row, Map<Integer, Object[]> fieldsMap, int rowIndex) throws Exception {
+        T entity = clazz.newInstance();
+        boolean hasValidData = false;
+        
+        for (Map.Entry<Integer, Object[]> entry : fieldsMap.entrySet()) {
+            try {
+                Object val = getCellValue(row, entry.getKey());
+                
+                Field field = (Field) entry.getValue()[0];
+                Excel attr = (Excel) entry.getValue()[1];
+                Class<?> fieldType = field.getType();
+                
+                // 使用增强的数据类型转换
+                val = convertFieldValueEnhanced(val, fieldType, field, attr, rowIndex, entry.getKey());
+                
+                if (val != null && !val.toString().trim().isEmpty()) {
+                    hasValidData = true;
+                }
+                
+                // 设置字段值
+                String propertyName = field.getName();
+                if (StringUtils.isNotEmpty(attr.targetAttr())) {
+                    propertyName = field.getName() + "." + attr.targetAttr();
+                }
+                
+                // 应用转换器和字典映射
+                val = applyConvertersAndDictionary(val, attr, row, entry.getKey());
+                
+                ReflectUtils.invokeSetter(entity, propertyName, val);
+                
+            } catch (Exception e) {
+                log.warn("Excel解析 - 第{}行第{}列数据处理失败: {}", rowIndex + 1, entry.getKey() + 1, e.getMessage());
+                // 继续处理其他字段，不中断整行解析
+            }
+        }
+        
+        return hasValidData ? entity : null;
+    }
+    
+    /**
+     * Excel导入结果包装类
+     */
+    public static class ExcelImportResult<T> {
+        private List<T> data = new ArrayList<>();
+        private List<String> errors = new ArrayList<>();
+        private List<String> warnings = new ArrayList<>();
+        private List<String> infos = new ArrayList<>();
+        private int successCount = 0;
+        private int failCount = 0;
+        
+        public void addError(String error) {
+            errors.add(error);
+        }
+        
+        public void addWarning(String warning) {
+            warnings.add(warning);
+        }
+        
+        public void addInfo(String info) {
+            infos.add(info);
+        }
+        
+        public void incrementSuccessCount() {
+            successCount++;
+        }
+        
+        public void incrementFailCount() {
+            failCount++;
+        }
+        
+        public boolean isSuccess() {
+            return errors.isEmpty() && !data.isEmpty();
+        }
+        
+        public boolean hasWarnings() {
+            return !warnings.isEmpty();
+        }
+        
+        // Getters and setters
+        public List<T> getData() { return data; }
+        public void setData(List<T> data) { this.data = data; }
+        public List<String> getErrors() { return errors; }
+        public List<String> getWarnings() { return warnings; }
+        public List<String> getInfos() { return infos; }
+        public int getSuccessCount() { return successCount; }
+        public int getFailCount() { return failCount; }
+        public int getTotalCount() { return successCount + failCount; }
+    }
+    
+    /**
+     * 表头匹配结果类
+     */
+    private static class HeaderMatchResult {
+        private boolean success = false;
+        private String errorMessage;
+        private Map<Integer, Object[]> fieldsMap = new HashMap<>();
+        private List<String> matchedHeaders = new ArrayList<>();
+        private List<String> unmatchedFields = new ArrayList<>();
+        private List<String> actualHeaders = new ArrayList<>();
+        
+        // Getters and setters
+        public boolean isSuccess() { return success; }
+        public void setSuccess(boolean success) { this.success = success; }
+        public String getErrorMessage() { return errorMessage; }
+        public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+        public Map<Integer, Object[]> getFieldsMap() { return fieldsMap; }
+        public void setFieldsMap(Map<Integer, Object[]> fieldsMap) { this.fieldsMap = fieldsMap; }
+        public List<String> getMatchedHeaders() { return matchedHeaders; }
+        public void setMatchedHeaders(List<String> matchedHeaders) { this.matchedHeaders = matchedHeaders; }
+        public List<String> getUnmatchedFields() { return unmatchedFields; }
+        public void setUnmatchedFields(List<String> unmatchedFields) { this.unmatchedFields = unmatchedFields; }
+        public List<String> getActualHeaders() { return actualHeaders; }
+        public void setActualHeaders(List<String> actualHeaders) { this.actualHeaders = actualHeaders; }
+    }
+
+    /**
+     * 转换字段值 - 增强版本，支持更多数据类型
+     */
+    private Object convertFieldValueEnhanced(Object val, Class<?> fieldType, Field field, Excel attr, int rowIndex, int columnIndex) {
+        if (val == null || val.toString().trim().isEmpty()) {
+            return null;
+        }
+        
+        try {
+            String strVal = val.toString().trim();
+            
+            // 字符串类型直接返回
+            if (fieldType == String.class) {
+                return strVal;
+            }
+            
+            // 数值类型转换
+            if (fieldType == Integer.class || fieldType == int.class) {
+                return parseIntegerSafe(strVal);
+            }
+            
+            if (fieldType == Long.class || fieldType == long.class) {
+                return parseLongSafe(strVal);
+            }
+            
+            if (fieldType == Double.class || fieldType == double.class) {
+                return parseDoubleSafe(strVal);
+            }
+            
+            if (fieldType == BigDecimal.class) {
+                return new BigDecimal(strVal);
+            }
+            
+            // 日期类型转换
+            if (fieldType == Date.class) {
+                return parseDateSafe(strVal, attr);
+            }
+            
+            // 布尔类型转换
+            if (fieldType == Boolean.class || fieldType == boolean.class) {
+                return parseBooleanSafe(strVal);
+            }
+            
+            return strVal;
+            
+        } catch (Exception e) {
+            log.warn("Excel解析 - 第{}行第{}列数据类型转换失败: {} -> {}, 错误: {}", 
+                    rowIndex + 1, columnIndex + 1, val, fieldType.getSimpleName(), e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * 安全解析整数
+     */
+    private Integer parseIntegerSafe(String value) {
+        if (StringUtils.isEmpty(value)) return null;
+        
+        try {
+            // 处理小数点（Excel数值可能带小数点）
+            if (value.contains(".")) {
+                return (int) Double.parseDouble(value);
+            }
+            
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            log.warn("整数解析失败: {}", value);
+            return null;
+        }
+    }
+    
+    /**
+     * 安全解析长整数
+     */
+    private Long parseLongSafe(String value) {
+        if (StringUtils.isEmpty(value)) return null;
+        
+        try {
+            // 处理小数点
+            if (value.contains(".")) {
+                return (long) Double.parseDouble(value);
+            }
+            
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            log.warn("长整数解析失败: {}", value);
+            return null;
+        }
+    }
+    
+    /**
+     * 安全解析双精度浮点数
+     */
+    private Double parseDoubleSafe(String value) {
+        if (StringUtils.isEmpty(value)) return null;
+        
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            log.warn("浮点数解析失败: {}", value);
+            return null;
+        }
+    }
+    
+    /**
+     * 安全解析日期
+     */
+    private Date parseDateSafe(String value, Excel attr) {
+        if (StringUtils.isEmpty(value)) return null;
+        
+        try {
+            // 使用注解中指定的日期格式
+            String dateFormat = attr.dateFormat();
+            if (StringUtils.isNotEmpty(dateFormat)) {
+                SimpleDateFormat sdf = new SimpleDateFormat(dateFormat);
+                return sdf.parse(value);
+            }
+            
+            // 尝试常见的日期格式
+            String[] formats = {
+                "yyyy-MM-dd",
+                "yyyy/MM/dd", 
+                "yyyy-MM-dd HH:mm:ss",
+                "yyyy/MM/dd HH:mm:ss",
+                "yyyyMMdd",
+                "yyyy年MM月dd日"
+            };
+            
+            for (String format : formats) {
+                try {
+                    SimpleDateFormat sdf = new SimpleDateFormat(format);
+                    return sdf.parse(value);
+                } catch (ParseException ignored) {
+                    // 继续尝试下一个格式
+                }
+            }
+            
+            // 如果都失败了，尝试解析为时间戳
+            return new Date(Long.parseLong(value));
+            
+        } catch (Exception e) {
+            log.warn("日期解析失败: {}", value);
+            return null;
+        }
+    }
+    
+    /**
+     * 安全解析布尔值
+     */
+    private Boolean parseBooleanSafe(String value) {
+        if (StringUtils.isEmpty(value)) return null;
+        
+        String lowerValue = value.toLowerCase();
+        return "true".equals(lowerValue) || "1".equals(value) || 
+               "是".equals(value) || "yes".equals(lowerValue) || "y".equals(lowerValue);
     }
 
     /**
@@ -1674,53 +2624,358 @@ public class ExcelUtil<T>
     {
         if (row == null)
         {
-            return row;
+            log.warn("Excel解析 - 获取单元格值失败: 行为null, 列={}", column);
+            return "";
         }
+        
         Object val = "";
+        Cell cell = null;
+        
         try
         {
-            Cell cell = row.getCell(column);
-            if (StringUtils.isNotNull(cell))
+            cell = row.getCell(column);
+            if (cell == null)
             {
-                if (cell.getCellType() == CellType.NUMERIC || cell.getCellType() == CellType.FORMULA)
-                {
-                    val = cell.getNumericCellValue();
-                    if (DateUtil.isCellDateFormatted(cell))
+                log.debug("Excel解析 - 单元格为空: 行={}, 列={}", row.getRowNum(), column);
+                return "";
+            }
+            
+            CellType cellType = cell.getCellType();
+            log.debug("Excel解析 - 读取单元格: 行={}, 列={}, 类型={}", row.getRowNum(), column, cellType);
+            
+            switch (cellType)
+            {
+                case NUMERIC:
+                case FORMULA:
+                    try 
                     {
-                        val = DateUtil.getJavaDate((Double) val); // POI Excel 日期格式转换
-                    }
-                    else
-                    {
-                        if ((Double) val % 1 != 0)
+                        val = cell.getNumericCellValue();
+                        if (DateUtil.isCellDateFormatted(cell))
                         {
-                            val = new BigDecimal(val.toString());
+                            val = DateUtil.getJavaDate((Double) val); // POI Excel 日期格式转换
+                            log.debug("Excel解析 - 日期值转换: 行={}, 列={}, 原值={}, 转换后={}", 
+                                    row.getRowNum(), column, cell.getNumericCellValue(), val);
                         }
                         else
                         {
-                            val = new DecimalFormat("0").format(val);
+                            Double numVal = (Double) val;
+                            if (numVal % 1 != 0)
+                            {
+                                val = new BigDecimal(val.toString());
+                            }
+                            else
+                            {
+                                val = new DecimalFormat("0").format(val);
+                            }
+                            log.debug("Excel解析 - 数值转换: 行={}, 列={}, 原值={}, 转换后={}", 
+                                    row.getRowNum(), column, cell.getNumericCellValue(), val);
                         }
                     }
-                }
-                else if (cell.getCellType() == CellType.STRING)
-                {
+                    catch (NumberFormatException e)
+                    {
+                        log.warn("Excel解析 - 数值格式错误: 行={}, 列={}, 错误={}", 
+                                row.getRowNum(), column, e.getMessage());
+                        val = cell.toString(); // 回退到字符串值
+                    }
+                    break;
+                    
+                case STRING:
                     val = cell.getStringCellValue();
-                }
-                else if (cell.getCellType() == CellType.BOOLEAN)
-                {
+                    if (val != null && ((String) val).trim().isEmpty())
+                    {
+                        log.debug("Excel解析 - 字符串为空: 行={}, 列={}", row.getRowNum(), column);
+                        val = "";
+                    }
+                    break;
+                    
+                case BOOLEAN:
                     val = cell.getBooleanCellValue();
-                }
-                else if (cell.getCellType() == CellType.ERROR)
-                {
+                    log.debug("Excel解析 - 布尔值: 行={}, 列={}, 值={}", row.getRowNum(), column, val);
+                    break;
+                    
+                case ERROR:
                     val = cell.getErrorCellValue();
-                }
-
+                    log.warn("Excel解析 - 单元格错误: 行={}, 列={}, 错误码={}", 
+                            row.getRowNum(), column, val);
+                    val = ""; // 错误单元格返回空字符串
+                    break;
+                    
+                case BLANK:
+                    log.debug("Excel解析 - 空白单元格: 行={}, 列={}", row.getRowNum(), column);
+                    val = "";
+                    break;
+                    
+                default:
+                    log.warn("Excel解析 - 未知单元格类型: 行={}, 列={}, 类型={}", 
+                            row.getRowNum(), column, cellType);
+                    val = cell.toString();
+                    break;
             }
         }
         catch (Exception e)
         {
-            return val;
+            log.error("Excel解析 - 获取单元格值异常: 行={}, 列={}, 异常={}", 
+                    row != null ? row.getRowNum() : -1, column, e.getMessage(), e);
+            // 尝试获取单元格的字符串表示作为回退
+            try 
+            {
+                if (cell != null)
+                {
+                    val = cell.toString();
+                    log.info("Excel解析 - 异常回退成功: 行={}, 列={}, 回退值={}", 
+                            row.getRowNum(), column, val);
+                }
+            }
+            catch (Exception fallbackException)
+            {
+                log.error("Excel解析 - 回退也失败: 行={}, 列={}, 回退异常={}", 
+                        row.getRowNum(), column, fallbackException.getMessage());
+                val = "";
+            }
         }
+        
         return val;
+    }
+
+    /**
+     * 转换字段值为目标类型
+     * 
+     * @param val 原始值
+     * @param fieldType 目标字段类型
+     * @param field 字段对象
+     * @param attr Excel注解
+     * @param rowNum 行号
+     * @param columnNum 列号
+     * @return 转换后的值
+     */
+    private Object convertFieldValue(Object val, Class<?> fieldType, Field field, Excel attr, int rowNum, int columnNum)
+    {
+        try 
+        {
+            if (val == null || "".equals(val))
+            {
+                log.debug("Excel解析 - 空值转换: 行={}, 列={}, 字段类型={}", rowNum, columnNum, fieldType.getSimpleName());
+                return getDefaultValue(fieldType);
+            }
+            
+            if (String.class == fieldType)
+            {
+                String s = Convert.toStr(val);
+                if (s.matches("^\\d+\\.0$"))
+                {
+                    val = StringUtils.substringBefore(s, ".0");
+                    log.debug("Excel解析 - 字符串转换(去除.0): 行={}, 列={}, 原值={}, 转换后={}", 
+                            rowNum, columnNum, s, val);
+                }
+                else
+                {
+                    String dateFormat = field.getAnnotation(Excel.class).dateFormat();
+                    if (StringUtils.isNotEmpty(dateFormat))
+                    {
+                        val = parseDateToStr(dateFormat, val);
+                        log.debug("Excel解析 - 日期字符串转换: 行={}, 列={}, 格式={}, 转换后={}", 
+                                rowNum, columnNum, dateFormat, val);
+                    }
+                    else
+                    {
+                        val = Convert.toStr(val);
+                    }
+                }
+            }
+            else if (Integer.TYPE == fieldType || Integer.class == fieldType)
+            {
+                String strVal = Convert.toStr(val);
+                if (StringUtils.isNumeric(strVal))
+                {
+                    val = Convert.toInt(val);
+                    log.debug("Excel解析 - 整数转换: 行={}, 列={}, 原值={}, 转换后={}", 
+                            rowNum, columnNum, strVal, val);
+                }
+                else if (StringUtils.isEmpty(strVal))
+                {
+                    val = fieldType.isPrimitive() ? 0 : null;
+                    log.debug("Excel解析 - 整数空值处理: 行={}, 列={}, 设置为={}", rowNum, columnNum, val);
+                }
+                else
+                {
+                    throw new NumberFormatException("无法将 '" + strVal + "' 转换为整数");
+                }
+            }
+            else if (Long.TYPE == fieldType || Long.class == fieldType)
+            {
+                String strVal = Convert.toStr(val);
+                if (StringUtils.isNumeric(strVal))
+                {
+                    val = Convert.toLong(val);
+                    log.debug("Excel解析 - 长整数转换: 行={}, 列={}, 原值={}, 转换后={}", 
+                            rowNum, columnNum, strVal, val);
+                }
+                else if (StringUtils.isEmpty(strVal))
+                {
+                    val = fieldType.isPrimitive() ? 0L : null;
+                    log.debug("Excel解析 - 长整数空值处理: 行={}, 列={}, 设置为={}", rowNum, columnNum, val);
+                }
+                else
+                {
+                    throw new NumberFormatException("无法将 '" + strVal + "' 转换为长整数");
+                }
+            }
+            else if (Double.TYPE == fieldType || Double.class == fieldType)
+            {
+                try 
+                {
+                    val = Convert.toDouble(val);
+                    log.debug("Excel解析 - 双精度转换: 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
+                }
+                catch (Exception e)
+                {
+                    val = fieldType.isPrimitive() ? 0.0 : null;
+                    log.warn("Excel解析 - 双精度转换失败，使用默认值: 行={}, 列={}, 默认值={}", rowNum, columnNum, val);
+                }
+            }
+            else if (Float.TYPE == fieldType || Float.class == fieldType)
+            {
+                try 
+                {
+                    val = Convert.toFloat(val);
+                    log.debug("Excel解析 - 浮点数转换: 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
+                }
+                catch (Exception e)
+                {
+                    val = fieldType.isPrimitive() ? 0.0f : null;
+                    log.warn("Excel解析 - 浮点数转换失败，使用默认值: 行={}, 列={}, 默认值={}", rowNum, columnNum, val);
+                }
+            }
+            else if (BigDecimal.class == fieldType)
+            {
+                try 
+                {
+                    val = Convert.toBigDecimal(val);
+                    log.debug("Excel解析 - BigDecimal转换: 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
+                }
+                catch (Exception e)
+                {
+                    val = null;
+                    log.warn("Excel解析 - BigDecimal转换失败，设置为null: 行={}, 列={}", rowNum, columnNum);
+                }
+            }
+            else if (Date.class == fieldType)
+            {
+                if (val instanceof String)
+                {
+                    val = DateUtils.parseDate(val);
+                    log.debug("Excel解析 - 日期转换(字符串): 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
+                }
+                else if (val instanceof Double)
+                {
+                    val = DateUtil.getJavaDate((Double) val);
+                    log.debug("Excel解析 - 日期转换(数值): 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
+                }
+                else
+                {
+                    log.warn("Excel解析 - 不支持的日期类型: 行={}, 列={}, 值类型={}", 
+                            rowNum, columnNum, val.getClass().getSimpleName());
+                    val = null;
+                }
+            }
+            else if (Boolean.TYPE == fieldType || Boolean.class == fieldType)
+            {
+                val = Convert.toBool(val, fieldType.isPrimitive() ? false : null);
+                log.debug("Excel解析 - 布尔值转换: 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
+            }
+            else
+            {
+                log.debug("Excel解析 - 未处理的字段类型: 行={}, 列={}, 类型={}, 保持原值", 
+                        rowNum, columnNum, fieldType.getSimpleName());
+            }
+        }
+        catch (Exception e)
+        {
+            log.error("Excel解析 - 字段值转换异常: 行={}, 列={}, 字段类型={}, 异常={}", 
+                    rowNum, columnNum, fieldType.getSimpleName(), e.getMessage());
+            throw e;
+        }
+        
+        return val;
+    }
+
+    /**
+     * 应用转换器和字典映射
+     * 
+     * @param val 值
+     * @param attr Excel注解
+     * @param row 行对象
+     * @param columnNum 列号
+     * @return 处理后的值
+     */
+    private Object applyConvertersAndDictionary(Object val, Excel attr, Row row, int columnNum)
+    {
+        try 
+        {
+            if (StringUtils.isNotEmpty(attr.readConverterExp()))
+            {
+                val = reverseByExp(Convert.toStr(val), attr.readConverterExp(), attr.separator());
+                log.debug("Excel解析 - 表达式转换: 行={}, 列={}, 表达式={}, 转换后={}", 
+                        row.getRowNum(), columnNum, attr.readConverterExp(), val);
+            }
+            else if (StringUtils.isNotEmpty(attr.dictType()))
+            {
+                String dictKey = attr.dictType() + val;
+                if (!sysDictMap.containsKey(dictKey))
+                {
+                    String dictValue = reverseDictByExp(Convert.toStr(val), attr.dictType(), attr.separator());
+                    sysDictMap.put(dictKey, dictValue);
+                    log.debug("Excel解析 - 字典映射缓存: 行={}, 列={}, 字典类型={}, 键={}, 值={}", 
+                            row.getRowNum(), columnNum, attr.dictType(), val, dictValue);
+                }
+                val = sysDictMap.get(dictKey);
+                log.debug("Excel解析 - 字典映射: 行={}, 列={}, 字典类型={}, 转换后={}", 
+                        row.getRowNum(), columnNum, attr.dictType(), val);
+            }
+            else if (!attr.handler().equals(ExcelHandlerAdapter.class))
+            {
+                val = dataFormatHandlerAdapter(val, attr, null);
+                log.debug("Excel解析 - 自定义处理器: 行={}, 列={}, 处理器={}, 转换后={}", 
+                        row.getRowNum(), columnNum, attr.handler().getSimpleName(), val);
+            }
+            else if (ColumnType.IMAGE == attr.cellType())
+            {
+                // 图片处理功能暂时禁用，因为pictures变量需要从外部传入
+                val = "";
+                log.debug("Excel解析 - 图片处理: 行={}, 列={}, 图片处理功能暂时禁用", 
+                        row.getRowNum(), columnNum);
+            }
+        }
+        catch (Exception e)
+        {
+            log.error("Excel解析 - 转换器/字典处理异常: 行={}, 列={}, 异常={}", 
+                    row.getRowNum(), columnNum, e.getMessage());
+            // 发生异常时返回原值
+        }
+        
+        return val;
+    }
+
+    /**
+     * 获取字段类型的默认值
+     * 
+     * @param fieldType 字段类型
+     * @return 默认值
+     */
+    private Object getDefaultValue(Class<?> fieldType)
+    {
+        if (fieldType.isPrimitive())
+        {
+            if (fieldType == int.class) return 0;
+            if (fieldType == long.class) return 0L;
+            if (fieldType == double.class) return 0.0;
+            if (fieldType == float.class) return 0.0f;
+            if (fieldType == boolean.class) return false;
+            if (fieldType == byte.class) return (byte) 0;
+            if (fieldType == short.class) return (short) 0;
+            if (fieldType == char.class) return '\0';
+        }
+        return null;
     }
 
     /**

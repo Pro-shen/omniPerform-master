@@ -91,7 +91,7 @@ public interface IMotTaskService
      * @param guideId 导购ID
      * @return MOT任务集合
      */
-    public List<MotTask> selectMotTaskByGuideId(Long guideId);
+    public List<MotTask> selectMotTaskByGuideId(String guideId);
 
     /**
      * 查询MOT任务执行率统计

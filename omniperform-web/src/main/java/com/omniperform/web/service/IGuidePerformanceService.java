@@ -44,7 +44,7 @@ public interface IGuidePerformanceService
      * @param dataMonth 数据月份
      * @return 导购绩效
      */
-    public GuidePerformance selectGuidePerformanceByGuideIdAndMonth(Long guideId, String dataMonth);
+    public GuidePerformance selectGuidePerformanceByGuideIdAndMonth(String guideId, String dataMonth);
 
     /**
      * 根据区域查询导购绩效排行

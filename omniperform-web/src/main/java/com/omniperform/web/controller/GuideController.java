@@ -6,13 +6,17 @@ import com.omniperform.web.domain.GuideInfo;
 import com.omniperform.web.domain.GuidePerformance;
 import com.omniperform.web.service.IGuideInfoService;
 import com.omniperform.web.service.IGuidePerformanceService;
+import com.omniperform.common.utils.poi.ExcelUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletResponse;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -116,7 +120,7 @@ public class GuideController {
             // 构建查询条件
             GuidePerformance queryPerformance = new GuidePerformance();
             if (guideId != null && !guideId.isEmpty()) {
-                queryPerformance.setGuideId(Long.parseLong(guideId));
+                queryPerformance.setGuideId(guideId);
             }
             // 如果有日期范围，可以设置数据月份
             if (startDate != null && !startDate.isEmpty()) {
@@ -163,10 +167,26 @@ public class GuideController {
     @GetMapping("/detail/{guideId}")
     public Result getGuideDetail(@PathVariable String guideId) {
         try {
-            Long id = Long.parseLong(guideId);
+            // 尝试将guideId转换为Long类型用于查询GuideInfo
+            Long id = null;
+            try {
+                id = Long.parseLong(guideId);
+            } catch (NumberFormatException e) {
+                // 如果不能转换为Long，说明是字符串格式的guideId，需要通过guideCode查询
+                log.warn("导购ID不是数字格式: {}, 尝试通过导购编码查询", guideId);
+            }
             
-            // 查询导购基础信息
-            GuideInfo guideInfo = guideInfoService.selectGuideInfoByGuideId(id);
+            GuideInfo guideInfo = null;
+            if (id != null) {
+                // 查询导购基础信息（通过数字ID）
+                guideInfo = guideInfoService.selectGuideInfoByGuideId(id);
+            }
+            
+            // 如果通过ID没找到，或者ID不是数字，尝试通过guideCode查询
+            if (guideInfo == null) {
+                guideInfo = guideInfoService.selectGuideInfoByGuideCode(guideId);
+            }
+            
             if (guideInfo == null) {
                 return Result.error("导购信息不存在");
             }
@@ -186,7 +206,7 @@ public class GuideController {
             
             // 查询最新绩效数据
             GuidePerformance queryPerformance = new GuidePerformance();
-            queryPerformance.setGuideId(id);
+            queryPerformance.setGuideId(guideInfo.getGuideId());
             // 获取当前月份的绩效数据
             String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
             queryPerformance.setDataMonth(currentMonth);
@@ -291,10 +311,26 @@ public class GuideController {
     @PutMapping("/update/{guideId}")
     public Result updateGuide(@PathVariable String guideId, @RequestBody Map<String, Object> guideData) {
         try {
-            Long id = Long.parseLong(guideId);
+            // 尝试将guideId转换为Long类型用于查询GuideInfo
+            Long id = null;
+            try {
+                id = Long.parseLong(guideId);
+            } catch (NumberFormatException e) {
+                // 如果不能转换为Long，说明是字符串格式的guideId，需要通过guideCode查询
+                log.warn("导购ID不是数字格式: {}, 尝试通过导购编码查询", guideId);
+            }
             
-            // 先查询现有导购信息
-            GuideInfo existingGuide = guideInfoService.selectGuideInfoByGuideId(id);
+            GuideInfo existingGuide = null;
+            if (id != null) {
+                // 查询导购基础信息（通过数字ID）
+                existingGuide = guideInfoService.selectGuideInfoByGuideId(id);
+            }
+            
+            // 如果通过ID没找到，或者ID不是数字，尝试通过guideCode查询
+            if (existingGuide == null) {
+                existingGuide = guideInfoService.selectGuideInfoByGuideCode(guideId);
+            }
+            
             if (existingGuide == null) {
                 return Result.error("导购信息不存在");
             }
@@ -793,6 +829,483 @@ public class GuideController {
         } catch (Exception e) {
             log.error("获取导购绩效统计失败: {}", e.getMessage(), e);
             return Result.error("获取导购绩效统计失败");
+        }
+    }
+
+    /**
+     * 下载导购绩效数据Excel导入模板
+     */
+    @GetMapping("/import/template")
+    public void downloadGuidePerformanceTemplate(HttpServletResponse response) {
+        try {
+            List<GuidePerformance> sampleData = createGuidePerformanceSampleData();
+            ExcelUtil<GuidePerformance> util = new ExcelUtil<>(GuidePerformance.class);
+            util.exportExcel(response, sampleData, "导购绩效数据", "导购绩效数据模板");
+            log.info("下载导购绩效数据Excel导入模板成功");
+        } catch (Exception e) {
+            log.error("下载导购绩效数据Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 创建导购绩效示例数据
+     */
+    private List<GuidePerformance> createGuidePerformanceSampleData() {
+        List<GuidePerformance> sampleData = new ArrayList<>();
+        
+        // 示例数据1
+        GuidePerformance sample1 = new GuidePerformance();
+        sample1.setGuideId("1");
+        sample1.setDataMonth("2025-01");
+        sample1.setNewMembers(50);
+        sample1.setTotalMembers(500);
+        sample1.setActiveMembers(450);
+        sample1.setSalesAmount(new BigDecimal("25000.00"));
+        sample1.setOrderCount(120);
+        sample1.setMotTasksCompleted(15);
+        sample1.setMotCompletionRate(new BigDecimal("85.5"));
+        sample1.setCustomerSatisfaction(new BigDecimal("4.5"));
+        sample1.setResponseTime(new BigDecimal("2.3"));
+        sample1.setConversionRate(new BigDecimal("12.5"));
+        sample1.setRepeatPurchaseRate(new BigDecimal("35.8"));
+        sample1.setMemberScanRate(new BigDecimal("78.9"));
+        sample1.setInteractionCount(200);
+        sample1.setPerformanceScore(new BigDecimal("85.5"));
+        sample1.setRankInRegion(3);
+        sample1.setRankOverall(15);
+        sample1.setCaiScore(new BigDecimal("0.75"));
+        sample1.setRmvScore(new BigDecimal("0.82"));
+        sample1.setMatrixPosition("2-3");
+        sample1.setMatrixType("关系专家");
+        sample1.setTrend("上升");
+        sample1.setGuideName("张三");
+        sample1.setGuideCode("G001");
+        sample1.setRegionName("华东区");
+        sample1.setStoreName("上海旗舰店");
+        sample1.setCreateTime(new Date());
+        sample1.setCreateBy("system");
+        sample1.setRemark("示例数据1");
+        sampleData.add(sample1);
+        
+        // 示例数据2
+        GuidePerformance sample2 = new GuidePerformance();
+        sample2.setGuideId("2");
+        sample2.setDataMonth("2025-01");
+        sample2.setNewMembers(35);
+        sample2.setTotalMembers(380);
+        sample2.setActiveMembers(320);
+        sample2.setSalesAmount(new BigDecimal("18500.00"));
+        sample2.setOrderCount(95);
+        sample2.setMotTasksCompleted(12);
+        sample2.setMotCompletionRate(new BigDecimal("75.0"));
+        sample2.setCustomerSatisfaction(new BigDecimal("4.2"));
+        sample2.setResponseTime(new BigDecimal("3.1"));
+        sample2.setConversionRate(new BigDecimal("10.8"));
+        sample2.setRepeatPurchaseRate(new BigDecimal("28.5"));
+        sample2.setMemberScanRate(new BigDecimal("65.2"));
+        sample2.setInteractionCount(150);
+        sample2.setPerformanceScore(new BigDecimal("75.2"));
+        sample2.setRankInRegion(8);
+        sample2.setRankOverall(35);
+        sample2.setCaiScore(new BigDecimal("0.65"));
+        sample2.setRmvScore(new BigDecimal("0.68"));
+        sample2.setMatrixPosition("2-2");
+        sample2.setMatrixType("骨干力量");
+        sample2.setTrend("稳定");
+        sample2.setGuideName("李四");
+        sample2.setGuideCode("G002");
+        sample2.setRegionName("华南区");
+        sample2.setStoreName("深圳中心店");
+        sample2.setCreateTime(new Date());
+        sample2.setCreateBy("system");
+        sample2.setRemark("示例数据2");
+        sampleData.add(sample2);
+        
+        return sampleData;
+    }
+
+    /**
+     * 导入导购绩效数据
+     */
+    @PostMapping("/import")
+    public Result<Map<String, Object>> importGuidePerformance(@RequestParam("file") MultipartFile file) {
+        try {
+            log.info("开始导入导购绩效数据，文件名: {}, 文件大小: {} bytes", 
+                    file.getOriginalFilename(), file.getSize());
+            
+            // 文件格式验证
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || (!fileName.toLowerCase().endsWith(".xlsx") && !fileName.toLowerCase().endsWith(".xls"))) {
+                log.warn("不支持的文件格式: {}", fileName);
+                return Result.error("请上传Excel文件（.xlsx或.xls格式）");
+            }
+            
+            // 文件大小验证（10MB限制）
+            if (file.getSize() > 10 * 1024 * 1024) {
+                log.warn("文件大小超过限制: {} bytes", file.getSize());
+                return Result.error("文件大小不能超过10MB");
+            }
+            
+            ExcelUtil<GuidePerformance> util = new ExcelUtil<>(GuidePerformance.class);
+            
+            // 使用增强的Excel导入功能，titleNum=0表示第1行是表头
+            ExcelUtil.ExcelImportResult<GuidePerformance> importResult = util.importExcelEnhanced(file.getInputStream(), 0);
+            
+            log.info("ExcelUtil.importExcelEnhanced 执行完成，成功: {}, 失败: {}", 
+                    importResult.getSuccessCount(), importResult.getFailCount());
+            
+            List<GuidePerformance> dataList = importResult.getData();
+            List<String> importErrors = importResult.getErrors();
+            
+            if (dataList == null || dataList.isEmpty()) {
+                log.warn("Excel文件中没有有效数据");
+                String errorMsg = "Excel文件中没有有效数据，请检查文件内容和格式";
+                if (!importErrors.isEmpty()) {
+                    errorMsg += "。错误详情：" + String.join("；", importErrors);
+                }
+                return Result.error(errorMsg);
+            }
+            
+            log.info("从Excel文件中读取到 {} 条导购绩效数据", dataList.size());
+            
+            // 添加详细的数据内容日志
+            for (int i = 0; i < Math.min(dataList.size(), 5); i++) {
+                GuidePerformance data = dataList.get(i);
+                log.info("第 {} 条数据详情: guideId={}, guideName={}, dataMonth={}, salesAmount={}, newMembers={}, guideCode={}, regionName={}, storeName={}", 
+                        i + 1, 
+                        data != null ? data.getGuideId() : "null",
+                        data != null ? data.getGuideName() : "null", 
+                        data != null ? data.getDataMonth() : "null",
+                        data != null ? data.getSalesAmount() : "null",
+                        data != null ? data.getNewMembers() : "null",
+                        data != null ? data.getGuideCode() : "null",
+                        data != null ? data.getRegionName() : "null",
+                        data != null ? data.getStoreName() : "null");
+            }
+            
+            int successCount = 0;
+            int failCount = 0;
+            List<String> errorMessages = new ArrayList<>();
+            
+            for (int i = 0; i < dataList.size(); i++) {
+                GuidePerformance data = dataList.get(i);
+                
+                log.debug("处理第 {} 条数据: {}", i + 1, data);
+                
+                if (data == null) {
+                    log.warn("第 {} 条数据为null，跳过处理", i + 1);
+                    failCount++;
+                    errorMessages.add("第 " + (i + 1) + " 行：数据为空");
+                    continue;
+                }
+                
+                // 检查所有关键字段是否为空
+                log.debug("第 {} 条数据字段检查: guideId={}, guideName={}, dataMonth={}, salesAmount={}, newMembers={}", 
+                        i + 1, data.getGuideId(), data.getGuideName(), data.getDataMonth(), data.getSalesAmount(), data.getNewMembers());
+                
+                // 检查是否所有字段都为空
+                boolean allFieldsEmpty = ((data.getGuideId() == null || data.getGuideId().trim().isEmpty()) && 
+                                        (data.getGuideName() == null || data.getGuideName().trim().isEmpty()) &&
+                                        (data.getDataMonth() == null || data.getDataMonth().trim().isEmpty()) &&
+                                        data.getSalesAmount() == null &&
+                                        data.getNewMembers() == null &&
+                                        (data.getGuideCode() == null || data.getGuideCode().trim().isEmpty()) &&
+                                        (data.getRegionName() == null || data.getRegionName().trim().isEmpty()) &&
+                                        (data.getStoreName() == null || data.getStoreName().trim().isEmpty()));
+                
+                if (allFieldsEmpty) {
+                    log.warn("第 {} 条数据所有关键字段都为空，跳过处理", i + 1);
+                    failCount++;
+                    errorMessages.add("第 " + (i + 1) + " 行：数据为空");
+                    continue;
+                }
+                
+                try {
+                    // 设置默认值
+                    if (data.getCreateTime() == null) {
+                        data.setCreateTime(new Date());
+                    }
+                    if (data.getCreateBy() == null || data.getCreateBy().trim().isEmpty()) {
+                        data.setCreateBy("system");
+                    }
+                    if (data.getRemark() == null) {
+                        data.setRemark("批量导入");
+                    }
+                    
+                    // 数据验证
+                    StringBuilder validationErrors = new StringBuilder();
+                    
+                    if (data.getDataMonth() == null || data.getDataMonth().trim().isEmpty()) {
+                        validationErrors.append("数据月份不能为空；");
+                    } else {
+                        // 验证数据月份格式 (YYYY-MM)
+                        String dataMonth = data.getDataMonth().trim();
+                        if (!dataMonth.matches("\\d{4}-\\d{2}")) {
+                            validationErrors.append("数据月份格式错误，应为YYYY-MM格式；");
+                        }
+                    }
+                    
+                    if (data.getGuideId() == null || data.getGuideId().trim().isEmpty()) {
+                        validationErrors.append("导购ID不能为空；");
+                    } else {
+                        // 检查导购ID是否在guide_info表中存在
+                        String guideId = data.getGuideId().trim();
+                        try {
+                            // 首先尝试按guide_id查询
+                            GuideInfo existingGuide = null;
+                            try {
+                                // 如果guideId是数字，直接按Long查询
+                                Long guideIdLong = Long.parseLong(guideId);
+                                existingGuide = guideInfoService.selectGuideInfoByGuideId(guideIdLong);
+                            } catch (NumberFormatException e) {
+                                // 如果不是数字，按guideCode查询
+                                existingGuide = guideInfoService.selectGuideInfoByGuideCode(guideId);
+                            }
+                            
+                            if (existingGuide == null) {
+                                validationErrors.append("导购ID [" + guideId + "] 在系统中不存在；");
+                            }
+                        } catch (Exception e) {
+                            log.warn("检查导购ID存在性时出错: {}", e.getMessage());
+                            validationErrors.append("导购ID [" + guideId + "] 验证失败；");
+                        }
+                    }
+                    
+                    if (data.getGuideName() == null || data.getGuideName().trim().isEmpty()) {
+                        validationErrors.append("导购姓名不能为空；");
+                    }
+                    
+                    // 数值字段验证
+                    if (data.getSalesAmount() != null && data.getSalesAmount().compareTo(BigDecimal.ZERO) < 0) {
+                        validationErrors.append("销售金额不能为负数；");
+                    }
+                    
+                    if (data.getNewMembers() != null && data.getNewMembers() < 0) {
+                        validationErrors.append("新增会员数不能为负数；");
+                    }
+                    
+                    // 添加其他数值字段验证
+                    if (data.getRepeatPurchaseRate() != null && (data.getRepeatPurchaseRate().compareTo(BigDecimal.ZERO) < 0 || data.getRepeatPurchaseRate().compareTo(new BigDecimal("100")) > 0)) {
+                        validationErrors.append("复购率应在0-100之间；");
+                    }
+                    
+                    if (data.getMotCompletionRate() != null && (data.getMotCompletionRate().compareTo(BigDecimal.ZERO) < 0 || data.getMotCompletionRate().compareTo(new BigDecimal("100")) > 0)) {
+                        validationErrors.append("MOT完成率应在0-100之间；");
+                    }
+                    
+                    if (data.getConversionRate() != null && (data.getConversionRate().compareTo(BigDecimal.ZERO) < 0 || data.getConversionRate().compareTo(new BigDecimal("100")) > 0)) {
+                        validationErrors.append("转化率应在0-100之间；");
+                    }
+                    
+                    if (data.getMemberScanRate() != null && (data.getMemberScanRate().compareTo(BigDecimal.ZERO) < 0 || data.getMemberScanRate().compareTo(new BigDecimal("100")) > 0)) {
+                        validationErrors.append("会员扫码率应在0-100之间；");
+                    }
+                    
+                    // 验证其他数值字段的合理性
+                    if (data.getOrderCount() != null && data.getOrderCount() < 0) {
+                        validationErrors.append("订单数量不能为负数；");
+                    }
+                    
+                    if (data.getMotTasksCompleted() != null && data.getMotTasksCompleted() < 0) {
+                        validationErrors.append("MOT任务完成数不能为负数；");
+                    }
+                    
+                    if (data.getCustomerSatisfaction() != null && (data.getCustomerSatisfaction().compareTo(BigDecimal.ONE) < 0 || data.getCustomerSatisfaction().compareTo(new BigDecimal("5")) > 0)) {
+                        validationErrors.append("客户满意度应在1-5分之间；");
+                    }
+                    
+                    if (validationErrors.length() > 0) {
+                        errorMessages.add("第 " + (i + 1) + " 行：" + validationErrors.toString());
+                        failCount++;
+                        continue;
+                    }
+                    
+                    // 保存数据
+                    int result = guidePerformanceService.insertGuidePerformance(data);
+                    if (result > 0) {
+                        successCount++;
+                        log.info("第 {} 条导购绩效数据导入成功，导购: {}", i + 1, data.getGuideName());
+                    } else {
+                        failCount++;
+                        errorMessages.add("第 " + (i + 1) + " 行：数据保存失败");
+                        log.warn("第 {} 条导购绩效数据保存失败，导购: {}", i + 1, data.getGuideName());
+                    }
+                } catch (Exception e) {
+                    failCount++;
+                    String errorMsg = "第 " + (i + 1) + " 行：" + e.getMessage();
+                    errorMessages.add(errorMsg);
+                    log.error("第 {} 条导购绩效数据处理失败: {}", i + 1, e.getMessage(), e);
+                }
+            }
+            
+            // 构建返回数据
+            Map<String, Object> resultData = new HashMap<>();
+            resultData.put("successCount", successCount);
+            resultData.put("failCount", failCount);
+            resultData.put("totalCount", successCount + failCount);
+            resultData.put("errorMessages", errorMessages);
+            
+            // 添加导入统计信息
+            Map<String, Object> importStatistics = new HashMap<>();
+            importStatistics.put("originalDataCount", dataList.size());
+            importStatistics.put("processedCount", successCount + failCount);
+            importStatistics.put("successRate", successCount + failCount > 0 ? 
+                String.format("%.1f%%", (double) successCount / (successCount + failCount) * 100) : "0%");
+            importStatistics.put("hasErrors", !importErrors.isEmpty());
+            importStatistics.put("importErrors", importErrors);
+            importStatistics.put("validationErrors", errorMessages);
+            resultData.put("importStatistics", importStatistics);
+            
+            String resultMessage;
+            if (failCount == 0) {
+                resultMessage = String.format("导入成功！共处理 %d 条数据，全部导入成功", successCount);
+            } else if (successCount == 0) {
+                resultMessage = String.format("导入失败！共 %d 条数据，全部导入失败", failCount);
+            } else {
+                resultMessage = String.format("导入完成！成功: %d 条，失败: %d 条", successCount, failCount);
+            }
+            
+            log.info("导购绩效数据导入完成，成功: {} 条，失败: {} 条", successCount, failCount);
+            
+            return Result.success(resultMessage, resultData);
+        } catch (Exception e) {
+            log.error("导入导购绩效数据失败: {}", e.getMessage(), e);
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("successCount", 0);
+            errorData.put("failCount", 0);
+            errorData.put("totalCount", 0);
+            errorData.put("errorMessages", Arrays.asList("系统错误：" + e.getMessage()));
+            return Result.success("导入失败：" + e.getMessage(), errorData);
+        }
+    }
+
+    /**
+     * 批量导入导购绩效数据
+     */
+    @PostMapping("/import/batch")
+    public Result<Map<String, Object>> batchImportGuidePerformance(@RequestParam("file") MultipartFile file) {
+        try {
+            log.info("开始批量导入导购绩效数据，文件名: {}, 文件大小: {} bytes", 
+                    file.getOriginalFilename(), file.getSize());
+            
+            Map<String, Object> result = new HashMap<>();
+            int successCount = 0;
+            int failCount = 0;
+            List<String> errorMessages = new ArrayList<>();
+            
+            ExcelUtil<GuidePerformance> util = new ExcelUtil<>(GuidePerformance.class);
+            List<GuidePerformance> dataList = util.importExcel(file.getInputStream(), 0);
+            
+            if (dataList == null) {
+                log.error("Excel导入返回null，无法处理数据");
+                return Result.error("Excel文件解析失败，请检查文件格式");
+            }
+            
+            log.info("从Excel文件中读取到 {} 条导购绩效数据", dataList.size());
+            
+            for (int i = 0; i < dataList.size(); i++) {
+                GuidePerformance data = dataList.get(i);
+                
+                if (data == null) {
+                    log.warn("第 {} 条数据为null，跳过处理", i + 1);
+                    continue;
+                }
+                
+                try {
+                    // 数据验证
+                    StringBuilder validationErrors = new StringBuilder();
+                    
+                    // 验证导购ID是否存在
+                    if (data.getGuideId() == null || data.getGuideId().trim().isEmpty()) {
+                        validationErrors.append("导购ID不能为空；");
+                    } else {
+                        // 检查导购ID是否在guide_info表中存在
+                        String guideId = data.getGuideId().trim();
+                        try {
+                            // 首先尝试按guide_id查询
+                            GuideInfo existingGuide = null;
+                            try {
+                                // 如果guideId是数字，直接按Long查询
+                                Long guideIdLong = Long.parseLong(guideId);
+                                existingGuide = guideInfoService.selectGuideInfoByGuideId(guideIdLong);
+                            } catch (NumberFormatException e) {
+                                // 如果不是数字，按guideCode查询
+                                existingGuide = guideInfoService.selectGuideInfoByGuideCode(guideId);
+                            }
+                            
+                            if (existingGuide == null) {
+                                validationErrors.append("导购ID [" + guideId + "] 在系统中不存在；");
+                            }
+                        } catch (Exception e) {
+                            log.warn("检查导购ID存在性时出错: {}", e.getMessage());
+                            validationErrors.append("导购ID [" + guideId + "] 验证失败；");
+                        }
+                    }
+                    
+                    // 验证数据月份
+                    if (data.getDataMonth() == null || data.getDataMonth().trim().isEmpty()) {
+                        validationErrors.append("数据月份不能为空；");
+                    } else {
+                        // 验证数据月份格式 (YYYY-MM)
+                        String dataMonth = data.getDataMonth().trim();
+                        if (!dataMonth.matches("\\d{4}-\\d{2}")) {
+                            validationErrors.append("数据月份格式错误，应为YYYY-MM格式；");
+                        }
+                    }
+                    
+                    // 如果有验证错误，跳过此条数据
+                    if (validationErrors.length() > 0) {
+                        errorMessages.add("第 " + (i + 1) + " 行：" + validationErrors.toString());
+                        failCount++;
+                        continue;
+                    }
+                    
+                    // 设置默认值
+                    if (data.getCreateTime() == null) {
+                        data.setCreateTime(new Date());
+                    }
+                    if (data.getCreateBy() == null || data.getCreateBy().trim().isEmpty()) {
+                        data.setCreateBy("system");
+                    }
+                    if (data.getRemark() == null) {
+                        data.setRemark("批量导入");
+                    }
+                    
+                    // 保存数据
+                    int saveResult = guidePerformanceService.insertGuidePerformance(data);
+                    if (saveResult > 0) {
+                        successCount++;
+                        log.info("第 {} 条导购绩效数据导入成功，导购: {}", i + 1, data.getGuideName());
+                    } else {
+                        failCount++;
+                        errorMessages.add("第 " + (i + 1) + " 行：数据保存失败");
+                        log.warn("第 {} 条导购绩效数据保存失败，导购: {}", i + 1, data.getGuideName());
+                    }
+                } catch (Exception e) {
+                    failCount++;
+                    String errorMsg = "第 " + (i + 1) + " 行：" + e.getMessage();
+                    errorMessages.add(errorMsg);
+                    log.error("第 {} 条导购绩效数据处理失败: {}", i + 1, e.getMessage(), e);
+                }
+            }
+            
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("totalCount", dataList.size());
+            result.put("errorMessages", errorMessages);
+            
+            String message = String.format("批量导入完成！成功: %d 条，失败: %d 条", successCount, failCount);
+            
+            log.info("导购绩效数据批量导入完成，成功: {} 条，失败: {} 条", successCount, failCount);
+            
+            if (failCount == 0) {
+                return Result.success(message, result);
+            } else {
+                return Result.success(message, result);
+            }
+        } catch (Exception e) {
+            log.error("批量导入导购绩效数据失败: {}", e.getMessage(), e);
+            return Result.error("批量导入失败：" + e.getMessage());
         }
     }
 }

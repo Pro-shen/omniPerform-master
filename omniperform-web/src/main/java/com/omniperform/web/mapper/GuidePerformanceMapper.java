@@ -45,7 +45,7 @@ public interface GuidePerformanceMapper
      * @param dataMonth 数据月份
      * @return 导购绩效
      */
-    public GuidePerformance selectGuidePerformanceByGuideIdAndMonth(@Param("guideId") Long guideId, @Param("dataMonth") String dataMonth);
+    public GuidePerformance selectGuidePerformanceByGuideIdAndMonth(@Param("guideId") String guideId, @Param("dataMonth") String dataMonth);
 
     /**
      * 根据区域查询导购绩效排行

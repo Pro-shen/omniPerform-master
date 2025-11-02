@@ -19,7 +19,7 @@ public class GuideInfo extends BaseEntity
     private static final long serialVersionUID = 1L;
 
     /** 导购ID */
-    private Long guideId;
+    private String guideId;
 
     /** 导购编号 */
     @Excel(name = "导购编号")
@@ -94,12 +94,12 @@ public class GuideInfo extends BaseEntity
     @Excel(name = "企业微信ID")
     private String wechatId;
 
-    public void setGuideId(Long guideId) 
+    public void setGuideId(String guideId) 
     {
         this.guideId = guideId;
     }
 
-    public Long getGuideId() 
+    public String getGuideId() 
     {
         return guideId;
     }

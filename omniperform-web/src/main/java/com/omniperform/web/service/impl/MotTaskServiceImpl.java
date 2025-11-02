@@ -196,7 +196,7 @@ public class MotTaskServiceImpl implements IMotTaskService
             queryTask.setDataMonth((String) params.get("dataMonth"));
         }
         if (params.containsKey("guideId")) {
-            queryTask.setGuideId(Long.valueOf(params.get("guideId").toString()));
+            queryTask.setGuideId(params.get("guideId").toString());
         }
         if (params.containsKey("regionId")) {
             queryTask.setRegionId(Long.valueOf(params.get("regionId").toString()));
@@ -338,7 +338,7 @@ public class MotTaskServiceImpl implements IMotTaskService
      * @return MOT任务集合
      */
     @Override
-    public List<MotTask> selectMotTaskByGuideId(Long guideId)
+    public List<MotTask> selectMotTaskByGuideId(String guideId)
     {
         MotTask queryTask = new MotTask();
         queryTask.setGuideId(guideId);

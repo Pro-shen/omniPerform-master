@@ -20,108 +20,112 @@ public class GuidePerformance extends BaseEntity
     private Long performanceId;
 
     /** 导购ID */
-    @Excel(name = "导购ID")
-    private Long guideId;
+    @Excel(name = "导购ID", type = Excel.Type.ALL)
+    private String guideId;
 
     /** 数据月份(YYYY-MM) */
-    @Excel(name = "数据月份")
+    @Excel(name = "数据月份", type = Excel.Type.ALL)
     private String dataMonth;
 
     /** 新增会员数 */
-    @Excel(name = "新增会员数")
+    @Excel(name = "新增会员数", type = Excel.Type.ALL)
     private Integer newMembers;
 
     /** 总服务会员数 */
-    @Excel(name = "总服务会员数")
+    @Excel(name = "总服务会员数", type = Excel.Type.ALL)
     private Integer totalMembers;
 
     /** 活跃会员数 */
-    @Excel(name = "活跃会员数")
+    @Excel(name = "活跃会员数", type = Excel.Type.ALL)
     private Integer activeMembers;
 
     /** 销售金额 */
-    @Excel(name = "销售金额")
+    @Excel(name = "销售金额", type = Excel.Type.ALL)
     private BigDecimal salesAmount;
 
     /** 订单数量 */
-    @Excel(name = "订单数量")
+    @Excel(name = "订单数量", type = Excel.Type.ALL)
     private Integer orderCount;
 
     /** MOT任务完成数 */
-    @Excel(name = "MOT任务完成数")
+    @Excel(name = "MOT任务完成数", type = Excel.Type.ALL)
     private Integer motTasksCompleted;
 
     /** MOT完成率(%) */
-    @Excel(name = "MOT完成率")
+    @Excel(name = "MOT完成率", type = Excel.Type.ALL)
     private BigDecimal motCompletionRate;
 
     /** 客户满意度(1-5分) */
-    @Excel(name = "客户满意度")
+    @Excel(name = "客户满意度", type = Excel.Type.ALL)
     private BigDecimal customerSatisfaction;
 
     /** 平均响应时间(小时) */
-    @Excel(name = "平均响应时间")
+    @Excel(name = "平均响应时间", type = Excel.Type.ALL)
     private BigDecimal responseTime;
 
     /** 转化率(%) */
-    @Excel(name = "转化率")
+    @Excel(name = "转化率", type = Excel.Type.ALL)
     private BigDecimal conversionRate;
 
     /** 复购率(%) */
-    @Excel(name = "复购率")
+    @Excel(name = "复购率", type = Excel.Type.ALL)
     private BigDecimal repeatPurchaseRate;
 
     /** 会员扫码率(%) */
-    @Excel(name = "会员扫码率")
+    @Excel(name = "会员扫码率", type = Excel.Type.ALL)
     private BigDecimal memberScanRate;
 
     /** 互动次数 */
-    @Excel(name = "互动次数")
+    @Excel(name = "互动次数", type = Excel.Type.ALL)
     private Integer interactionCount;
 
     /** 综合绩效评分 */
-    @Excel(name = "综合绩效评分")
+    @Excel(name = "综合绩效评分", type = Excel.Type.ALL)
     private BigDecimal performanceScore;
 
     /** 区域内排名 */
-    @Excel(name = "区域内排名")
+    @Excel(name = "区域内排名", type = Excel.Type.ALL)
     private Integer rankInRegion;
 
     /** 全国排名 */
-    @Excel(name = "全国排名")
+    @Excel(name = "全国排名", type = Excel.Type.ALL)
     private Integer rankOverall;
 
     /** CAI指数 */
-    @Excel(name = "CAI指数")
+    @Excel(name = "CAI指数", type = Excel.Type.ALL)
     private BigDecimal caiScore;
 
     /** RMV指数 */
-    @Excel(name = "RMV指数")
+    @Excel(name = "RMV指数", type = Excel.Type.ALL)
     private BigDecimal rmvScore;
 
     /** 九宫格位置 */
-    @Excel(name = "九宫格位置")
+    @Excel(name = "九宫格位置", type = Excel.Type.ALL)
     private String matrixPosition;
 
     /** 九宫格类型 */
-    @Excel(name = "九宫格类型")
+    @Excel(name = "九宫格类型", type = Excel.Type.ALL)
     private String matrixType;
 
     /** 趋势 */
-    @Excel(name = "趋势")
+    @Excel(name = "趋势", type = Excel.Type.ALL)
     private String trend;
 
     // 关联查询字段
     /** 导购姓名 */
+    @Excel(name = "导购姓名", type = Excel.Type.ALL)
     private String guideName;
 
     /** 导购编号 */
+    @Excel(name = "导购编码", type = Excel.Type.ALL)
     private String guideCode;
 
     /** 区域名称 */
+    @Excel(name = "区域名称", type = Excel.Type.ALL)
     private String regionName;
 
     /** 门店名称 */
+    @Excel(name = "门店名称", type = Excel.Type.ALL)
     private String storeName;
 
     public void setPerformanceId(Long performanceId) 
@@ -133,12 +137,12 @@ public class GuidePerformance extends BaseEntity
     {
         return performanceId;
     }
-    public void setGuideId(Long guideId) 
+    public void setGuideId(String guideId) 
     {
         this.guideId = guideId;
     }
 
-    public Long getGuideId() 
+    public String getGuideId() 
     {
         return guideId;
     }
@@ -390,6 +394,15 @@ public class GuidePerformance extends BaseEntity
             .append("performanceScore", getPerformanceScore())
             .append("rankInRegion", getRankInRegion())
             .append("rankOverall", getRankOverall())
+            .append("caiScore", getCaiScore())
+            .append("rmvScore", getRmvScore())
+            .append("matrixPosition", getMatrixPosition())
+            .append("matrixType", getMatrixType())
+            .append("trend", getTrend())
+            .append("guideName", getGuideName())
+            .append("guideCode", getGuideCode())
+            .append("regionName", getRegionName())
+            .append("storeName", getStoreName())
             .append("createTime", getCreateTime())
             .append("updateTime", getUpdateTime())
             .toString();

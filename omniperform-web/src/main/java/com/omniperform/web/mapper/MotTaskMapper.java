@@ -91,7 +91,7 @@ public interface MotTaskMapper
      * @param guideId 导购ID
      * @return MOT任务集合
      */
-    public List<MotTask> selectMotTaskByGuideId(@Param("guideId") Long guideId);
+    public List<MotTask> selectMotTaskByGuideId(@Param("guideId") String guideId);
 
     /**
      * 查询MOT任务执行率统计

@@ -115,7 +115,7 @@ public class GuidePerformanceServiceImpl implements IGuidePerformanceService
      * @return 导购绩效
      */
     @Override
-    public GuidePerformance selectGuidePerformanceByGuideIdAndMonth(Long guideId, String dataMonth)
+    public GuidePerformance selectGuidePerformanceByGuideIdAndMonth(String guideId, String dataMonth)
     {
         return guidePerformanceMapper.selectGuidePerformanceByGuideIdAndMonth(guideId, dataMonth);
     }
