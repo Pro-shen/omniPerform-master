@@ -56,14 +56,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="dataMonth != null and dataMonth != ''">data_month,</if>
             <if test="productName != null and productName != ''">product_name,</if>
-            <if test="productCategory != null and productCategory != ''">product_category,</if>
             <if test="salesAmount != null">sales_amount,</if>
             <if test="salesQuantity != null">sales_quantity,</if>
-            <if test="salesTarget != null">sales_target,</if>
-            <if test="achievementRate != null">achievement_rate,</if>
             <if test="marketShare != null">market_share,</if>
-            <if test="growthRate != null">growth_rate,</if>
-            <if test="ranking != null">ranking,</if>
             <if test="createBy != null">create_by,</if>
             <if test="createTime != null">create_time,</if>
             <if test="updateBy != null">update_by,</if>
@@ -73,14 +68,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="dataMonth != null and dataMonth != ''">#{dataMonth},</if>
             <if test="productName != null and productName != ''">#{productName},</if>
-            <if test="productCategory != null and productCategory != ''">#{productCategory},</if>
             <if test="salesAmount != null">#{salesAmount},</if>
             <if test="salesQuantity != null">#{salesQuantity},</if>
-            <if test="salesTarget != null">#{salesTarget},</if>
-            <if test="achievementRate != null">#{achievementRate},</if>
             <if test="marketShare != null">#{marketShare},</if>
-            <if test="growthRate != null">#{growthRate},</if>
-            <if test="ranking != null">#{ranking},</if>
             <if test="createBy != null">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="updateBy != null">#{updateBy},</if>
@@ -94,14 +84,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="SET" suffixOverrides=",">
             <if test="dataMonth != null and dataMonth != ''">data_month = #{dataMonth},</if>
             <if test="productName != null and productName != ''">product_name = #{productName},</if>
-            <if test="productCategory != null and productCategory != ''">product_category = #{productCategory},</if>
             <if test="salesAmount != null">sales_amount = #{salesAmount},</if>
             <if test="salesQuantity != null">sales_quantity = #{salesQuantity},</if>
-            <if test="salesTarget != null">sales_target = #{salesTarget},</if>
-            <if test="achievementRate != null">achievement_rate = #{achievementRate},</if>
             <if test="marketShare != null">market_share = #{marketShare},</if>
-            <if test="growthRate != null">growth_rate = #{growthRate},</if>
-            <if test="ranking != null">ranking = #{ranking},</if>
             <if test="createBy != null">create_by = #{createBy},</if>
             <if test="createTime != null">create_time = #{createTime},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>

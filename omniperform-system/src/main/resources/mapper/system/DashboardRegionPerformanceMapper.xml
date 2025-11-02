@@ -47,7 +47,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectByMonthRange" resultMap="DashboardRegionPerformanceResult">
         <include refid="selectDashboardRegionPerformanceVo"/>
         where data_month between #{startMonth} and #{endMonth}
-        order by data_month asc, ranking asc
+        order by data_month asc, performance_score desc
     </select>
         
     <insert id="insertDashboardRegionPerformance" parameterType="DashboardRegionPerformance" useGeneratedKeys="true" keyProperty="id">
@@ -56,12 +56,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dataMonth != null and dataMonth != ''">data_month,</if>
             <if test="regionName != null and regionName != ''">region_name,</if>
             <if test="salesAmount != null">sales_amount,</if>
-            <if test="salesTarget != null">sales_target,</if>
-            <if test="achievementRate != null">achievement_rate,</if>
             <if test="memberCount != null">member_count,</if>
-            <if test="newMemberCount != null">new_member_count,</if>
-            <if test="activeMemberCount != null">active_member_count,</if>
-            <if test="ranking != null">ranking,</if>
+            <if test="performanceScore != null">performance_score,</if>
             <if test="createBy != null">create_by,</if>
             <if test="createTime != null">create_time,</if>
             <if test="updateBy != null">update_by,</if>
@@ -72,12 +68,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dataMonth != null and dataMonth != ''">#{dataMonth},</if>
             <if test="regionName != null and regionName != ''">#{regionName},</if>
             <if test="salesAmount != null">#{salesAmount},</if>
-            <if test="salesTarget != null">#{salesTarget},</if>
-            <if test="achievementRate != null">#{achievementRate},</if>
             <if test="memberCount != null">#{memberCount},</if>
-            <if test="newMemberCount != null">#{newMemberCount},</if>
-            <if test="activeMemberCount != null">#{activeMemberCount},</if>
-            <if test="ranking != null">#{ranking},</if>
+            <if test="performanceScore != null">#{performanceScore},</if>
             <if test="createBy != null">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="updateBy != null">#{updateBy},</if>
@@ -92,12 +84,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dataMonth != null and dataMonth != ''">data_month = #{dataMonth},</if>
             <if test="regionName != null and regionName != ''">region_name = #{regionName},</if>
             <if test="salesAmount != null">sales_amount = #{salesAmount},</if>
-            <if test="salesTarget != null">sales_target = #{salesTarget},</if>
-            <if test="achievementRate != null">achievement_rate = #{achievementRate},</if>
             <if test="memberCount != null">member_count = #{memberCount},</if>
-            <if test="newMemberCount != null">new_member_count = #{newMemberCount},</if>
-            <if test="activeMemberCount != null">active_member_count = #{activeMemberCount},</if>
-            <if test="ranking != null">ranking = #{ranking},</if>
+            <if test="performanceScore != null">performance_score = #{performanceScore},</if>
             <if test="createBy != null">create_by = #{createBy},</if>
             <if test="createTime != null">create_time = #{createTime},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>

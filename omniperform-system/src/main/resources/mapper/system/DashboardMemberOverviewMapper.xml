@@ -80,11 +80,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="activeMembers != null">active_members,</if>
             <if test="newMembers != null">new_members,</if>
             <if test="memberGrowthRate != null">member_growth_rate,</if>
-            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createBy != null">create_by,</if>
             <if test="createTime != null">create_time,</if>
-            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="updateBy != null">update_by,</if>
             <if test="updateTime != null">update_time,</if>
-            <if test="remark != null and remark != ''">remark,</if>
+            <if test="remark != null">remark,</if>
         </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="dataMonth != null and dataMonth != ''">#{dataMonth},</if>
@@ -92,11 +92,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="activeMembers != null">#{activeMembers},</if>
             <if test="newMembers != null">#{newMembers},</if>
             <if test="memberGrowthRate != null">#{memberGrowthRate},</if>
-            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createBy != null">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
-            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="updateBy != null">#{updateBy},</if>
             <if test="updateTime != null">#{updateTime},</if>
-            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="remark != null">#{remark},</if>
         </trim>
     </insert>
     

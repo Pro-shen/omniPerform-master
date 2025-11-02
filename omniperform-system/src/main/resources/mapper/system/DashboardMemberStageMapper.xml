@@ -51,14 +51,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         insert into dashboard_member_stage
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="dataMonth != null and dataMonth != ''">data_month,</if>
-            <if test="newMemberCount != null">new_member_count,</if>
-            <if test="activeMemberCount != null">active_member_count,</if>
-            <if test="dormantMemberCount != null">dormant_member_count,</if>
-            <if test="lostMemberCount != null">lost_member_count,</if>
-            <if test="newMemberPercentage != null">new_member_percentage,</if>
-            <if test="activeMemberPercentage != null">active_member_percentage,</if>
-            <if test="dormantMemberPercentage != null">dormant_member_percentage,</if>
-            <if test="lostMemberPercentage != null">lost_member_percentage,</if>
+            <if test="stageName != null and stageName != ''">stage_name,</if>
+            <if test="memberCount != null">member_count,</if>
+            <if test="percentage != null">percentage,</if>
             <if test="createBy != null">create_by,</if>
             <if test="createTime != null">create_time,</if>
             <if test="updateBy != null">update_by,</if>
@@ -67,14 +62,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="dataMonth != null and dataMonth != ''">#{dataMonth},</if>
-            <if test="newMemberCount != null">#{newMemberCount},</if>
-            <if test="activeMemberCount != null">#{activeMemberCount},</if>
-            <if test="dormantMemberCount != null">#{dormantMemberCount},</if>
-            <if test="lostMemberCount != null">#{lostMemberCount},</if>
-            <if test="newMemberPercentage != null">#{newMemberPercentage},</if>
-            <if test="activeMemberPercentage != null">#{activeMemberPercentage},</if>
-            <if test="dormantMemberPercentage != null">#{dormantMemberPercentage},</if>
-            <if test="lostMemberPercentage != null">#{lostMemberPercentage},</if>
+            <if test="stageName != null and stageName != ''">#{stageName},</if>
+            <if test="memberCount != null">#{memberCount},</if>
+            <if test="percentage != null">#{percentage},</if>
             <if test="createBy != null">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="updateBy != null">#{updateBy},</if>
@@ -87,14 +77,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         update dashboard_member_stage
         <trim prefix="SET" suffixOverrides=",">
             <if test="dataMonth != null and dataMonth != ''">data_month = #{dataMonth},</if>
-            <if test="newMemberCount != null">new_member_count = #{newMemberCount},</if>
-            <if test="activeMemberCount != null">active_member_count = #{activeMemberCount},</if>
-            <if test="dormantMemberCount != null">dormant_member_count = #{dormantMemberCount},</if>
-            <if test="lostMemberCount != null">lost_member_count = #{lostMemberCount},</if>
-            <if test="newMemberPercentage != null">new_member_percentage = #{newMemberPercentage},</if>
-            <if test="activeMemberPercentage != null">active_member_percentage = #{activeMemberPercentage},</if>
-            <if test="dormantMemberPercentage != null">dormant_member_percentage = #{dormantMemberPercentage},</if>
-            <if test="lostMemberPercentage != null">lost_member_percentage = #{lostMemberPercentage},</if>
+            <if test="stageName != null and stageName != ''">stage_name = #{stageName},</if>
+            <if test="memberCount != null">member_count = #{memberCount},</if>
+            <if test="percentage != null">percentage = #{percentage},</if>
             <if test="createBy != null">create_by = #{createBy},</if>
             <if test="createTime != null">create_time = #{createTime},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>

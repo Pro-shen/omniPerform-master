@@ -18,7 +18,6 @@ public class DashboardMemberOverview extends BaseEntity
     private static final long serialVersionUID = 1L;
 
     /** 主键ID */
-    @Excel(name = "主键ID", cellType = ColumnType.NUMERIC)
     private Long id;
 
     /** 数据月份(格式:2025-05) */
