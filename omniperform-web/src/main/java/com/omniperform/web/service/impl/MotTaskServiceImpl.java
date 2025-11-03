@@ -12,6 +12,8 @@ import com.omniperform.web.domain.MotTask;
 import com.omniperform.web.service.IMotTaskService;
 import com.omniperform.common.core.text.Convert;
 import com.omniperform.common.utils.DateUtils;
+import com.omniperform.common.utils.StringUtils;
+import com.omniperform.common.exception.ServiceException;
 
 /**
  * MOT任务Service业务层处理
@@ -380,5 +382,91 @@ public class MotTaskServiceImpl implements IMotTaskService
         motTask.setStatus("已完成");
         motTask.setUpdateTime(new Date());
         return motTaskMapper.updateMotTask(motTask);
+    }
+
+    /**
+     * 导入MOT任务数据
+     * 
+     * @param motTaskList MOT任务数据列表
+     * @param isUpdateSupport 是否更新支持
+     * @param operName 操作用户
+     * @return 结果
+     */
+    @Override
+    public String importMotTask(List<MotTask> motTaskList, Boolean isUpdateSupport, String operName)
+    {
+        if (StringUtils.isNull(motTaskList) || motTaskList.size() == 0)
+        {
+            throw new ServiceException("导入MOT任务数据不能为空！");
+        }
+        int successNum = 0;
+        int failureNum = 0;
+        StringBuilder successMsg = new StringBuilder();
+        StringBuilder failureMsg = new StringBuilder();
+        
+        for (MotTask motTask : motTaskList)
+        {
+            try
+            {
+                // 验证必填字段
+                if (StringUtils.isEmpty(motTask.getMemberName()))
+                {
+                    failureNum++;
+                    failureMsg.append("<br/>").append(failureNum).append("、会员姓名不能为空");
+                    continue;
+                }
+                if (StringUtils.isEmpty(motTask.getMotType()))
+                {
+                    failureNum++;
+                    failureMsg.append("<br/>").append(failureNum).append("、MOT类型不能为空");
+                    continue;
+                }
+                if (StringUtils.isEmpty(motTask.getGuideName()))
+                {
+                    failureNum++;
+                    failureMsg.append("<br/>").append(failureNum).append("、负责导购姓名不能为空");
+                    continue;
+                }
+                
+                // 设置默认值
+                if (StringUtils.isEmpty(motTask.getStatus()))
+                {
+                    motTask.setStatus("待执行");
+                }
+                if (StringUtils.isEmpty(motTask.getPriority()))
+                {
+                    motTask.setPriority("中");
+                }
+                if (StringUtils.isEmpty(motTask.getDataMonth()))
+                {
+                    motTask.setDataMonth(DateUtils.dateTimeNow("yyyy-MM"));
+                }
+                
+                // 直接新增任务，不进行重复检测
+                // 业务逻辑：允许同一会员有多个MOT任务，包括相同类型的任务
+                motTask.setCreateTime(DateUtils.getNowDate());
+                motTask.setUpdateTime(DateUtils.getNowDate());
+                this.insertMotTask(motTask);
+                successNum++;
+                successMsg.append("<br/>").append(successNum).append("、会员 ").append(motTask.getMemberName()).append(" 的MOT任务导入成功");
+            }
+            catch (Exception e)
+            {
+                failureNum++;
+                String msg = "<br/>" + failureNum + "、会员 " + motTask.getMemberName() + " 导入失败：";
+                failureMsg.append(msg).append(e.getMessage());
+            }
+        }
+        
+        if (failureNum > 0)
+        {
+            failureMsg.insert(0, "很抱歉，导入失败！共 " + failureNum + " 条数据格式不正确，错误如下：");
+            throw new ServiceException(failureMsg.toString());
+        }
+        else
+        {
+            successMsg.insert(0, "恭喜您，数据已全部导入成功！共 " + successNum + " 条，数据如下：");
+        }
+        return successMsg.toString();
     }
 }

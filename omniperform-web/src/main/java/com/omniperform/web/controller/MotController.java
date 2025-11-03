@@ -7,12 +7,14 @@ import com.omniperform.common.annotation.Anonymous;
 import com.omniperform.common.core.page.TableDataInfo;
 import com.omniperform.common.core.controller.BaseController;
 import com.omniperform.common.utils.poi.ExcelUtil;
+import com.omniperform.common.core.domain.AjaxResult;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
 import java.time.LocalDate;
@@ -472,5 +474,99 @@ public class MotController extends BaseController {
             log.error("获取今日MOT任务列表失败: {}", e.getMessage(), e);
             return Result.error("获取今日MOT任务列表失败");
         }
+    }
+
+    /**
+     * 创建MOT任务示例数据
+     */
+    private List<MotTask> createMotTaskSampleData() {
+        List<MotTask> sampleList = new ArrayList<>();
+        
+        // 示例数据1 - 生日关怀
+        MotTask sample1 = new MotTask();
+        sample1.setMemberId(10001L);
+        sample1.setMemberName("张小美");
+        sample1.setMemberPhone("13800138001");
+        sample1.setMotType("生日关怀");
+        sample1.setPriority("高");
+        sample1.setStatus("待执行");
+        sample1.setGuideId("G001");
+        sample1.setGuideName("李导购");
+        sample1.setDueDate(new Date());
+        sample1.setDescription("会员生日当天进行生日祝福和优惠推荐");
+        sample1.setRegionId(1L);
+        sample1.setRegionName("华东区");
+        sample1.setStoreId(101L);
+        sample1.setStoreName("上海南京路店");
+        sample1.setDataMonth("2025-01");
+        sampleList.add(sample1);
+        
+        // 示例数据2 - 购买提醒
+        MotTask sample2 = new MotTask();
+        sample2.setMemberId(10002L);
+        sample2.setMemberName("王先生");
+        sample2.setMemberPhone("13900139002");
+        sample2.setMotType("购买提醒");
+        sample2.setPriority("中");
+        sample2.setStatus("待执行");
+        sample2.setGuideId("G002");
+        sample2.setGuideName("陈导购");
+        sample2.setDueDate(new Date());
+        sample2.setDescription("提醒会员关注的产品有新品上市或促销活动");
+        sample2.setRegionId(2L);
+        sample2.setRegionName("华南区");
+        sample2.setStoreId(201L);
+        sample2.setStoreName("深圳福田店");
+        sample2.setDataMonth("2025-01");
+        sampleList.add(sample2);
+        
+        // 示例数据3 - 流失挽回
+        MotTask sample3 = new MotTask();
+        sample3.setMemberId(10003L);
+        sample3.setMemberName("刘女士");
+        sample3.setMemberPhone("13700137003");
+        sample3.setMotType("流失挽回");
+        sample3.setPriority("高");
+        sample3.setStatus("待执行");
+        sample3.setGuideId("G003");
+        sample3.setGuideName("赵导购");
+        sample3.setDueDate(new Date());
+        sample3.setDescription("针对长期未消费会员进行关怀和优惠券发放");
+        sample3.setRegionId(1L);
+        sample3.setRegionName("华东区");
+        sample3.setStoreId(102L);
+        sample3.setStoreName("上海淮海路店");
+        sample3.setDataMonth("2025-01");
+        sampleList.add(sample3);
+        
+        return sampleList;
+    }
+
+    /**
+     * 下载MOT任务导入模板
+     */
+    @PostMapping("/downloadTemplate")
+    @ApiOperation("下载MOT任务导入模板")
+    public void downloadTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<MotTask> util = new ExcelUtil<MotTask>(MotTask.class);
+            List<MotTask> sampleData = createMotTaskSampleData();
+            util.exportExcel(response, sampleData, "MOT任务导入模板");
+        } catch (Exception e) {
+            log.error("下载MOT任务导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 导入MOT任务数据
+     */
+    @PostMapping("/import")
+    @ApiOperation("导入MOT任务数据")
+    public AjaxResult importData(MultipartFile file, boolean updateSupport) throws Exception {
+        ExcelUtil<MotTask> util = new ExcelUtil<MotTask>(MotTask.class);
+        List<MotTask> motTaskList = util.importExcel(file.getInputStream());
+        String operName = "系统管理员"; // 可以从当前登录用户获取
+        String message = motTaskService.importMotTask(motTaskList, updateSupport, operName);
+        return AjaxResult.success(message);
     }
 }

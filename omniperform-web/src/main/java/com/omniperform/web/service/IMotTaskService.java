@@ -141,4 +141,14 @@ public interface IMotTaskService
      * @return 今日概览数据
      */
     public Map<String, Object> getTodayOverview();
+
+    /**
+     * 导入MOT任务数据
+     * 
+     * @param motTaskList MOT任务数据列表
+     * @param isUpdateSupport 是否更新支持
+     * @param operName 操作用户
+     * @return 结果
+     */
+    public String importMotTask(List<MotTask> motTaskList, Boolean isUpdateSupport, String operName);
 }
