@@ -129,12 +129,37 @@ public class GuideInfoServiceImpl implements IGuideInfoService
 
     /**
      * 查询在职导购列表
-     * 
-     * @return 在职导购列表
+    /**
+     * 查询在职导购列表
      */
     @Override
     public List<GuideInfo> selectActiveGuideInfoList()
     {
         return guideInfoMapper.selectActiveGuideInfoList();
+    }
+
+    /**
+     * 生成新的导购ID
+     */
+    @Override
+    public String generateNewGuideCode()
+    {
+        // 查询当前最大的导购编号
+        String maxGuideCode = guideInfoMapper.selectMaxGuideCode();
+        
+        if (maxGuideCode == null || maxGuideCode.isEmpty()) {
+            // 如果没有现有导购，从G001开始
+            return "G001";
+        }
+        
+        // 提取数字部分并递增
+        try {
+            String numberPart = maxGuideCode.substring(1); // 去掉'G'前缀
+            int nextNumber = Integer.parseInt(numberPart) + 1;
+            return String.format("G%03d", nextNumber); // 格式化为G001, G002等
+        } catch (Exception e) {
+            // 如果解析失败，生成一个随机的导购ID
+            return "G" + String.format("%03d", (int)(Math.random() * 999) + 1);
+        }
     }
 }

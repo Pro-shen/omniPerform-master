@@ -89,4 +89,11 @@ public interface GuideInfoMapper
      * @return 导购基础信息集合
      */
     public List<GuideInfo> selectActiveGuideInfoList();
+
+    /**
+     * 查询最大的导购编号
+     * 
+     * @return 最大的导购编号
+     */
+    public String selectMaxGuideCode();
 }

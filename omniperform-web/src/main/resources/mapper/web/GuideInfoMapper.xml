@@ -165,4 +165,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         order by guide_code
     </select>
 
+    <select id="selectMaxGuideCode" resultType="String">
+        select guide_code from guide_info 
+        where guide_code REGEXP '^G[0-9]+$' 
+        order by CAST(SUBSTRING(guide_code, 2) AS UNSIGNED) desc 
+        limit 1
+    </select>
+
 </mapper>

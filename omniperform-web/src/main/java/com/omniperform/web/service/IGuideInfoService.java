@@ -89,4 +89,11 @@ public interface IGuideInfoService
      * @return 在职导购列表
      */
     public List<GuideInfo> selectActiveGuideInfoList();
+
+    /**
+     * 生成新的导购ID
+     * 
+     * @return 新的导购ID
+     */
+    public String generateNewGuideCode();
 }
