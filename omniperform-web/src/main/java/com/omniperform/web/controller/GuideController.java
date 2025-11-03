@@ -1109,32 +1109,122 @@ public class GuideController {
                     // 如果没有找到，创建新的导购信息
                     if (foundGuide == null) {
                         try {
-                            // 生成新的导购代码
-                            String newGuideCode = guideInfoService.generateNewGuideCode();
-                            
-                            // 创建新的导购信息
-                            GuideInfo newGuide = new GuideInfo();
-                            newGuide.setGuideCode(newGuideCode);
-                            newGuide.setGuideName(guideName);
-                            newGuide.setStatus(1); // 设置为活跃状态
-                            newGuide.setCreateTime(new Date());
-                            
-                            // 插入新导购信息
-                            int insertResult = guideInfoService.insertGuideInfo(newGuide);
-                            if (insertResult > 0) {
-                                // 重新查询获取生成的ID
-                                foundGuide = guideInfoService.selectGuideInfoByGuideCode(newGuideCode);
-                                log.info("创建新导购成功: {} (代码: {}, ID: {})", guideName, newGuideCode, foundGuide.getGuideId());
+                            // 生成新的导购代码，如果Excel中有导购编码则使用，否则自动生成
+                            String newGuideCode;
+                            if (data.getGuideCode() != null && !data.getGuideCode().trim().isEmpty()) {
+                                newGuideCode = data.getGuideCode().trim();
+                                // 检查导购编码是否已存在
+                                GuideInfo existingGuideByCode = guideInfoService.selectGuideInfoByGuideCode(newGuideCode);
+                                if (existingGuideByCode != null) {
+                                    // 如果编码已存在但姓名不同，生成新编码
+                                    if (!guideName.equals(existingGuideByCode.getGuideName())) {
+                                        newGuideCode = guideInfoService.generateNewGuideCode();
+                                        log.info("导购编码 {} 已存在但姓名不匹配，为导购 {} 生成新编码: {}", 
+                                                data.getGuideCode(), guideName, newGuideCode);
+                                    } else {
+                                        // 编码和姓名都匹配，使用现有导购
+                                        foundGuide = existingGuideByCode;
+                                        log.info("找到现有导购通过编码: {} (ID: {})", guideName, foundGuide.getGuideId());
+                                    }
+                                }
                             } else {
-                                errorMessages.add("第 " + (i + 1) + " 行：创建导购 " + guideName + " 失败");
-                                failCount++;
-                                continue;
+                                newGuideCode = guideInfoService.generateNewGuideCode();
+                            }
+                            
+                            // 如果还没有找到导购，创建新的导购信息
+                            if (foundGuide == null) {
+                                GuideInfo newGuide = new GuideInfo();
+                                newGuide.setGuideCode(newGuideCode);
+                                newGuide.setGuideName(guideName);
+                                
+                                // 从Excel数据中设置区域和门店信息
+                                if (data.getRegionName() != null && !data.getRegionName().trim().isEmpty()) {
+                                    newGuide.setRegionName(data.getRegionName().trim());
+                                }
+                                if (data.getStoreName() != null && !data.getStoreName().trim().isEmpty()) {
+                                    newGuide.setStoreName(data.getStoreName().trim());
+                                }
+                                
+                                newGuide.setStatus(1); // 设置为活跃状态
+                                newGuide.setCreateTime(new Date());
+                                newGuide.setCreateBy("system");
+                                
+                                // 插入新导购信息
+                                int insertResult = guideInfoService.insertGuideInfo(newGuide);
+                                if (insertResult > 0) {
+                                    // 重新查询获取生成的ID
+                                    foundGuide = guideInfoService.selectGuideInfoByGuideCode(newGuideCode);
+                                    log.info("创建新导购成功: {} (代码: {}, ID: {}, 区域: {}, 门店: {})", 
+                                            guideName, newGuideCode, foundGuide.getGuideId(), 
+                                            newGuide.getRegionName(), newGuide.getStoreName());
+                                } else {
+                                    errorMessages.add("第 " + (i + 1) + " 行：创建导购 " + guideName + " 失败");
+                                    failCount++;
+                                    continue;
+                                }
                             }
                         } catch (Exception e) {
                             log.error("创建导购信息失败: {}", e.getMessage(), e);
                             errorMessages.add("第 " + (i + 1) + " 行：创建导购 " + guideName + " 时发生错误: " + e.getMessage());
                             failCount++;
                             continue;
+                        }
+                    } else {
+                        // 如果找到了现有导购，检查是否需要更新区域和门店信息
+                        boolean needUpdate = false;
+                        GuideInfo updateGuide = new GuideInfo();
+                        updateGuide.setGuideId(foundGuide.getGuideId());
+                        
+                        // 检查区域信息
+                        if (data.getRegionName() != null && !data.getRegionName().trim().isEmpty()) {
+                            String newRegionName = data.getRegionName().trim();
+                            if (foundGuide.getRegionName() == null || !newRegionName.equals(foundGuide.getRegionName())) {
+                                updateGuide.setRegionName(newRegionName);
+                                needUpdate = true;
+                                log.info("导购 {} 的区域信息将更新: {} -> {}", guideName, foundGuide.getRegionName(), newRegionName);
+                            }
+                        }
+                        
+                        // 检查门店信息
+                        if (data.getStoreName() != null && !data.getStoreName().trim().isEmpty()) {
+                            String newStoreName = data.getStoreName().trim();
+                            if (foundGuide.getStoreName() == null || !newStoreName.equals(foundGuide.getStoreName())) {
+                                updateGuide.setStoreName(newStoreName);
+                                needUpdate = true;
+                                log.info("导购 {} 的门店信息将更新: {} -> {}", guideName, foundGuide.getStoreName(), newStoreName);
+                            }
+                        }
+                        
+                        // 检查导购编码
+                        if (data.getGuideCode() != null && !data.getGuideCode().trim().isEmpty()) {
+                            String newGuideCode = data.getGuideCode().trim();
+                            if (foundGuide.getGuideCode() == null || !newGuideCode.equals(foundGuide.getGuideCode())) {
+                                // 检查新编码是否已被其他导购使用
+                                GuideInfo existingGuideByCode = guideInfoService.selectGuideInfoByGuideCode(newGuideCode);
+                                if (existingGuideByCode == null || existingGuideByCode.getGuideId().equals(foundGuide.getGuideId())) {
+                                    updateGuide.setGuideCode(newGuideCode);
+                                    needUpdate = true;
+                                    log.info("导购 {} 的编码将更新: {} -> {}", guideName, foundGuide.getGuideCode(), newGuideCode);
+                                }
+                            }
+                        }
+                        
+                        // 执行更新
+                        if (needUpdate) {
+                            try {
+                                updateGuide.setUpdateTime(new Date());
+                                updateGuide.setUpdateBy("system");
+                                int updateResult = guideInfoService.updateGuideInfo(updateGuide);
+                                if (updateResult > 0) {
+                                    log.info("导购 {} 的基础信息更新成功", guideName);
+                                    // 重新查询更新后的导购信息
+                                    foundGuide = guideInfoService.selectGuideInfoByGuideId(foundGuide.getGuideId());
+                                } else {
+                                    log.warn("导购 {} 的基础信息更新失败", guideName);
+                                }
+                            } catch (Exception e) {
+                                log.error("更新导购 {} 的基础信息时发生错误: {}", guideName, e.getMessage(), e);
+                            }
                         }
                     }
                     
@@ -1220,7 +1310,7 @@ public class GuideController {
     }
 
     /**
-     * 批量导入导购绩效数据
+     * 批量导入导购绩效数据（支持同时导入guide_info和guide_performance两张表）
      */
     @PostMapping("/import/batch")
     public Result<Map<String, Object>> batchImportGuidePerformance(@RequestParam("file") MultipartFile file) {
@@ -1243,6 +1333,9 @@ public class GuideController {
             
             log.info("从Excel文件中读取到 {} 条导购绩效数据", dataList.size());
             
+            // 获取所有现有导购信息，用于查找和匹配
+            List<GuideInfo> allGuides = guideInfoService.selectGuideInfoList(new GuideInfo());
+            
             for (int i = 0; i < dataList.size(); i++) {
                 GuidePerformance data = dataList.get(i);
                 
@@ -1255,41 +1348,9 @@ public class GuideController {
                     // 数据验证
                     StringBuilder validationErrors = new StringBuilder();
                     
-                    // 验证导购ID是否存在并转换为正确的数字ID
-                    if (data.getGuideId() == null) {
-                        validationErrors.append("导购ID不能为空；");
-                    } else {
-                        // 检查导购ID是否在guide_info表中存在，并获取正确的数字ID
-                        String inputGuideId = String.valueOf(data.getGuideId());
-                        log.info("批量导入验证导购ID: [{}]", inputGuideId);
-                        
-                        GuideInfo existingGuide = null;
-                        try {
-                            // 首先尝试按数字ID查询
-                            try {
-                                Long guideIdLong = Long.parseLong(inputGuideId);
-                                log.info("批量导入尝试按数字ID查询: {}", guideIdLong);
-                                existingGuide = guideInfoService.selectGuideInfoByGuideId(guideIdLong);
-                                log.info("批量导入按数字ID查询结果: {}", existingGuide != null ? "找到" : "未找到");
-                            } catch (NumberFormatException e) {
-                                // 如果不是数字，按guideCode查询
-                                log.info("批量导入不是数字ID，尝试按guideCode查询: {}", inputGuideId);
-                                existingGuide = guideInfoService.selectGuideInfoByGuideCode(inputGuideId);
-                                log.info("批量导入按guideCode查询结果: {}", existingGuide != null ? "找到" : "未找到");
-                            }
-                            
-                            if (existingGuide == null) {
-                                validationErrors.append("导购ID [" + inputGuideId + "] 在系统中不存在；");
-                                log.warn("批量导入导购ID [{}] 在系统中不存在", inputGuideId);
-                            } else {
-                                // 关键修复：将Excel中的guide_code转换为数据库中的数字guide_id
-                                data.setGuideId(String.valueOf(existingGuide.getGuideId()));
-                                log.info("批量导入导购ID [{}] 验证通过，转换为数字guide_id: {}", inputGuideId, existingGuide.getGuideId());
-                            }
-                        } catch (Exception e) {
-                            validationErrors.append("导购ID [" + inputGuideId + "] 验证失败：" + e.getMessage() + "；");
-                            log.error("批量导入检查导购ID存在性时出错: {}", e.getMessage(), e);
-                        }
+                    // 验证导购姓名
+                    if (data.getGuideName() == null || data.getGuideName().trim().isEmpty()) {
+                        validationErrors.append("导购姓名不能为空；");
                     }
                     
                     // 验证数据月份
@@ -1310,26 +1371,179 @@ public class GuideController {
                         continue;
                     }
                     
+                    // 处理导购信息（查找或创建）
+                    String guideName = data.getGuideName().trim();
+                    GuideInfo existingGuide = null;
+                    
+                    // 查找现有导购
+                    for (GuideInfo guide : allGuides) {
+                        if (guideName.equals(guide.getGuideName())) {
+                            existingGuide = guide;
+                            break;
+                        }
+                    }
+                    
+                    Long guideId;
+                    if (existingGuide != null) {
+                        // 导购已存在，使用现有的guide_id
+                        guideId = existingGuide.getGuideId();
+                        log.info("批量导入找到现有导购: {} (ID: {})", guideName, guideId);
+                        
+                        // 检查是否需要更新导购信息
+                        boolean needUpdate = false;
+                        
+                        // 检查区域名称
+                        if (data.getRegionName() != null && !data.getRegionName().trim().isEmpty()) {
+                            String newRegionName = data.getRegionName().trim();
+                            if (!newRegionName.equals(existingGuide.getRegionName())) {
+                                existingGuide.setRegionName(newRegionName);
+                                needUpdate = true;
+                                log.info("批量导入更新导购 {} 的区域名称: {} -> {}", guideName, existingGuide.getRegionName(), newRegionName);
+                            }
+                        }
+                        
+                        // 检查门店名称
+                        if (data.getStoreName() != null && !data.getStoreName().trim().isEmpty()) {
+                            String newStoreName = data.getStoreName().trim();
+                            if (!newStoreName.equals(existingGuide.getStoreName())) {
+                                existingGuide.setStoreName(newStoreName);
+                                needUpdate = true;
+                                log.info("批量导入更新导购 {} 的门店名称: {} -> {}", guideName, existingGuide.getStoreName(), newStoreName);
+                            }
+                        }
+                        
+                        // 检查导购编码
+                        if (data.getGuideCode() != null && !data.getGuideCode().trim().isEmpty()) {
+                            String newGuideCode = data.getGuideCode().trim();
+                            if (!newGuideCode.equals(existingGuide.getGuideCode())) {
+                                // 检查新的guideCode是否已被其他导购使用
+                                boolean codeExists = false;
+                                for (GuideInfo otherGuide : allGuides) {
+                                    if (!otherGuide.getGuideId().equals(existingGuide.getGuideId()) && 
+                                        newGuideCode.equals(otherGuide.getGuideCode())) {
+                                        codeExists = true;
+                                        break;
+                                    }
+                                }
+                                
+                                if (!codeExists) {
+                                    existingGuide.setGuideCode(newGuideCode);
+                                    needUpdate = true;
+                                    log.info("批量导入更新导购 {} 的编码: {} -> {}", guideName, existingGuide.getGuideCode(), newGuideCode);
+                                } else {
+                                    log.warn("批量导入导购编码 {} 已被其他导购使用，跳过更新", newGuideCode);
+                                }
+                            }
+                        }
+                        
+                        // 如果需要更新，执行更新操作
+                        if (needUpdate) {
+                            existingGuide.setUpdateTime(new Date());
+                            existingGuide.setUpdateBy("batch_import");
+                            int updateResult = guideInfoService.updateGuideInfo(existingGuide);
+                            if (updateResult > 0) {
+                                log.info("批量导入成功更新导购信息: {}", guideName);
+                            } else {
+                                log.warn("批量导入更新导购信息失败: {}", guideName);
+                            }
+                        }
+                    } else {
+                        // 导购不存在，创建新导购
+                        GuideInfo newGuide = new GuideInfo();
+                        newGuide.setGuideName(guideName);
+                        
+                        // 设置导购编码
+                        String guideCode;
+                        if (data.getGuideCode() != null && !data.getGuideCode().trim().isEmpty()) {
+                            guideCode = data.getGuideCode().trim();
+                            // 检查guideCode是否已存在
+                            boolean codeExists = false;
+                            for (GuideInfo guide : allGuides) {
+                                if (guideCode.equals(guide.getGuideCode())) {
+                                    if (!guideName.equals(guide.getGuideName())) {
+                                        // guideCode存在但导购姓名不匹配，生成新的guideCode
+                                        guideCode = "G" + System.currentTimeMillis();
+                                        log.info("批量导入导购编码 {} 已存在但姓名不匹配，生成新编码: {}", data.getGuideCode(), guideCode);
+                                    }
+                                    codeExists = true;
+                                    break;
+                                }
+                            }
+                        } else {
+                            // 自动生成导购编码
+                            guideCode = "G" + System.currentTimeMillis();
+                        }
+                        newGuide.setGuideCode(guideCode);
+                        
+                        // 设置区域和门店信息
+                        if (data.getRegionName() != null && !data.getRegionName().trim().isEmpty()) {
+                            newGuide.setRegionName(data.getRegionName().trim());
+                        }
+                        if (data.getStoreName() != null && !data.getStoreName().trim().isEmpty()) {
+                            newGuide.setStoreName(data.getStoreName().trim());
+                        }
+                        
+                        // 设置创建信息
+                        newGuide.setCreateTime(new Date());
+                        newGuide.setCreateBy("batch_import");
+                        
+                        // 插入新导购
+                        int insertResult = guideInfoService.insertGuideInfo(newGuide);
+                        if (insertResult > 0) {
+                            guideId = newGuide.getGuideId();
+                            allGuides.add(newGuide); // 添加到缓存列表中
+                            log.info("批量导入成功创建新导购: {} (ID: {}, Code: {})", guideName, guideId, guideCode);
+                        } else {
+                            errorMessages.add("第 " + (i + 1) + " 行：创建导购信息失败");
+                            failCount++;
+                            continue;
+                        }
+                    }
+                    
+                    // 设置绩效数据的导购ID
+                    data.setGuideId(String.valueOf(guideId));
+                    
+                    // 检查绩效数据是否已存在
+                    GuidePerformance existingPerformance = guidePerformanceService.selectGuidePerformanceByGuideIdAndMonth(
+                            String.valueOf(guideId), data.getDataMonth());
+                    
                     // 设置默认值
                     if (data.getCreateTime() == null) {
                         data.setCreateTime(new Date());
                     }
                     if (data.getCreateBy() == null || data.getCreateBy().trim().isEmpty()) {
-                        data.setCreateBy("system");
+                        data.setCreateBy("batch_import");
                     }
                     if (data.getRemark() == null) {
                         data.setRemark("批量导入");
                     }
                     
-                    // 保存数据
-                    int saveResult = guidePerformanceService.insertGuidePerformance(data);
-                    if (saveResult > 0) {
-                        successCount++;
-                        log.info("第 {} 条导购绩效数据导入成功，导购: {}", i + 1, data.getGuideName());
+                    int saveResult;
+                    if (existingPerformance != null) {
+                        // 更新现有记录
+                        data.setPerformanceId(existingPerformance.getPerformanceId());
+                        data.setUpdateTime(new Date());
+                        data.setUpdateBy("batch_import");
+                        saveResult = guidePerformanceService.updateGuidePerformance(data);
+                        if (saveResult > 0) {
+                            successCount++;
+                            log.info("第 {} 条导购绩效数据更新成功，导购: {}", i + 1, guideName);
+                        } else {
+                            failCount++;
+                            errorMessages.add("第 " + (i + 1) + " 行：数据更新失败");
+                            log.warn("第 {} 条导购绩效数据更新失败，导购: {}", i + 1, guideName);
+                        }
                     } else {
-                        failCount++;
-                        errorMessages.add("第 " + (i + 1) + " 行：数据保存失败");
-                        log.warn("第 {} 条导购绩效数据保存失败，导购: {}", i + 1, data.getGuideName());
+                        // 新增记录
+                        saveResult = guidePerformanceService.insertGuidePerformance(data);
+                        if (saveResult > 0) {
+                            successCount++;
+                            log.info("第 {} 条导购绩效数据导入成功，导购: {}", i + 1, guideName);
+                        } else {
+                            failCount++;
+                            errorMessages.add("第 " + (i + 1) + " 行：数据保存失败");
+                            log.warn("第 {} 条导购绩效数据保存失败，导购: {}", i + 1, guideName);
+                        }
                     }
                 } catch (Exception e) {
                     failCount++;
