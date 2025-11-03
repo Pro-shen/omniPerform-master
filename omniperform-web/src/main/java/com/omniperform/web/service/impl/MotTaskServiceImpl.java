@@ -393,7 +393,7 @@ public class MotTaskServiceImpl implements IMotTaskService
      * @return 结果
      */
     @Override
-    public String importMotTask(List<MotTask> motTaskList, Boolean isUpdateSupport, String operName)
+    public Map<String, Object> importMotTask(List<MotTask> motTaskList, Boolean isUpdateSupport, String operName)
     {
         if (StringUtils.isNull(motTaskList) || motTaskList.size() == 0)
         {
@@ -403,6 +403,7 @@ public class MotTaskServiceImpl implements IMotTaskService
         int failureNum = 0;
         StringBuilder successMsg = new StringBuilder();
         StringBuilder failureMsg = new StringBuilder();
+        List<String> errorMessages = new ArrayList<>();
         
         for (MotTask motTask : motTaskList)
         {
@@ -412,19 +413,25 @@ public class MotTaskServiceImpl implements IMotTaskService
                 if (StringUtils.isEmpty(motTask.getMemberName()))
                 {
                     failureNum++;
-                    failureMsg.append("<br/>").append(failureNum).append("、会员姓名不能为空");
+                    String errorMsg = "会员姓名不能为空";
+                    failureMsg.append("<br/>").append(failureNum).append("、").append(errorMsg);
+                    errorMessages.add(errorMsg);
                     continue;
                 }
                 if (StringUtils.isEmpty(motTask.getMotType()))
                 {
                     failureNum++;
-                    failureMsg.append("<br/>").append(failureNum).append("、MOT类型不能为空");
+                    String errorMsg = "MOT类型不能为空";
+                    failureMsg.append("<br/>").append(failureNum).append("、").append(errorMsg);
+                    errorMessages.add(errorMsg);
                     continue;
                 }
                 if (StringUtils.isEmpty(motTask.getGuideName()))
                 {
                     failureNum++;
-                    failureMsg.append("<br/>").append(failureNum).append("、负责导购姓名不能为空");
+                    String errorMsg = "负责导购姓名不能为空";
+                    failureMsg.append("<br/>").append(failureNum).append("、").append(errorMsg);
+                    errorMessages.add(errorMsg);
                     continue;
                 }
                 
@@ -453,20 +460,31 @@ public class MotTaskServiceImpl implements IMotTaskService
             catch (Exception e)
             {
                 failureNum++;
-                String msg = "<br/>" + failureNum + "、会员 " + motTask.getMemberName() + " 导入失败：";
-                failureMsg.append(msg).append(e.getMessage());
+                String msg = "会员 " + motTask.getMemberName() + " 导入失败：" + e.getMessage();
+                failureMsg.append("<br/>").append(failureNum).append("、").append(msg);
+                errorMessages.add(msg);
             }
         }
         
+        // 构建返回结果
+        Map<String, Object> result = new HashMap<>();
+        result.put("successCount", successNum);
+        result.put("failCount", failureNum);
+        result.put("totalCount", successNum + failureNum);
+        result.put("errorMessages", errorMessages);
+        
         if (failureNum > 0)
         {
-            failureMsg.insert(0, "很抱歉，导入失败！共 " + failureNum + " 条数据格式不正确，错误如下：");
-            throw new ServiceException(failureMsg.toString());
+            String errorMessage = "很抱歉，导入失败！共 " + failureNum + " 条数据格式不正确，错误如下：" + failureMsg.toString();
+            result.put("message", errorMessage);
+            throw new ServiceException(errorMessage);
         }
         else
         {
-            successMsg.insert(0, "恭喜您，数据已全部导入成功！共 " + successNum + " 条，数据如下：");
+            String successMessage = "恭喜您，数据已全部导入成功！共 " + successNum + " 条，数据如下：" + successMsg.toString();
+            result.put("message", successMessage);
         }
-        return successMsg.toString();
+        
+        return result;
     }
 }

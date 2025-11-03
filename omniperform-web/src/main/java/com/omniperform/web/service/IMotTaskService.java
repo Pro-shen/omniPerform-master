@@ -150,5 +150,5 @@ public interface IMotTaskService
      * @param operName 操作用户
      * @return 结果
      */
-    public String importMotTask(List<MotTask> motTaskList, Boolean isUpdateSupport, String operName);
+    public Map<String, Object> importMotTask(List<MotTask> motTaskList, Boolean isUpdateSupport, String operName);
 }

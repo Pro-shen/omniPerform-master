@@ -566,7 +566,7 @@ public class MotController extends BaseController {
         ExcelUtil<MotTask> util = new ExcelUtil<MotTask>(MotTask.class);
         List<MotTask> motTaskList = util.importExcel(file.getInputStream());
         String operName = "系统管理员"; // 可以从当前登录用户获取
-        String message = motTaskService.importMotTask(motTaskList, updateSupport, operName);
-        return AjaxResult.success(message);
+        Map<String, Object> result = motTaskService.importMotTask(motTaskList, updateSupport, operName);
+        return AjaxResult.success(result);
     }
 }
