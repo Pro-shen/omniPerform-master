@@ -117,4 +117,14 @@ public interface IMemberOverviewService
      * @return CRFM-E评分数据
      */
     public Map<String, Object> calculateMemberCrfme(Long memberId);
+
+    /**
+     * 导入会员数据
+     * 
+     * @param memberList 会员数据列表
+     * @param isUpdateSupport 是否更新支持
+     * @param operName 操作用户
+     * @return 导入结果
+     */
+    public Map<String, Object> importMemberInfo(List<MemberInfo> memberList, Boolean isUpdateSupport, String operName);
 }

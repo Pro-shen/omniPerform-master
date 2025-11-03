@@ -89,7 +89,7 @@ public class MemberInfo extends BaseEntity
 
     /** 最后购买时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @Excel(name = "最后购买时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
+    @Excel(name = "最后下单", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date lastPurchaseTime;
 
     /** 最后互动时间 */
@@ -98,11 +98,11 @@ public class MemberInfo extends BaseEntity
     private Date lastInteractionTime;
 
     /** 累计购买金额 */
-    @Excel(name = "累计购买金额", cellType = ColumnType.NUMERIC)
+    @Excel(name = "消费金额", cellType = ColumnType.NUMERIC)
     private BigDecimal totalPurchaseAmount;
 
     /** 累计购买次数 */
-    @Excel(name = "累计购买次数", cellType = ColumnType.NUMERIC)
+    @Excel(name = "订单数量", cellType = ColumnType.NUMERIC)
     private Integer totalPurchaseCount;
 
     public Long getMemberId()

@@ -285,4 +285,88 @@ public class MemberOverviewServiceImpl implements IMemberOverviewService
         
         return result;
     }
+
+    /**
+     * 导入会员数据
+     * 
+     * @param memberList 会员数据列表
+     * @param isUpdateSupport 是否更新支持
+     * @param operName 操作用户
+     * @return 导入结果
+     */
+    @Override
+    public Map<String, Object> importMemberInfo(List<MemberInfo> memberList, Boolean isUpdateSupport, String operName)
+    {
+        if (memberList == null || memberList.isEmpty())
+        {
+            throw new RuntimeException("导入会员数据不能为空！");
+        }
+        
+        int successNum = 0;
+        int failureNum = 0;
+        int totalCount = memberList.size();
+        List<String> errorMessages = new ArrayList<>();
+        
+        for (int i = 0; i < memberList.size(); i++)
+        {
+            MemberInfo memberInfo = memberList.get(i);
+            try
+            {
+                // 验证必填字段
+                if (memberInfo.getMemberName() == null || memberInfo.getMemberName().trim().isEmpty())
+                {
+                    failureNum++;
+                    errorMessages.add("第" + (i + 1) + "行：会员姓名不能为空");
+                    continue;
+                }
+                if (memberInfo.getPhone() == null || memberInfo.getPhone().trim().isEmpty())
+                {
+                    failureNum++;
+                    errorMessages.add("第" + (i + 1) + "行：手机号不能为空");
+                    continue;
+                }
+                
+                // 检查手机号是否已存在
+                MemberInfo existingMember = memberInfoMapper.selectMemberInfoByPhone(memberInfo.getPhone());
+                if (existingMember != null)
+                {
+                    if (isUpdateSupport != null && isUpdateSupport)
+                    {
+                        // 更新现有会员信息
+                        memberInfo.setMemberId(existingMember.getMemberId());
+                        memberInfo.setUpdateTime(DateUtils.getNowDate());
+                        memberInfoMapper.updateMemberInfo(memberInfo);
+                        successNum++;
+                    }
+                    else
+                    {
+                        failureNum++;
+                        errorMessages.add("第" + (i + 1) + "行：手机号 " + memberInfo.getPhone() + " 已存在");
+                        continue;
+                    }
+                }
+                else
+                {
+                    // 新增会员信息
+                    memberInfo.setCreateTime(DateUtils.getNowDate());
+                    memberInfoMapper.insertMemberInfo(memberInfo);
+                    successNum++;
+                }
+            }
+            catch (Exception e)
+            {
+                failureNum++;
+                errorMessages.add("第" + (i + 1) + "行：导入失败 - " + e.getMessage());
+            }
+        }
+        
+        // 构建返回结果
+        Map<String, Object> result = new HashMap<>();
+        result.put("successCount", successNum);
+        result.put("failCount", failureNum);
+        result.put("totalCount", totalCount);
+        result.put("errorMessages", errorMessages);
+        
+        return result;
+    }
 }
