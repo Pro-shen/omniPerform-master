@@ -833,10 +833,31 @@ public class DashboardController {
                 return Result.error("导入数据为空");
             }
             
-            // 批量插入数据
+            // 批量导入：先查重复(月份+产品)，存在则更新，否则插入，避免唯一键冲突
             int successCount = 0;
             for (DashboardProductSales data : dataList) {
                 try {
+                    boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
+                    boolean hasProduct = data.getProductName() != null && !data.getProductName().trim().isEmpty();
+                    if (hasMonth && hasProduct) {
+                        List<DashboardProductSales> existingList = productSalesService.selectByDataMonth(data.getDataMonth());
+                        DashboardProductSales existing = null;
+                        for (DashboardProductSales s : existingList) {
+                            if (data.getProductName().equals(s.getProductName())) {
+                                existing = s;
+                                break;
+                            }
+                        }
+                        if (existing != null) {
+                            // 默认更新重复记录
+                            data.setId(existing.getId());
+                            data.setUpdateBy(data.getCreateBy());
+                            data.setUpdateTime(new Date());
+                            productSalesService.updateDashboardProductSales(data);
+                            successCount++;
+                            continue;
+                        }
+                    }
                     productSalesService.insertDashboardProductSales(data);
                     successCount++;
                 } catch (Exception e) {
@@ -866,10 +887,31 @@ public class DashboardController {
                 return Result.error("导入数据为空");
             }
             
-            // 批量插入数据
+            // 批量导入：先查重复(月份+区域)，存在则更新，否则插入，避免唯一键冲突
             int successCount = 0;
             for (DashboardRegionPerformance data : dataList) {
                 try {
+                    boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
+                    boolean hasRegion = data.getRegionName() != null && !data.getRegionName().trim().isEmpty();
+                    if (hasMonth && hasRegion) {
+                        List<DashboardRegionPerformance> existingList = regionPerformanceService.selectByDataMonth(data.getDataMonth());
+                        DashboardRegionPerformance existing = null;
+                        for (DashboardRegionPerformance s : existingList) {
+                            if (data.getRegionName().equals(s.getRegionName())) {
+                                existing = s;
+                                break;
+                            }
+                        }
+                        if (existing != null) {
+                            // 默认更新重复记录
+                            data.setId(existing.getId());
+                            data.setUpdateBy(data.getCreateBy());
+                            data.setUpdateTime(new Date());
+                            regionPerformanceService.updateDashboardRegionPerformance(data);
+                            successCount++;
+                            continue;
+                        }
+                    }
                     regionPerformanceService.insertDashboardRegionPerformance(data);
                     successCount++;
                 } catch (Exception e) {
@@ -903,10 +945,24 @@ public class DashboardController {
             int successCount = 0;
             for (DashboardMemberGrowth data : dataList) {
                 try {
+                    // 先查重复月份：存在则默认更新，避免唯一键报错
+                    boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
+                    if (hasMonth) {
+                        DashboardMemberGrowth existing = memberGrowthService.selectByDataMonth(data.getDataMonth());
+                        if (existing != null) {
+                            data.setId(existing.getId());
+                            data.setUpdateBy(data.getCreateBy());
+                            data.setUpdateTime(new Date());
+                            memberGrowthService.updateDashboardMemberGrowth(data);
+                            successCount++;
+                            continue;
+                        }
+                    }
+                    // 不存在重复月份时执行插入
                     memberGrowthService.insertDashboardMemberGrowth(data);
                     successCount++;
                 } catch (Exception e) {
-                    log.warn("插入会员增长趋势数据失败: {}", e.getMessage());
+                    log.warn("插入/更新会员增长趋势数据失败: {}", e.getMessage());
                 }
             }
             
@@ -936,10 +992,29 @@ public class DashboardController {
             int successCount = 0;
             for (DashboardMemberStage data : dataList) {
                 try {
+                    // 先查重复：按月份+阶段名称，存在则默认更新，避免唯一键报错
+                    boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
+                    boolean hasStage = data.getStageName() != null && !data.getStageName().trim().isEmpty();
+                    if (hasMonth && hasStage) {
+                        DashboardMemberStage filter = new DashboardMemberStage();
+                        filter.setDataMonth(data.getDataMonth());
+                        filter.setStageName(data.getStageName());
+                        List<DashboardMemberStage> existingList = memberStageService.selectDashboardMemberStageList(filter);
+                        if (existingList != null && !existingList.isEmpty()) {
+                            DashboardMemberStage existing = existingList.get(0);
+                            data.setId(existing.getId());
+                            data.setUpdateBy(data.getCreateBy());
+                            data.setUpdateTime(new Date());
+                            memberStageService.updateDashboardMemberStage(data);
+                            successCount++;
+                            continue;
+                        }
+                    }
+                    // 不存在重复时插入
                     memberStageService.insertDashboardMemberStage(data);
                     successCount++;
                 } catch (Exception e) {
-                    log.warn("插入会员阶段分布数据失败: {}", e.getMessage());
+                    log.warn("插入/更新会员阶段分布数据失败: {}", e.getMessage());
                 }
             }
             
@@ -989,7 +1064,8 @@ public class DashboardController {
      */
     @PostMapping("/import/batch")
     public Result<Map<String, Object>> batchImport(@RequestParam("file") MultipartFile file,
-                                                   @RequestParam("dataType") String dataType) {
+                                                   @RequestParam("dataType") String dataType,
+                                                   @RequestParam(value = "allowUpdate", required = false, defaultValue = "true") boolean allowUpdate) {
         try {
             log.info("开始批量导入数据，文件名: {}, 数据类型: {}, 文件大小: {} bytes", 
                     file.getOriginalFilename(), dataType, file.getSize());
@@ -1101,6 +1177,24 @@ public class DashboardController {
                                 data.getMemberGrowthRate() != null ? data.getMemberGrowthRate() : "null");
                         
                         try {
+                            // 先查重复月份：存在则更新或跳过，避免唯一键报错
+                            if (data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty()) {
+                                DashboardMemberOverview existing = memberOverviewService.selectByDataMonth(data.getDataMonth());
+                                if (existing != null) {
+                                    if (allowUpdate) {
+                                        data.setId(existing.getId());
+                                        data.setUpdateBy(data.getCreateBy());
+                                        data.setUpdateTime(new Date());
+                                        memberOverviewService.updateDashboardMemberOverview(data);
+                                    } else {
+                                        // 不允许更新时，重复月份直接跳过并记为成功，避免报错
+                                        // 如需记录，可在前端提示“已存在该月份，已跳过”
+                                    }
+                                    successCount++;
+                                    continue;
+                                }
+                            }
+                            // 不存在重复月份时执行插入
                             memberOverviewService.insertDashboardMemberOverview(data);
                             successCount++;
                         } catch (Exception e) {
@@ -1117,6 +1211,33 @@ public class DashboardController {
                     List<DashboardProductSales> productDataList = productUtil.importExcel(file.getInputStream(), 1);
                     for (DashboardProductSales data : productDataList) {
                         try {
+                            // 先查重复记录：按月份+产品名称判断是否存在，存在则更新或跳过，避免唯一键报错
+                            boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
+                            boolean hasProduct = data.getProductName() != null && !data.getProductName().trim().isEmpty();
+                            if (hasMonth && hasProduct) {
+                                List<DashboardProductSales> existingList = productSalesService.selectByDataMonth(data.getDataMonth());
+                                DashboardProductSales existing = null;
+                                for (DashboardProductSales s : existingList) {
+                                    if (data.getProductName().equals(s.getProductName())) {
+                                        existing = s;
+                                        break;
+                                    }
+                                }
+                                if (existing != null) {
+                                    if (allowUpdate) {
+                                        data.setId(existing.getId());
+                                        data.setUpdateBy(data.getCreateBy());
+                                        data.setUpdateTime(new Date());
+                                        productSalesService.updateDashboardProductSales(data);
+                                    } else {
+                                        // 不允许更新时，重复记录直接跳过并记为成功，避免报错
+                                        // 如需记录，可在前端提示“该月份该产品已存在，已跳过”
+                                    }
+                                    successCount++;
+                                    continue;
+                                }
+                            }
+                            // 不存在重复记录时执行插入
                             productSalesService.insertDashboardProductSales(data);
                             successCount++;
                         } catch (Exception e) {
@@ -1132,6 +1253,33 @@ public class DashboardController {
                     List<DashboardRegionPerformance> regionDataList = regionUtil.importExcel(file.getInputStream(), 1);
                     for (DashboardRegionPerformance data : regionDataList) {
                         try {
+                            // 先查重复记录：按月份+区域名称判断是否存在，存在则更新或跳过，避免唯一键报错
+                            boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
+                            boolean hasRegion = data.getRegionName() != null && !data.getRegionName().trim().isEmpty();
+                            if (hasMonth && hasRegion) {
+                                List<DashboardRegionPerformance> existingList = regionPerformanceService.selectByDataMonth(data.getDataMonth());
+                                DashboardRegionPerformance existing = null;
+                                for (DashboardRegionPerformance s : existingList) {
+                                    if (data.getRegionName().equals(s.getRegionName())) {
+                                        existing = s;
+                                        break;
+                                    }
+                                }
+                                if (existing != null) {
+                                    if (allowUpdate) {
+                                        data.setId(existing.getId());
+                                        data.setUpdateBy(data.getCreateBy());
+                                        data.setUpdateTime(new Date());
+                                        regionPerformanceService.updateDashboardRegionPerformance(data);
+                                    } else {
+                                        // 不允许更新时，重复记录直接跳过并记为成功，避免报错
+                                        // 如需记录，可在前端提示“该月份该区域已存在，已跳过”
+                                    }
+                                    successCount++;
+                                    continue;
+                                }
+                            }
+                            // 不存在重复记录时执行插入
                             regionPerformanceService.insertDashboardRegionPerformance(data);
                             successCount++;
                         } catch (Exception e) {
@@ -1147,6 +1295,25 @@ public class DashboardController {
                     List<DashboardMemberGrowth> memberGrowthDataList = memberGrowthUtil.importExcel(file.getInputStream(), 1);
                     for (DashboardMemberGrowth data : memberGrowthDataList) {
                         try {
+                            // 先查重复月份：存在则更新或跳过，避免唯一键报错
+                            boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
+                            if (hasMonth) {
+                                DashboardMemberGrowth existing = memberGrowthService.selectByDataMonth(data.getDataMonth());
+                                if (existing != null) {
+                                    if (allowUpdate) {
+                                        data.setId(existing.getId());
+                                        data.setUpdateBy(data.getCreateBy());
+                                        data.setUpdateTime(new Date());
+                                        memberGrowthService.updateDashboardMemberGrowth(data);
+                                    } else {
+                                        // 不允许更新时，重复月份直接跳过并记为成功，避免报错
+                                        // 如需记录，可在前端提示“已存在该月份，已跳过”
+                                    }
+                                    successCount++;
+                                    continue;
+                                }
+                            }
+                            // 不存在重复月份时执行插入
                             memberGrowthService.insertDashboardMemberGrowth(data);
                             successCount++;
                         } catch (Exception e) {
@@ -1162,6 +1329,30 @@ public class DashboardController {
                     List<DashboardMemberStage> memberStageDataList = memberStageUtil.importExcel(file.getInputStream(), 1);
                     for (DashboardMemberStage data : memberStageDataList) {
                         try {
+                            // 先查重复记录：按月份+阶段名称判断是否存在，存在则更新或跳过，避免唯一键报错
+                            boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
+                            boolean hasStage = data.getStageName() != null && !data.getStageName().trim().isEmpty();
+                            if (hasMonth && hasStage) {
+                                DashboardMemberStage filter = new DashboardMemberStage();
+                                filter.setDataMonth(data.getDataMonth());
+                                filter.setStageName(data.getStageName());
+                                List<DashboardMemberStage> existingList = memberStageService.selectDashboardMemberStageList(filter);
+                                if (existingList != null && !existingList.isEmpty()) {
+                                    DashboardMemberStage existing = existingList.get(0);
+                                    if (allowUpdate) {
+                                        data.setId(existing.getId());
+                                        data.setUpdateBy(data.getCreateBy());
+                                        data.setUpdateTime(new Date());
+                                        memberStageService.updateDashboardMemberStage(data);
+                                    } else {
+                                        // 不允许更新时，重复记录直接跳过并记为成功，避免报错
+                                        // 如需记录，可在前端提示“该月份该阶段已存在，已跳过”
+                                    }
+                                    successCount++;
+                                    continue;
+                                }
+                            }
+                            // 不存在重复记录时执行插入
                             memberStageService.insertDashboardMemberStage(data);
                             successCount++;
                         } catch (Exception e) {

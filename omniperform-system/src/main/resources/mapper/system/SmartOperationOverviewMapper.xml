@@ -7,6 +7,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <resultMap type="SmartOperationOverview" id="SmartOperationOverviewResult">
         <result property="id"    column="id"    />
         <result property="statDate"    column="stat_date"    />
+        <result property="monthYear"    column="month_year"    />
         <result property="todayAlerts"    column="today_alerts"    />
         <result property="aiRecommendedTasks"    column="ai_recommended_tasks"    />
         <result property="motExecutionRate"    column="mot_execution_rate"    />
@@ -17,7 +18,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectSmartOperationOverviewVo">
-        select id, stat_date, today_alerts, ai_recommended_tasks, mot_execution_rate, member_activity_rate, region_code, create_time, update_time from smart_operation_overview
+        select id, stat_date, month_year, today_alerts, ai_recommended_tasks, mot_execution_rate, member_activity_rate, region_code, create_time, update_time from smart_operation_overview
     </sql>
 
     <select id="selectSmartOperationOverviewList" parameterType="SmartOperationOverview" resultMap="SmartOperationOverviewResult">
@@ -64,7 +65,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectSmartOperationOverviewByMonth" resultMap="SmartOperationOverviewResult">
         <include refid="selectSmartOperationOverviewVo"/>
         <where>
-            month_year = #{monthYear}
+            (
+                month_year = #{monthYear}
+                or DATE_FORMAT(stat_date, '%Y-%m') = #{monthYear}
+            )
             <choose>
                 <when test="regionCode != null and regionCode != '' and !regionCode.equals('all')">
                     and region_code = #{regionCode}
@@ -96,6 +100,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         insert into smart_operation_overview
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="statDate != null">stat_date,</if>
+            <if test="monthYear != null">month_year,</if>
             <if test="todayAlerts != null">today_alerts,</if>
             <if test="aiRecommendedTasks != null">ai_recommended_tasks,</if>
             <if test="motExecutionRate != null">mot_execution_rate,</if>
@@ -106,6 +111,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="statDate != null">#{statDate},</if>
+            <if test="monthYear != null">#{monthYear},</if>
             <if test="todayAlerts != null">#{todayAlerts},</if>
             <if test="aiRecommendedTasks != null">#{aiRecommendedTasks},</if>
             <if test="motExecutionRate != null">#{motExecutionRate},</if>
@@ -120,6 +126,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         update smart_operation_overview
         <trim prefix="SET" suffixOverrides=",">
             <if test="statDate != null">stat_date = #{statDate},</if>
+            <if test="monthYear != null">month_year = #{monthYear},</if>
             <if test="todayAlerts != null">today_alerts = #{todayAlerts},</if>
             <if test="aiRecommendedTasks != null">ai_recommended_tasks = #{aiRecommendedTasks},</if>
             <if test="motExecutionRate != null">mot_execution_rate = #{motExecutionRate},</if>

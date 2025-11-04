@@ -138,4 +138,16 @@ public interface IMemberProfileAnalysisService
      * @return 结果
      */
     public int deleteMemberProfileAnalysisById(Long id);
+
+    /**
+     * 批量导入会员画像Excel数据（服务层）
+     *
+     * @param dataList 从Excel解析得到的数据列表
+     * @param updateSupport 是否支持更新已存在记录
+     * @param defaultRegion 默认区域代码（当Excel中未填写区域时使用）
+     * @return 导入结果统计（successCount, failCount, totalCount, errors）
+     */
+    public Map<String, Object> importMemberProfileExcel(List<MemberProfileAnalysis> dataList,
+                                                        boolean updateSupport,
+                                                        String defaultRegion);
 }

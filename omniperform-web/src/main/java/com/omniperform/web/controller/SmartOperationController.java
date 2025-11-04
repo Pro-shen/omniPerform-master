@@ -8,17 +8,20 @@ import com.omniperform.system.service.ISmartOperationOverviewService;
 import com.omniperform.system.service.ISmartOperationAlertService;
 import com.omniperform.system.service.ISmartMarketingTaskService;
 import com.omniperform.system.service.IMemberProfileAnalysisService;
+import com.omniperform.common.utils.poi.ExcelUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * 智能运营控制器
@@ -159,10 +162,16 @@ public class SmartOperationController {
      */
     @GetMapping("/member-profile")
     @ApiOperation("获取会员画像分析数据")
-    public Result getMemberProfile() {
+    public Result getMemberProfile(@RequestParam(required = false) String month,
+                                   @RequestParam(required = false) String profileType,
+                                   @RequestParam(required = false) String regionCode) {
         try {
-            // 使用Service层获取会员画像数据
-            Map<String, Object> profileData = memberProfileAnalysisService.getMemberProfileData(null, null);
+            Map<String, Object> profileData;
+            if (month != null && !month.trim().isEmpty()) {
+                profileData = memberProfileAnalysisService.getMemberProfileData(profileType, regionCode, month);
+            } else {
+                profileData = memberProfileAnalysisService.getMemberProfileData(profileType, regionCode);
+            }
             
             return Result.success("获取会员画像分析数据成功", profileData);
         } catch (Exception e) {
@@ -190,6 +199,67 @@ public class SmartOperationController {
         } catch (Exception e) {
             log.error("测试获取会员画像分析数据失败: {}", e.getMessage(), e);
             return Result.error("测试获取会员画像分析数据失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 下载会员画像Excel导入模板
+     */
+    @GetMapping("/member-profile/import/template")
+    @ApiOperation("下载会员画像Excel导入模板")
+    public void downloadMemberProfileImportTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<MemberProfileAnalysis> util = new ExcelUtil<>(MemberProfileAnalysis.class);
+            util.importTemplateExcel(response, "会员画像数据", "会员画像导入模板");
+        } catch (Exception e) {
+            log.error("下载会员画像Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 导入会员画像Excel数据
+     */
+    @PostMapping("/member-profile/import")
+    @ApiOperation("导入会员画像Excel数据")
+    public Result<Map<String, Object>> importMemberProfile(@RequestParam("file") MultipartFile file,
+                                                           @RequestParam(value = "updateSupport", required = false, defaultValue = "false") boolean updateSupport,
+                                                           @RequestParam(value = "defaultRegion", required = false, defaultValue = "") String defaultRegion) {
+        try {
+            log.info("开始导入会员画像数据，文件名: {}, 大小: {} bytes, updateSupport={}, defaultRegion={}",
+                    file.getOriginalFilename(), file.getSize(), updateSupport, defaultRegion);
+
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || (!fileName.toLowerCase().endsWith(".xlsx") && !fileName.toLowerCase().endsWith(".xls"))) {
+                return Result.error("请上传Excel文件（.xlsx或.xls）");
+            }
+            if (file.getSize() > 10 * 1024 * 1024) {
+                return Result.error("文件大小不能超过10MB");
+            }
+
+            ExcelUtil<MemberProfileAnalysis> util = new ExcelUtil<>(MemberProfileAnalysis.class);
+            List<MemberProfileAnalysis> dataList = util.importExcel(file.getInputStream());
+            if (dataList == null) {
+                dataList = Collections.emptyList();
+            }
+            log.info("Excel共读取到 {} 条记录", dataList.size());
+
+            Map<String, Object> result = memberProfileAnalysisService.importMemberProfileExcel(dataList, updateSupport, defaultRegion);
+
+            int successCount = (int) result.getOrDefault("successCount", 0);
+            int failCount = (int) result.getOrDefault("failCount", 0);
+            String message;
+            if (failCount == 0) {
+                message = String.format("导入成功！共处理 %d 条数据，全部成功", successCount);
+            } else if (successCount == 0) {
+                message = String.format("导入失败！共 %d 条数据，全部失败", failCount);
+            } else {
+                message = String.format("导入完成！成功: %d 条，失败: %d 条", successCount, failCount);
+            }
+
+            return Result.success(message, result);
+        } catch (Exception e) {
+            log.error("导入会员画像数据失败: {}", e.getMessage(), e);
+            return Result.error("导入失败：" + e.getMessage());
         }
     }
 

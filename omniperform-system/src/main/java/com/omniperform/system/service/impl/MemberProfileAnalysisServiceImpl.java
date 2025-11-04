@@ -4,8 +4,10 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.omniperform.system.mapper.MemberProfileAnalysisMapper;
 import com.omniperform.system.domain.MemberProfileAnalysis;
 import com.omniperform.system.service.IMemberProfileAnalysisService;
@@ -255,5 +257,85 @@ public class MemberProfileAnalysisServiceImpl implements IMemberProfileAnalysisS
     public int deleteMemberProfileAnalysisById(Long id)
     {
         return memberProfileAnalysisMapper.deleteMemberProfileAnalysisById(id);
+    }
+
+    /**
+     * 批量导入会员画像Excel数据
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> importMemberProfileExcel(List<MemberProfileAnalysis> dataList,
+                                                        boolean updateSupport,
+                                                        String defaultRegion) {
+        if (dataList == null) {
+            dataList = java.util.Collections.emptyList();
+        }
+
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+
+        for (int i = 0; i < dataList.size(); i++) {
+            MemberProfileAnalysis item = dataList.get(i);
+            try {
+                // 默认区域填充
+                if ((item.getRegionCode() == null || item.getRegionCode().trim().isEmpty())
+                        && defaultRegion != null && !defaultRegion.trim().isEmpty()) {
+                    item.setRegionCode(defaultRegion.trim());
+                }
+
+                // 基础校验
+                if (item.getAnalysisDate() == null) {
+                    throw new IllegalArgumentException("分析日期不能为空");
+                }
+                if (item.getProfileType() == null || item.getProfileType().trim().isEmpty()) {
+                    throw new IllegalArgumentException("画像类型不能为空");
+                }
+
+                // 查找是否存在同日期/类型/区域记录
+                List<MemberProfileAnalysis> existing = selectMemberProfileAnalysisByDateAndType(
+                        item.getAnalysisDate(), item.getProfileType(), item.getRegionCode());
+
+                if (existing != null && !existing.isEmpty()) {
+                    if (updateSupport) {
+                        MemberProfileAnalysis toUpdate = existing.get(0);
+                        toUpdate.setMemberCount(item.getMemberCount());
+                        toUpdate.setPercentage(item.getPercentage());
+                        toUpdate.setAvgPurchaseAmount(item.getAvgPurchaseAmount());
+                        toUpdate.setAvgInteractionFrequency(item.getAvgInteractionFrequency());
+                        toUpdate.setRegionCode(item.getRegionCode());
+                        toUpdate.setUpdateTime(DateUtils.getNowDate());
+                        int r = updateMemberProfileAnalysis(toUpdate);
+                        if (r > 0) {
+                            successCount++;
+                        } else {
+                            throw new RuntimeException("更新失败");
+                        }
+                    } else {
+                        failCount++;
+                        errors.add("第 " + (i + 1) + " 行：已存在相同日期/类型/区域记录，未开启更新");
+                    }
+                } else {
+                    item.setCreateTime(DateUtils.getNowDate());
+                    int r = insertMemberProfileAnalysis(item);
+                    if (r > 0) {
+                        successCount++;
+                    } else {
+                        throw new RuntimeException("插入失败");
+                    }
+                }
+            } catch (Exception ex) {
+                failCount++;
+                String msg = "第 " + (i + 1) + " 行：" + ex.getMessage();
+                errors.add(msg);
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("successCount", successCount);
+        result.put("failCount", failCount);
+        result.put("totalCount", successCount + failCount);
+        result.put("errors", errors);
+        return result;
     }
 }

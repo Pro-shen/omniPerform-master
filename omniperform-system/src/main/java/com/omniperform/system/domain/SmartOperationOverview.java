@@ -28,6 +28,10 @@ public class SmartOperationOverview extends BaseEntity
     @Excel(name = "统计日期", width = 30, dateFormat = "yyyy-MM-dd")
     private Date statDate;
 
+    /** 统计月份（格式：YYYY-MM） */
+    @Excel(name = "统计月份")
+    private String monthYear;
+
     /** 今日待处理预警数 */
     @Excel(name = "今日待处理预警数", cellType = ColumnType.NUMERIC)
     private Integer todayAlerts;
@@ -86,6 +90,16 @@ public class SmartOperationOverview extends BaseEntity
     public void setAiRecommendedTasks(Integer aiRecommendedTasks)
     {
         this.aiRecommendedTasks = aiRecommendedTasks;
+    }
+
+    public String getMonthYear()
+    {
+        return monthYear;
+    }
+
+    public void setMonthYear(String monthYear)
+    {
+        this.monthYear = monthYear;
     }
 
     public BigDecimal getMotExecutionRate()
