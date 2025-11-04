@@ -216,4 +216,15 @@ public class WechatOperationMetricsServiceImpl implements IWechatOperationMetric
         }
         return (double) convertedUsers / totalUsers * 100;
     }
+
+    /**
+     * 查询数据库中的去重月份列表（YYYY-MM），按时间倒序
+     *
+     * @return 月份字符串集合
+     */
+    @Override
+    public List<String> selectDistinctStatMonths()
+    {
+        return wechatOperationMetricsMapper.selectDistinctStatMonths();
+    }
 }

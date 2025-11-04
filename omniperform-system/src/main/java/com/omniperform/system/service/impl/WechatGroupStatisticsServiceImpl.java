@@ -57,6 +57,19 @@ public class WechatGroupStatisticsServiceImpl implements IWechatGroupStatisticsS
     }
 
     /**
+     * 根据群组ID与统计月份查询唯一记录
+     *
+     * @param groupId 群组ID
+     * @param statMonth 统计月份
+     * @return 微信群组统计
+     */
+    @Override
+    public WechatGroupStatistics selectWechatGroupStatisticsByGroupAndMonth(Long groupId, String statMonth)
+    {
+        return wechatGroupStatisticsMapper.selectWechatGroupStatisticsByGroupAndMonth(groupId, statMonth);
+    }
+
+    /**
      * 新增微信群组统计
      * 
      * @param wechatGroupStatistics 微信群组统计
@@ -104,5 +117,15 @@ public class WechatGroupStatisticsServiceImpl implements IWechatGroupStatisticsS
     public int deleteWechatGroupStatisticsByStatId(Long statId)
     {
         return wechatGroupStatisticsMapper.deleteWechatGroupStatisticsByStatId(statId);
+    }
+
+    /**
+     * 查询数据库中去重后的统计月份列表（YYYY-MM），按时间倒序
+     *
+     * @return 月份字符串集合
+     */
+    @Override
+    public List<String> selectDistinctStatMonths() {
+        return wechatGroupStatisticsMapper.selectDistinctStatMonths();
     }
 }

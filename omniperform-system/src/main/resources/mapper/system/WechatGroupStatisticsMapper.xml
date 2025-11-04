@@ -41,6 +41,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where stat_id = #{statId}
     </select>
 
+    <select id="selectWechatGroupStatisticsByGroupAndMonth" resultMap="WechatGroupStatisticsResult">
+        <include refid="selectWechatGroupStatisticsVo"/>
+        where group_id = #{groupId} and stat_month = #{statMonth}
+        limit 1
+    </select>
+
     <select id="selectHotGroupsByMonth" resultMap="WechatGroupStatisticsResult">
         select 
             wgs.stat_id, 
@@ -62,6 +68,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <if test="limit != null">
             limit #{limit}
         </if>
+    </select>
+
+    <!-- 查询去重后的月份列表，按时间倒序 -->
+    <select id="selectDistinctStatMonths" resultType="string">
+        select distinct stat_month 
+        from wechat_group_statistics 
+        where stat_month is not null and stat_month != ''
+        order by stat_month desc
     </select>
         
     <insert id="insertWechatGroupStatistics" parameterType="WechatGroupStatistics" useGeneratedKeys="true" keyProperty="statId">

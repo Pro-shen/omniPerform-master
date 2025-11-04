@@ -45,12 +45,10 @@
                         </button>
                         <div class="dropdown me-2">
                             <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="periodDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                2025年7月
+                                选择时间
                             </button>
-                            <ul class="dropdown-menu" aria-labelledby="periodDropdown">
-                                <li><a class="dropdown-item" href="#">2025年7月</a></li>
-                                <li><a class="dropdown-item" href="#">2025年6月</a></li>
-                                <li><a class="dropdown-item" href="#">2025年5月</a></li>
+                            <ul class="dropdown-menu" id="periodMenu" aria-labelledby="periodDropdown">
+                                <li><a class="dropdown-item" href="#">加载月份中...</a></li>
                             </ul>
                         </div>
                         <button class="btn btn-primary">查看运营报告</button>
@@ -346,6 +344,18 @@
                             <button class="btn btn-outline-success" onclick="downloadWechatTemplate('wechat-statistics')">
                                 <i class="bi bi-file-earmark-excel"></i> 企业微信运营统计模板
                             </button>
+                            <button class="btn btn-outline-secondary ms-2" onclick="downloadWechatTemplate('wechat-binding-rate')">
+                                <i class="bi bi-file-earmark-excel"></i> 企业微信绑定率模板
+                            </button>
+                            <button class="btn btn-outline-secondary ms-2" onclick="downloadWechatTemplate('wechat-conversion-rate')">
+                                <i class="bi bi-file-earmark-excel"></i> 企微转化率模板
+                            </button>
+                            <button class="btn btn-outline-info ms-2" onclick="downloadWechatTemplate('wechat-group-statistics')">
+                                <i class="bi bi-file-earmark-excel"></i> 热门社群排行模板
+                            </button>
+                            <button class="btn btn-outline-warning ms-2" onclick="downloadWechatTemplate('wechat-group-activity-trend')">
+                                <i class="bi bi-file-earmark-excel"></i> 社群活跃度趋势模板
+                            </button>
                         </div>
                     </div>
 
@@ -363,6 +373,10 @@
                                     <option value="">请选择数据类型</option>
                                     <option value="wechat-metrics">企业微信运营指标</option>
                                     <option value="wechat-statistics">企业微信运营统计</option>
+                                    <option value="wechat-binding-rate">企业微信绑定率</option>
+                                    <option value="wechat-conversion-rate">企微转化率</option>
+                                    <option value="wechat-group-statistics">热门社群排行数据</option>
+                                    <option value="wechat-group-activity-trend">社群活跃度趋势</option>
                                 </select>
                             </div>
                             
@@ -446,10 +460,67 @@
     <script src="scripts.js"></script>
     <script>
         $(document).ready(function() {
-            // 加载企业微信运营数据
-            loadWechatMetrics();
-            loadGroupActivityTrend();
-            loadHotGroups();
+            // 当前选择的时间周期
+            let currentPeriod = null;
+
+            // 动态加载数据库月份列表
+            async function loadAvailableMonths() {
+                const url = '/wechat-operation/available-months';
+                try {
+                    const response = await $.get(url);
+                    if (response.code === 200 && Array.isArray(response.data)) {
+                        const months = response.data;
+                        const $menu = $('#periodMenu');
+                        $menu.empty();
+                        months.forEach(function(m) {
+                            const zh = toZhMonth(m);
+                            $menu.append(`<li><a class="dropdown-item" href="#" data-period="${m}">${zh}</a></li>`);
+                        });
+                        if (months.length > 0) {
+                            currentPeriod = months[0];
+                            $('#periodDropdown').text(toZhMonth(currentPeriod));
+                            loadWechatMetrics(currentPeriod);
+                            loadGroupActivityTrend(currentPeriod);
+                            loadHotGroups(currentPeriod);
+                        } else {
+                            // 无数据时仍加载默认接口
+                            loadWechatMetrics();
+                            loadGroupActivityTrend();
+                            loadHotGroups();
+                        }
+                    } else {
+                        console.warn('获取月份列表失败:', response.msg || response.message);
+                        loadWechatMetrics();
+                        loadGroupActivityTrend();
+                        loadHotGroups();
+                    }
+                } catch (e) {
+                    console.error('请求月份列表接口失败:', e);
+                    loadWechatMetrics();
+                    loadGroupActivityTrend();
+                    loadHotGroups();
+                }
+            }
+
+            function toZhMonth(month) {
+                const parts = month.split('-');
+                return `${parts[0]}年${parseInt(parts[1], 10)}月`;
+            }
+
+            // 委托事件：处理动态生成的月份项点击
+            $(document).on('click', '#periodMenu .dropdown-item[data-period]', function(e) {
+                e.preventDefault();
+                const selectedPeriod = $(this).data('period');
+                const selectedText = $(this).text();
+                currentPeriod = selectedPeriod;
+                $('#periodDropdown').text(selectedText);
+                loadWechatMetrics(currentPeriod);
+                loadGroupActivityTrend(currentPeriod);
+                loadHotGroups(currentPeriod);
+            });
+
+            // 启动加载月份
+            loadAvailableMonths();
             
             // 企业微信SOP详细方案数据
             const wechatSopDetails = {
@@ -1917,47 +1988,34 @@
                 }
             }
             
-            // 加载企业微信核心指标数据
-            function loadWechatMetrics() {
-                // 模拟数据，用于直接打开HTML文件时显示
-                const mockData = {
-                    bindingRate: {
-                        value: 85.6,
-                        trend: 2.3,
-                        trendDirection: 'up',
-                        progressPercent: 85.6
+            // 加载企业微信核心指标数据（改为调用后端接口）
+            function loadWechatMetrics(period) {
+                const url = period ? 
+                    `/wechat-operation/metrics?period=${period}` : 
+                    '/wechat-operation/metrics';
+                
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    success: function(response) {
+                        if (response.code === 200) {
+                            const data = response.data;
+                            // 更新企业微信绑定率
+                            updateMetricCard('binding-rate', data.bindingRate, '%');
+                            // 更新会员入群率
+                            updateMetricCard('group-join-rate', data.groupJoinRate, '%');
+                            // 更新社群活跃度
+                            updateMetricCard('group-activity', data.groupActivity, '分');
+                            // 更新企微转化率
+                            updateMetricCard('conversion-rate', data.conversionRate, '%');
+                        } else {
+                            console.warn('加载企业微信核心指标失败:', response.msg);
+                        }
                     },
-                    groupJoinRate: {
-                        value: 72.4,
-                        trend: 1.8,
-                        trendDirection: 'up',
-                        progressPercent: 72.4
-                    },
-                    groupActivity: {
-                        value: 8.7,
-                        trend: 0.5,
-                        trendDirection: 'up',
-                        progressPercent: 87
-                    },
-                    conversionRate: {
-                        value: 15.2,
-                        trend: 0.8,
-                        trendDirection: 'down',
-                        progressPercent: 15.2
+                    error: function(xhr, status, error) {
+                        console.error('加载企业微信核心指标失败:', error);
                     }
-                };
-                
-                // 更新企业微信绑定率
-                updateMetricCard('binding-rate', mockData.bindingRate, '%');
-                
-                // 更新会员入群率
-                updateMetricCard('group-join-rate', mockData.groupJoinRate, '%');
-                
-                // 更新社群活跃度
-                updateMetricCard('group-activity', mockData.groupActivity, '分');
-                
-                // 更新企微转化率
-                updateMetricCard('conversion-rate', mockData.conversionRate, '%');
+                });
             }
             
             // 更新指标卡片
@@ -1980,66 +2038,76 @@
                 progressElement.attr('aria-valuenow', progressPercent);
             }
             
-            // 加载社群活跃度趋势数据
-            function loadGroupActivityTrend() {
-                // 模拟趋势数据，匹配图表格式
-                const mockTrendData = {
-                    series: [{
-                        name: '活跃度评分',
-                        data: [4.2, 4.8, 4.1, 3.9, 4.5, 4.7, 4.3]
-                    }],
-                    categories: ['01-01', '01-02', '01-03', '01-04', '01-05', '01-06', '01-07'],
-                    title: '近7天社群平均活跃度',
-                    yAxisTitle: '活跃度评分 (1-5)',
-                    minValue: 3,
-                    maxValue: 5
-                };
+            // 加载社群活跃度趋势数据（改为调用后端接口）
+            function loadGroupActivityTrend(period) {
+                const url = period ? 
+                    `/wechat-operation/group-activity-trend?period=${period}` : 
+                    '/wechat-operation/group-activity-trend';
                 
-                renderGroupActivityChart(mockTrendData);
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    success: function(response) {
+                        if (response.code === 200) {
+                            renderGroupActivityChart(response.data);
+                        } else {
+                            console.warn('加载社群活跃度趋势失败:', response.msg);
+                            $('#group-activity-chart').html('<div class="text-center text-muted p-4">图表加载失败</div>');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('加载社群活跃度趋势失败:', error);
+                        $('#group-activity-chart').html('<div class="text-center text-muted p-4">图表加载失败</div>');
+                    }
+                });
             }
             
-            // 加载热门社群排行
-            function loadHotGroups() {
-                // 模拟热门社群数据
-                const mockGroupsData = [
-                    {
-                        rank: 1,
-                        groupName: '雀巢咖啡爱好者',
-                        memberCount: 1256,
-                        activityScore: 9.2,
-                        growthRate: 15.6
+            // 加载热门社群排行（优先后端数据，失败回退到Mock）
+            function loadHotGroups(period) {
+                const url = period ? 
+                    `/wechat-operation/hot-groups?period=${period}` : 
+                    '/wechat-operation/hot-groups';
+
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    success: function(response) {
+                        if (response && response.code === 200 && Array.isArray(response.data) && response.data.length > 0) {
+                            const groups = response.data.map((g, idx) => ({
+                                rank: idx + 1,
+                                groupName: g.groupName,
+                                memberCount: g.memberCount,
+                                activityScore: g.activityScore,
+                                joinRate: g.joinRate,
+                                badgeClass: idx < 3 ? 'bg-success' : '',
+                                scoreClass: idx < 3 ? 'text-success fw-bold' : ''
+                            }));
+                            renderHotGroupsTable(groups);
+                            return;
+                        }
+                        console.warn('热门社群数据为空或返回非200，使用默认展示');
+                        renderHotGroupsTable(getMockHotGroups());
                     },
-                    {
-                        rank: 2,
-                        groupName: '健康生活分享群',
-                        memberCount: 1089,
-                        activityScore: 8.8,
-                        growthRate: 12.3
-                    },
-                    {
-                        rank: 3,
-                        groupName: '美食制作交流',
-                        memberCount: 967,
-                        activityScore: 8.5,
-                        growthRate: 10.8
-                    },
-                    {
-                        rank: 4,
-                        groupName: '产品体验官',
-                        memberCount: 834,
-                        activityScore: 8.1,
-                        growthRate: 8.9
-                    },
-                    {
-                        rank: 5,
-                        groupName: '新品尝鲜团',
-                        memberCount: 756,
-                        activityScore: 7.9,
-                        growthRate: 7.2
+                    error: function(xhr, status, error) {
+                        console.error('加载热门社群排行失败:', error);
+                        renderHotGroupsTable(getMockHotGroups());
                     }
-                ];
-                
-                renderHotGroupsTable(mockGroupsData);
+                });
+            }
+
+            // 本地Mock热门社群数据
+            function getMockHotGroups() {
+                return [
+                    { rank: 1, groupName: '雀巢咖啡爱好者', memberCount: 1256, activityScore: 9.2, joinRate: 15.6 },
+                    { rank: 2, groupName: '健康生活分享群', memberCount: 1089, activityScore: 8.8, joinRate: 12.3 },
+                    { rank: 3, groupName: '美食制作交流', memberCount: 967, activityScore: 8.5, joinRate: 10.8 },
+                    { rank: 4, groupName: '产品体验官', memberCount: 834, activityScore: 8.1, joinRate: 8.9 },
+                    { rank: 5, groupName: '新品尝鲜团', memberCount: 756, activityScore: 7.9, joinRate: 7.2 }
+                ].map((g, idx) => ({
+                    ...g,
+                    badgeClass: idx < 3 ? 'bg-success' : '',
+                    scoreClass: idx < 3 ? 'text-success fw-bold' : ''
+                }));
             }
             
             // 渲染热门社群排行表格
@@ -2074,7 +2142,8 @@
         
         // 下载企业微信模板
         function downloadWechatTemplate(templateType) {
-            const url = `/wechat-operation/template/download?templateType=${templateType}`;
+            // 调整为后端支持的REST路径：/wechat-operation/template/{templateType}
+            const url = `/wechat-operation/template/${templateType}`;
             const link = document.createElement('a');
             link.href = url;
             link.download = '';
@@ -2148,10 +2217,21 @@
                     showWechatImportResult(data.msg || '导入成功');
                     // 重置表单
                     form.reset();
-                    // 刷新页面数据
-                    setTimeout(() => {
-                        location.reload();
-                    }, 2000);
+                    // 关闭模态框
+                    try { new bootstrap.Modal(document.getElementById('wechatImportModal')).hide(); } catch (e) {}
+                    // 成功后直接刷新指标、趋势与热门社群，无需整页刷新
+                    loadWechatMetrics();
+                    loadGroupActivityTrend();
+                    try {
+                        if (typeof currentPeriod !== 'undefined' && currentPeriod) {
+                            loadHotGroups(currentPeriod);
+                        } else {
+                            loadHotGroups();
+                        }
+                    } catch (e) {
+                        // 兜底：任何异常都不阻断导入成功提示
+                        loadHotGroups();
+                    }
                 } else {
                     showWechatImportError(data.msg || '导入失败');
                 }

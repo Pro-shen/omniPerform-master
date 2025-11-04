@@ -77,6 +77,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <insert id="insertWechatGroup" parameterType="WechatGroup" useGeneratedKeys="true" keyProperty="groupId">
         insert into wechat_group
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="groupId != null">group_id,</if>
             <if test="groupName != null and groupName != ''">group_name,</if>
             <if test="groupType != null">group_type,</if>
             <if test="description != null">description,</if>
@@ -91,6 +92,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="remark != null">remark,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="groupId != null">#{groupId},</if>
             <if test="groupName != null and groupName != ''">#{groupName},</if>
             <if test="groupType != null">#{groupType},</if>
             <if test="description != null">#{description},</if>

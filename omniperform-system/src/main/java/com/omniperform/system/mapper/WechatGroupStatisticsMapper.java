@@ -37,6 +37,15 @@ public interface WechatGroupStatisticsMapper
     public List<WechatGroupStatistics> selectHotGroupsByMonth(@Param("statMonth") String statMonth, @Param("limit") Integer limit);
 
     /**
+     * 根据群组ID与统计月份查询唯一记录
+     *
+     * @param groupId 群组ID
+     * @param statMonth 统计月份
+     * @return 微信群组统计
+     */
+    public WechatGroupStatistics selectWechatGroupStatisticsByGroupAndMonth(@Param("groupId") Long groupId, @Param("statMonth") String statMonth);
+
+    /**
      * 新增微信群组统计
      * 
      * @param wechatGroupStatistics 微信群组统计
@@ -67,4 +76,11 @@ public interface WechatGroupStatisticsMapper
      * @return 结果
      */
     public int deleteWechatGroupStatisticsByStatIds(Long[] statIds);
+
+    /**
+     * 查询数据库中去重后的统计月份列表（YYYY-MM），按时间倒序
+     *
+     * @return 月份字符串集合
+     */
+    public List<String> selectDistinctStatMonths();
 }

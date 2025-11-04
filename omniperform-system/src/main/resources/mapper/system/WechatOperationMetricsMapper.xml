@@ -160,6 +160,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="userName != null  and userName != ''"> and user_name = #{userName}</if>
         </where>
     </select>
+
+    <!-- 查询去重后的月份列表，按时间倒序 -->
+    <select id="selectDistinctStatMonths" resultType="string">
+        select distinct stat_month 
+        from wechat_operation_metrics 
+        where stat_month is not null and stat_month != ''
+        order by stat_month desc
+    </select>
         
     <insert id="insertWechatOperationMetrics" parameterType="WechatOperationMetrics" useGeneratedKeys="true" keyProperty="metricId">
         insert into wechat_operation_metrics

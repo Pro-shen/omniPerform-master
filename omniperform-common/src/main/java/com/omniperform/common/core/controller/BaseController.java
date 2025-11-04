@@ -224,6 +224,8 @@ public class BaseController
      */
     public String getLoginName()
     {
-        return getSysUser().getLoginName();
+        // 空安全：未登录或无用户信息时返回null，避免NPE
+        SysUser user = getSysUser();
+        return user != null ? user.getLoginName() : null;
     }
 }

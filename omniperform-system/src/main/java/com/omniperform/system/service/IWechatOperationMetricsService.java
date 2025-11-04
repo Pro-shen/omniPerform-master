@@ -133,4 +133,11 @@ public interface IWechatOperationMetricsService
      * @return 转化率
      */
     public Double calculateConversionRate(Integer convertedUsers, Integer totalUsers);
+
+    /**
+     * 查询数据库中的去重月份列表（YYYY-MM），按时间倒序
+     *
+     * @return 月份字符串集合
+     */
+    public List<String> selectDistinctStatMonths();
 }

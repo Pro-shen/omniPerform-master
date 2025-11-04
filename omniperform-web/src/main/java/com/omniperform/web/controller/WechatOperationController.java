@@ -27,10 +27,18 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import java.net.URLEncoder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
+import java.io.ByteArrayInputStream;
 import java.util.stream.Collectors;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
  * 企业微信运营管理控制器
@@ -68,6 +76,37 @@ public class WechatOperationController extends BaseController {
     private IWechatSopDetailsService wechatSopDetailsService;
 
     /**
+     * 获取数据库中可用的月份列表（用于前端周期下拉）
+     */
+    @GetMapping("/available-months")
+    @ApiOperation("获取可用月份列表")
+    public Result<List<String>> getAvailableMonths() {
+        try {
+            // 合并运营指标与群组统计两个来源的月份，避免某模块导入后另一个模块下拉无该月
+            Set<String> monthSet = new HashSet<>();
+            List<String> metricMonths = wechatOperationMetricsService.selectDistinctStatMonths();
+            if (metricMonths != null) { monthSet.addAll(metricMonths); }
+            List<String> groupMonths = wechatGroupStatisticsService.selectDistinctStatMonths();
+            if (groupMonths != null) { monthSet.addAll(groupMonths); }
+
+            List<String> months = new ArrayList<>(monthSet);
+            months.sort(Comparator.reverseOrder());
+
+            // 如果数据库暂时为空，返回最近3个月占位，避免前端无数据
+            if (months.isEmpty()) {
+                LocalDate now = LocalDate.now();
+                months.add(now.minusMonths(0).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM")));
+                months.add(now.minusMonths(1).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM")));
+                months.add(now.minusMonths(2).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM")));
+            }
+            return Result.success(months);
+        } catch (Exception e) {
+            log.error("获取可用月份列表失败", e);
+            return Result.error("获取月份列表失败：" + e.getMessage());
+        }
+    }
+
+    /**
      * 获取企业微信核心指标
      */
     @GetMapping("/metrics")
@@ -83,13 +122,24 @@ public class WechatOperationController extends BaseController {
             }
             List<WechatOperationMetrics> recentMetrics = wechatOperationMetricsService.selectWechatOperationMetricsList(queryMetrics);
             
-            // 计算企业微信绑定率
+            // 计算企业微信绑定率（优先使用统计表中的绑定率）
             Map<String, Object> bindingRate = new HashMap<>();
-            if (!recentMetrics.isEmpty()) {
-                // 取最新数据计算绑定率
+            WechatOperationStatistics statData = null;
+            if (period != null && !period.isEmpty()) {
+                statData = wechatOperationStatisticsService.selectWechatOperationStatisticsByMonth(period);
+            }
+            if (statData != null && statData.getBindingRate() != null) {
+                double bindingValue = statData.getBindingRate().doubleValue();
+                bindingRate.put("value", bindingValue);
+                bindingRate.put("target", 90.0);
+                bindingRate.put("trend", bindingValue > 80 ? 6.2 : -2.1);
+                bindingRate.put("trendDirection", bindingValue > 80 ? "up" : "down");
+                bindingRate.put("progressPercent", bindingValue);
+            } else if (!recentMetrics.isEmpty()) {
+                // 回退：根据运营指标表的好友通过数估算绑定率
                 WechatOperationMetrics latest = recentMetrics.get(0);
-                double bindingValue = latest.getFriendAccepts() != null ? 
-                    Math.min(latest.getFriendAccepts() * 2.5, 100.0) : 85.2; // 基于好友通过数计算
+                double bindingValue = latest.getFriendAccepts() != null ?
+                        Math.min(latest.getFriendAccepts() * 2.5, 100.0) : 85.2;
                 bindingRate.put("value", bindingValue);
                 bindingRate.put("target", 90.0);
                 bindingRate.put("trend", bindingValue > 80 ? 6.2 : -2.1);
@@ -156,9 +206,16 @@ public class WechatOperationController extends BaseController {
             groupActivity.put("progressPercent", activityValue * 20); // 转换为百分比
             metrics.put("groupActivity", groupActivity);
             
-            // 企微转化率 - 基于转化数据计算
+            // 企微转化率 - 优先使用统计表中的导入值，其次回退到指标估算
             Map<String, Object> conversionRate = new HashMap<>();
-            if (!recentMetrics.isEmpty()) {
+            if (statData != null && statData.getConversionRate() != null) {
+                double conversionValue = statData.getConversionRate().doubleValue();
+                conversionRate.put("value", conversionValue);
+                conversionRate.put("target", 18.0);
+                conversionRate.put("trend", conversionValue > 15 ? 2.1 : -0.8);
+                conversionRate.put("trendDirection", conversionValue > 15 ? "up" : "down");
+                conversionRate.put("progressPercent", Math.min(conversionValue / 18.0 * 100, 100.0));
+            } else if (!recentMetrics.isEmpty()) {
                 WechatOperationMetrics latest = recentMetrics.get(0);
                 Integer activityConversions = latest.getActivityConversions();
                 double conversionValue = activityConversions != null ? Math.min(activityConversions * 0.5, 20.0) : 15.6;
@@ -303,14 +360,18 @@ public class WechatOperationController extends BaseController {
         try {
             // 根据period参数确定查询月份
             String statMonth;
-            if ("week".equals(period)) {
-                statMonth = "2025-07"; // 最近一周使用7月数据
-            } else if ("quarter".equals(period)) {
-                statMonth = "2025-06"; // 季度使用6月数据
-            } else if (period != null && !period.isEmpty()) {
-                statMonth = period; // 使用指定的月份
+            if (period != null && !period.isEmpty()) {
+                statMonth = normalizeMonth(period);
             } else {
-                statMonth = "2025-07"; // 默认月度使用7月数据
+                // 默认选最新可用月份（合并两个来源）
+                Set<String> monthSet = new HashSet<>();
+                List<String> metricMonths = wechatOperationMetricsService.selectDistinctStatMonths();
+                if (metricMonths != null) { monthSet.addAll(metricMonths); }
+                List<String> groupMonths = wechatGroupStatisticsService.selectDistinctStatMonths();
+                if (groupMonths != null) { monthSet.addAll(groupMonths); }
+                List<String> months = new ArrayList<>(monthSet);
+                months.sort(Comparator.reverseOrder());
+                statMonth = !months.isEmpty() ? months.get(0) : LocalDate.now().toString().substring(0, 7);
             }
             
             // 从数据库查询热门群组数据
@@ -596,9 +657,20 @@ public class WechatOperationController extends BaseController {
      */
     @GetMapping("/template/{templateType}")
     @ApiOperation("下载企业微信运营数据导入模板")
-    public void downloadWechatTemplate(@PathVariable String templateType, HttpServletResponse response) {
+    public void downloadWechatTemplate(@PathVariable String templateType, HttpServletResponse response, HttpServletRequest request) {
         try {
             log.info("🔽 [模板下载] 开始下载企业微信运营模板，类型: {}", templateType);
+            // 记录关键请求头，便于诊断file协议或跨域问题
+            try {
+                log.info("🧾 [模板下载] 请求信息 - 方法: {}, 来源IP: {}, Origin: {}, Referer: {}, UA: {}",
+                        request.getMethod(),
+                        request.getRemoteAddr(),
+                        request.getHeader("Origin"),
+                        request.getHeader("Referer"),
+                        request.getHeader("User-Agent"));
+            } catch (Exception e) {
+                log.warn("🧾 [模板下载] 记录请求头失败: {}", e.getMessage());
+            }
             
             switch (templateType) {
                 case "wechat-metrics":
@@ -614,7 +686,122 @@ public class WechatOperationController extends BaseController {
                     List<WechatOperationStatistics> statisticsSampleData = createWechatStatisticsSampleData();
                     statisticsUtil.exportExcel(response, statisticsSampleData, "企业微信运营统计数据", "企业微信运营统计模板.xlsx");
                     break;
-                    
+
+                case "wechat-binding-rate":
+                    log.info("📊 [模板下载] 下载企业微信绑定率模板（精简版）");
+                    // 使用Apache POI生成仅包含必要列的精简模板：统计月份、绑定率(%)
+                    try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+                        Sheet sheet = workbook.createSheet("企业微信绑定率");
+                        // 表头
+                        Row header = sheet.createRow(0);
+                        Cell h0 = header.createCell(0);
+                        h0.setCellValue("统计月份");
+                        Cell h1 = header.createCell(1);
+                        h1.setCellValue("绑定率(%)");
+
+                        // 示例数据行
+                        Row r1 = sheet.createRow(1);
+                        r1.createCell(0).setCellValue("2025-01");
+                        r1.createCell(1).setCellValue(45.6);
+                        Row r2 = sheet.createRow(2);
+                        r2.createCell(0).setCellValue("2025-02");
+                        r2.createCell(1).setCellValue(48.2);
+
+                        sheet.autoSizeColumn(0);
+                        sheet.autoSizeColumn(1);
+
+                        String fileName = "企业微信绑定率模板.xlsx";
+                        String encoded = URLEncoder.encode(fileName, "UTF-8").replaceAll("\\+", "%20");
+                        response.setCharacterEncoding("UTF-8");
+                        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                        response.setHeader("Content-Disposition", "attachment;filename=" + encoded);
+                        workbook.write(response.getOutputStream());
+                    }
+                    break;
+
+                case "wechat-conversion-rate":
+                    log.info("📊 [模板下载] 下载企微转化率模板（精简版）");
+                    // 使用Apache POI生成仅包含必要列的精简模板：统计月份、转化率(%)
+                    try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+                        Sheet sheet = workbook.createSheet("企微转化率");
+                        // 表头
+                        Row header = sheet.createRow(0);
+                        Cell h0 = header.createCell(0);
+                        h0.setCellValue("统计月份");
+                        Cell h1 = header.createCell(1);
+                        h1.setCellValue("转化率(%)");
+
+                        // 示例数据行
+                        Row r1 = sheet.createRow(1);
+                        r1.createCell(0).setCellValue("2025-01");
+                        r1.createCell(1).setCellValue(12.3);
+                        Row r2 = sheet.createRow(2);
+                        r2.createCell(0).setCellValue("2025-02");
+                        r2.createCell(1).setCellValue(13.8);
+
+                        sheet.autoSizeColumn(0);
+                        sheet.autoSizeColumn(1);
+
+                        String fileName = "企微转化率模板.xlsx";
+                        String encoded = URLEncoder.encode(fileName, "UTF-8").replaceAll("\\+", "%20");
+                        response.setCharacterEncoding("UTF-8");
+                        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                        response.setHeader("Content-Disposition", "attachment;filename=" + encoded);
+                        workbook.write(response.getOutputStream());
+                    }
+                    break;
+
+                case "wechat-group-statistics":
+                    log.info("📊 [模板下载] 下载热门社群排行（群组统计）模板");
+                    ExcelUtil<WechatGroupStatistics> groupStatisticsUtil = new ExcelUtil<>(WechatGroupStatistics.class);
+                    List<WechatGroupStatistics> groupStatisticsSampleData = createWechatGroupStatisticsSampleData();
+                    // 显式设置下载文件名为中文，避免浏览器使用URL路径作为默认文件名
+                    try {
+                        String fileName = "热门社群排行模板.xlsx";
+                        String encoded = URLEncoder.encode(fileName, "UTF-8").replaceAll("\\+", "%20");
+                        response.setCharacterEncoding("UTF-8");
+                        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                        // 同时设置 filename 和 filename* 以兼容不同浏览器的中文文件名解析
+                        response.setHeader("Content-Disposition", "attachment;filename=" + encoded + ";filename*=UTF-8''" + encoded);
+                    } catch (Exception ignore) {
+                        // 编码异常时，退回到默认行为
+                    }
+                    groupStatisticsUtil.exportExcel(response, groupStatisticsSampleData, "热门社群排行数据", "热门社群排行模板.xlsx");
+                    break;
+
+                case "wechat-group-activity-trend":
+                    log.info("📊 [模板下载] 下载社群活跃度趋势模板（精简版）");
+                    // 使用Apache POI生成仅包含必要列的精简模板：统计月份、群聊互动数
+                    try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+                        Sheet sheet = workbook.createSheet("社群活跃度趋势");
+                        // 表头
+                        Row header = sheet.createRow(0);
+                        Cell h0 = header.createCell(0);
+                        h0.setCellValue("统计月份");
+                        Cell h1 = header.createCell(1);
+                        h1.setCellValue("群聊互动数");
+
+                        // 示例数据行
+                        Row r1 = sheet.createRow(1);
+                        r1.createCell(0).setCellValue("2025-01");
+                        r1.createCell(1).setCellValue(120);
+                        Row r2 = sheet.createRow(2);
+                        r2.createCell(0).setCellValue("2025-02");
+                        r2.createCell(1).setCellValue(135);
+
+                        // 自适应列宽
+                        sheet.autoSizeColumn(0);
+                        sheet.autoSizeColumn(1);
+
+                        String fileName = "社群活跃度趋势模板.xlsx";
+                        String encoded = URLEncoder.encode(fileName, "UTF-8").replaceAll("\\+", "%20");
+                        response.setCharacterEncoding("UTF-8");
+                        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                        response.setHeader("Content-Disposition", "attachment;filename=" + encoded);
+                        workbook.write(response.getOutputStream());
+                    }
+                    break;
+                
                 default:
                     log.warn("❌ [模板下载] 不支持的模板类型: {}", templateType);
                     response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -636,9 +823,22 @@ public class WechatOperationController extends BaseController {
     @ApiOperation("批量导入企业微信运营数据")
     public Result<Map<String, Object>> batchImport(@RequestParam("file") MultipartFile file,
                                                    @RequestParam("dataType") String dataType,
-                                                   @RequestParam(value = "updateSupport", defaultValue = "false") Boolean updateSupport) {
+                                                   @RequestParam(value = "updateSupport", defaultValue = "true") Boolean updateSupport,
+                                                   HttpServletRequest request) {
         try {
             log.info("🚀 [批量导入] 开始批量导入企业微信运营数据，数据类型: {}, 文件名: {}", dataType, file.getOriginalFilename());
+            // 记录关键请求头，便于诊断file协议或跨域问题
+            try {
+                log.info("🧾 [批量导入] 请求信息 - 方法: {}, 来源IP: {}, Origin: {}, Referer: {}, UA: {}",
+                        request.getMethod(),
+                        request.getRemoteAddr(),
+                        request.getHeader("Origin"),
+                        request.getHeader("Referer"),
+                        request.getHeader("User-Agent"));
+                log.info("🧾 [批量导入] 内容类型: {}", request.getHeader("Content-Type"));
+            } catch (Exception e) {
+                log.warn("🧾 [批量导入] 记录请求头失败: {}", e.getMessage());
+            }
             log.info("🚀 [批量导入] 文件详情 - 大小: {} bytes, 内容类型: {}, 更新支持: {}", 
                     file.getSize(), file.getContentType(), updateSupport);
             
@@ -662,18 +862,14 @@ public class WechatOperationController extends BaseController {
             int failureCount = 0;
             List<String> errorMessages = new ArrayList<>();
             
-            // 获取当前操作用户
+            // 获取当前操作用户（空安全，未登录时使用默认用户名）
             String operName = "system";
-            try {
-                String loginName = getLoginName();
-                if (loginName != null && !loginName.trim().isEmpty()) {
-                    operName = loginName;
-                    log.info("✅ [批量导入] 获取到当前登录用户: {}", operName);
-                } else {
-                    log.warn("⚠️ [批量导入] 登录用户名为空，使用默认用户名: system");
-                }
-            } catch (Exception e) {
-                log.warn("⚠️ [批量导入] 无法获取当前登录用户，使用默认用户名: system, 错误: {}", e.getMessage());
+            String loginName = getLoginName();
+            if (loginName != null && !loginName.trim().isEmpty()) {
+                operName = loginName;
+                log.info("✅ [批量导入] 获取到当前登录用户: {}", operName);
+            } else {
+                log.info("ℹ️ [批量导入] 未登录或用户名为空，使用默认用户名: system");
             }
             
             log.info("🔄 [批量导入] 开始处理数据类型: {}", dataType);
@@ -684,14 +880,64 @@ public class WechatOperationController extends BaseController {
                     ExcelUtil<WechatOperationMetrics> metricsUtil = new ExcelUtil<>(WechatOperationMetrics.class);
                     
                     try {
-                        List<WechatOperationMetrics> metricsList = metricsUtil.importExcel(file.getInputStream());
-                        log.info("📊 [企业微信运营指标] Excel解析完成，解析到 {} 条数据", metricsList != null ? metricsList.size() : 0);
+                        // 读取文件为字节数组，便于多次尝试不同表头行
+                        byte[] fileBytes = file.getBytes();
+                        List<WechatOperationMetrics> metricsList = null;
+                        int chosenHeaderRow = -1;
+
+                        // 优先使用增强的导入方法，并尝试前5行作为表头行（0-4）
+                        int bestSize = -1;
+                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
+                            ExcelUtil.ExcelImportResult<WechatOperationMetrics> enhancedResult = metricsUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
+                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
+                            boolean success = enhancedResult.isSuccess() && size > 0;
+                            log.info("📊 [企业微信运营指标] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}, 错误数: {}, 警告数: {}",
+                                    titleNum, success, size,
+                                    enhancedResult.getErrors() != null ? enhancedResult.getErrors().size() : 0,
+                                    enhancedResult.getWarnings() != null ? enhancedResult.getWarnings().size() : 0);
+                            if (success && size > bestSize) {
+                                metricsList = enhancedResult.getData();
+                                bestSize = size;
+                                chosenHeaderRow = titleNum;
+                            }
+                        }
+
+                        // 如果增强导入失败或没有数据，回退到标准导入（默认首行为表头）
+                        if (metricsList == null || metricsList.isEmpty()) {
+                            log.warn("📊 [企业微信运营指标] 增强导入未得到有效数据，回退到标准导入（首行表头）");
+                            metricsList = metricsUtil.importExcel(new ByteArrayInputStream(fileBytes));
+                            chosenHeaderRow = 0;
+                        }
+
+                        log.info("📊 [企业微信运营指标] Excel解析完成，使用表头行: {}，解析到 {} 条数据",
+                                chosenHeaderRow, metricsList != null ? metricsList.size() : 0);
                         
                         if (metricsList == null || metricsList.isEmpty()) {
                             log.error("📊 [企业微信运营指标] Excel文件中没有解析到任何数据");
                             return Result.error("Excel文件中没有找到有效的数据行，请检查文件内容");
                         }
                         
+                        // 解析结果防御性校验：如果所有行的关键字段均为空，视为列头不匹配或首行不是字段名
+                        boolean headerMismatchSuspected = metricsList.stream().allMatch(m -> m == null || (
+                                m.getUserName() == null &&
+                                m.getDepartment() == null &&
+                                m.getStatDate() == null &&
+                                m.getFriendRequests() == null &&
+                                m.getFriendAccepts() == null &&
+                                m.getChatMessages() == null &&
+                                m.getReportGenerates() == null
+                        ));
+                        if (headerMismatchSuspected) {
+                            log.error("📊 [企业微信运营指标] 解析后所有行关键字段均为空，疑似列头不匹配或首行不是字段名。请使用模板下载接口获取规范模板，并确保第一行是字段名。");
+                            return Result.error("Excel列名不匹配：请使用模板并确保首行为字段名");
+                        }
+                        // 过滤掉空行，避免后续空指针
+                        metricsList = metricsList.stream().filter(Objects::nonNull).collect(Collectors.toList());
+                        if (metricsList.isEmpty()) {
+                            log.error("📊 [企业微信运营指标] 解析后有效数据行为空");
+                            return Result.error("Excel解析未得到有效数据，请检查模板与列名");
+                        }
+
                         // 打印前几条数据的详细信息用于调试
                         for (int i = 0; i < Math.min(3, metricsList.size()); i++) {
                             WechatOperationMetrics metrics = metricsList.get(i);
@@ -704,7 +950,14 @@ public class WechatOperationController extends BaseController {
                         
                         log.info("💾 [企业微信运营指标] 开始保存数据到数据库...");
                         // 批量保存运营指标数据
-                        for (WechatOperationMetrics metricsData : metricsList) {
+                        for (int rowIndex = 0; rowIndex < metricsList.size(); rowIndex++) {
+                            WechatOperationMetrics metricsData = metricsList.get(rowIndex);
+                            if (metricsData == null) {
+                                failureCount++;
+                                errorMessages.add("第" + (rowIndex + 1) + "行为空，已跳过");
+                                log.warn("⚠️ [企业微信运营指标] 第{}行数据为空，跳过", (rowIndex + 1));
+                                continue;
+                            }
                             try {
                                 // 设置创建信息
                                 metricsData.setCreateBy(operName);
@@ -714,25 +967,27 @@ public class WechatOperationController extends BaseController {
                                 int insertResult = wechatOperationMetricsService.insertWechatOperationMetrics(metricsData);
                                 if (insertResult > 0) {
                                     successCount++;
-                                    log.debug("💾 [企业微信运营指标] 保存成功 - 用户: {}", metricsData.getUserName());
+                                    log.debug("💾 [企业微信运营指标] 保存成功 - 用户: {}", metricsData.getUserName() != null ? metricsData.getUserName() : "未知用户");
                                 } else {
                                     failureCount++;
                                     String errorMsg = "保存企业微信运营指标数据失败";
                                     errorMessages.add(errorMsg);
-                                    log.error("❌ [企业微信运营指标] 保存失败 - 用户: {}", metricsData.getUserName());
+                                    log.error("❌ [企业微信运营指标] 保存失败 - 用户: {}", metricsData.getUserName() != null ? metricsData.getUserName() : "未知用户");
                                 }
                             } catch (Exception e) {
                                 failureCount++;
-                                String errorMsg = "保存企业微信运营指标数据失败: " + e.getMessage();
+                                String errorMsg = "保存企业微信运营指标数据失败: " + (e.getMessage() != null ? e.getMessage() : e.toString());
                                 errorMessages.add(errorMsg);
-                                log.error("❌ [企业微信运营指标] 保存失败 - 用户: {}, 错误: {}", metricsData.getUserName(), e.getMessage());
+                                String safeUser = metricsData.getUserName() != null ? metricsData.getUserName() : "未知用户";
+                                log.error("❌ [企业微信运营指标] 保存失败 - 用户: {}, 错误: {}", safeUser, e.getMessage());
+                                log.error("❌ [企业微信运营指标] 保存失败堆栈 - 用户: {}", safeUser, e);
                             }
                         }
                         log.info("💾 [企业微信运营指标] 数据保存完成 - 成功: {}, 失败: {}", successCount, failureCount);
                         
                     } catch (Exception e) {
                         log.error("❌ [企业微信运营指标] Excel解析失败", e);
-                        return Result.error("Excel解析失败: " + e.getMessage());
+                        return Result.error("Excel解析失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
                     }
                     break;
                     
@@ -741,14 +996,80 @@ public class WechatOperationController extends BaseController {
                     ExcelUtil<WechatOperationStatistics> statisticsUtil = new ExcelUtil<>(WechatOperationStatistics.class);
                     
                     try {
-                        List<WechatOperationStatistics> statisticsList = statisticsUtil.importExcel(file.getInputStream());
-                        log.info("📊 [企业微信运营统计] Excel解析完成，解析到 {} 条数据", statisticsList != null ? statisticsList.size() : 0);
+                        // 读取文件为字节数组，便于多次尝试不同表头行
+                        byte[] fileBytes = file.getBytes();
+                        List<WechatOperationStatistics> statisticsList = null;
+                        int chosenHeaderRow = -1;
+
+                        // 优先使用增强的导入方法，并尝试前5行作为表头行（0-4）
+                        int bestSize = -1;
+                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
+                            ExcelUtil.ExcelImportResult<WechatOperationStatistics> enhancedResult = statisticsUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
+                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
+                            boolean success = enhancedResult.isSuccess() && size > 0;
+                            log.info("📊 [企业微信运营统计] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}, 错误数: {}, 警告数: {}",
+                                    titleNum, success, size,
+                                    enhancedResult.getErrors() != null ? enhancedResult.getErrors().size() : 0,
+                                    enhancedResult.getWarnings() != null ? enhancedResult.getWarnings().size() : 0);
+                            if (success && size > bestSize) {
+                                statisticsList = enhancedResult.getData();
+                                bestSize = size;
+                                chosenHeaderRow = titleNum;
+                            }
+                        }
+
+                        // 如果增强导入失败或没有数据，回退到标准导入（默认首行为表头）
+                        if (statisticsList == null || statisticsList.isEmpty()) {
+                            log.warn("📊 [企业微信运营统计] 增强导入未得到有效数据，回退到标准导入（首行表头）");
+                            statisticsList = statisticsUtil.importExcel(new ByteArrayInputStream(fileBytes));
+                            chosenHeaderRow = 0;
+                        }
+
+                        log.info("📊 [企业微信运营统计] Excel解析完成，使用表头行: {}，解析到 {} 条数据",
+                                chosenHeaderRow, statisticsList != null ? statisticsList.size() : 0);
                         
                         if (statisticsList == null || statisticsList.isEmpty()) {
                             log.error("📊 [企业微信运营统计] Excel文件中没有解析到任何数据");
                             return Result.error("Excel文件中没有找到有效的数据行，请检查文件内容");
                         }
-                        
+
+                        // 解析结果防御性校验：如果所有行的关键字段均为空，视为列头不匹配或首行不是字段名
+                        boolean headerMismatchSuspected = statisticsList.stream().allMatch(s -> s == null || (
+                                s.getStatMonth() == null &&
+                                s.getTotalMembers() == null &&
+                                s.getBoundMembers() == null &&
+                                s.getGroupMembers() == null &&
+                                s.getActiveGroups() == null &&
+                                s.getTotalGroups() == null &&
+                                s.getMonthlyConversions() == null &&
+                                s.getAvgResponseTime() == null &&
+                                s.getSatisfactionRate() == null &&
+                                s.getBindingRate() == null &&
+                                s.getConversionRate() == null
+                        ));
+                        if (headerMismatchSuspected) {
+                            log.error("📊 [企业微信运营统计] 解析后所有行关键字段均为空，疑似列头不匹配或首行不是字段名。请使用模板下载接口获取规范模板，并确保第一行是字段名。");
+                            return Result.error("Excel列名不匹配：请使用模板并确保首行为字段名");
+                        }
+
+                        // 防御性校验：仅解析到月份，其它字段全为null，基本可以确定列头不匹配
+                        boolean onlyMonthAvailable = statisticsList.stream().allMatch(s -> s != null &&
+                                s.getStatMonth() != null &&
+                                s.getTotalMembers() == null &&
+                                s.getBoundMembers() == null &&
+                                s.getGroupMembers() == null &&
+                                s.getActiveGroups() == null &&
+                                s.getTotalGroups() == null &&
+                                s.getMonthlyConversions() == null &&
+                                s.getAvgResponseTime() == null &&
+                                s.getSatisfactionRate() == null &&
+                                s.getBindingRate() == null &&
+                                s.getConversionRate() == null);
+                        if (onlyMonthAvailable) {
+                            log.error("📊 [企业微信运营统计] 仅解析到月份，其它字段均为空，疑似列头不匹配。请使用模板下载接口获取规范模板，并确保第一行是字段名。");
+                            return Result.error("仅解析到月份，其它字段为空：请使用模板并确保首行为字段名");
+                        }
+
                         // 打印前几条数据的详细信息用于调试
                         for (int i = 0; i < Math.min(3, statisticsList.size()); i++) {
                             WechatOperationStatistics statistics = statisticsList.get(i);
@@ -760,39 +1081,564 @@ public class WechatOperationController extends BaseController {
                         }
                         
                         log.info("💾 [企业微信运营统计] 开始保存数据到数据库...");
-                        // 批量保存运营统计数据
+                        // 批量保存运营统计数据（支持重复月份更新或跳过）
                         for (WechatOperationStatistics statisticsData : statisticsList) {
                             try {
-                                // 设置创建信息
-                                statisticsData.setCreateBy(operName);
-                                statisticsData.setCreateTime(new Date());
-                                
-                                // 调用Service保存数据
-                                int insertResult = wechatOperationStatisticsService.insertWechatOperationStatistics(statisticsData);
-                                if (insertResult > 0) {
-                                    successCount++;
-                                    log.debug("💾 [企业微信运营统计] 保存成功 - 月份: {}", statisticsData.getStatMonth());
-                                } else {
+                                String month = statisticsData.getStatMonth();
+                                if (month == null || month.trim().isEmpty()) {
                                     failureCount++;
-                                    String errorMsg = "保存企业微信运营统计数据失败";
+                                    String errorMsg = "统计月份为空，无法保存该条记录";
                                     errorMessages.add(errorMsg);
-                                    log.error("❌ [企业微信运营统计] 保存失败 - 月份: {}", statisticsData.getStatMonth());
+                                    log.error("❌ [企业微信运营统计] 保存失败 - 原因: 统计月份为空");
+                                    continue;
+                                }
+
+                                // 查重：根据月份查看是否已存在记录
+                                WechatOperationStatistics existing = wechatOperationStatisticsService.selectWechatOperationStatisticsByMonth(month);
+                                if (existing != null) {
+                                    // 已存在：依据updateSupport处理
+                                    if (Boolean.TRUE.equals(updateSupport)) {
+                                        statisticsData.setStatId(existing.getStatId());
+                                        // 安全合并：新值为空则保留旧值，避免将字段更新为null
+                                        statisticsData.setTotalMembers(statisticsData.getTotalMembers() != null ? statisticsData.getTotalMembers() : existing.getTotalMembers());
+                                        statisticsData.setBoundMembers(statisticsData.getBoundMembers() != null ? statisticsData.getBoundMembers() : existing.getBoundMembers());
+                                        statisticsData.setGroupMembers(statisticsData.getGroupMembers() != null ? statisticsData.getGroupMembers() : existing.getGroupMembers());
+                                        statisticsData.setActiveGroups(statisticsData.getActiveGroups() != null ? statisticsData.getActiveGroups() : existing.getActiveGroups());
+                                        statisticsData.setTotalGroups(statisticsData.getTotalGroups() != null ? statisticsData.getTotalGroups() : existing.getTotalGroups());
+                                        statisticsData.setMonthlyConversions(statisticsData.getMonthlyConversions() != null ? statisticsData.getMonthlyConversions() : existing.getMonthlyConversions());
+                                        statisticsData.setAvgResponseTime(statisticsData.getAvgResponseTime() != null ? statisticsData.getAvgResponseTime() : existing.getAvgResponseTime());
+                                        statisticsData.setSatisfactionRate(statisticsData.getSatisfactionRate() != null ? statisticsData.getSatisfactionRate() : existing.getSatisfactionRate());
+                                        statisticsData.setBindingRate(statisticsData.getBindingRate() != null ? statisticsData.getBindingRate() : existing.getBindingRate());
+                                        statisticsData.setConversionRate(statisticsData.getConversionRate() != null ? statisticsData.getConversionRate() : existing.getConversionRate());
+                                        statisticsData.setUpdateBy(operName);
+                                        statisticsData.setUpdateTime(new Date());
+                                        // 执行更新（底层XML按非空字段SET更新）
+                                        int updateResult = wechatOperationStatisticsService.updateWechatOperationStatistics(statisticsData);
+                                        if (updateResult > 0) {
+                                            successCount++;
+                                            log.debug("💾 [企业微信运营统计] 更新成功 - 月份: {}", month);
+                                        } else {
+                                            failureCount++;
+                                            String errorMsg = String.format("更新企业微信运营统计数据失败 - 月份: %s", month);
+                                            errorMessages.add(errorMsg);
+                                            log.error("❌ [企业微信运营统计] 更新失败 - 月份: {}", month);
+                                        }
+                                    } else {
+                                        // 不允许更新：跳过并记录提示
+                                        failureCount++;
+                                        String errorMsg = String.format("月份 %s 已存在，未更新（请勾选允许更新后重试或删除旧数据）", month);
+                                        errorMessages.add(errorMsg);
+                                        log.warn("⚠️ [企业微信运营统计] 月份重复，未更新 - 月份: {}", month);
+                                    }
+                                } else {
+                                    // 不存在：插入新纪录
+                                    statisticsData.setCreateBy(operName);
+                                    statisticsData.setCreateTime(new Date());
+                                    int insertResult = wechatOperationStatisticsService.insertWechatOperationStatistics(statisticsData);
+                                    if (insertResult > 0) {
+                                        successCount++;
+                                        log.debug("💾 [企业微信运营统计] 新增成功 - 月份: {}", month);
+                                    } else {
+                                        failureCount++;
+                                        String errorMsg = String.format("新增企业微信运营统计数据失败 - 月份: %s", month);
+                                        errorMessages.add(errorMsg);
+                                        log.error("❌ [企业微信运营统计] 新增失败 - 月份: {}", month);
+                                    }
                                 }
                             } catch (Exception e) {
                                 failureCount++;
-                                String errorMsg = "保存企业微信运营统计数据失败: " + e.getMessage();
+                                String safeMonth = statisticsData != null ? statisticsData.getStatMonth() : "未知月份";
+                                String errorMsg = "保存企业微信运营统计数据失败: " + (e.getMessage() != null ? e.getMessage() : e.toString());
                                 errorMessages.add(errorMsg);
-                                log.error("❌ [企业微信运营统计] 保存失败 - 月份: {}, 错误: {}", statisticsData.getStatMonth(), e.getMessage());
+                                log.error("❌ [企业微信运营统计] 保存失败 - 月份: {}, 错误: {}", safeMonth, e.getMessage(), e);
                             }
                         }
                         log.info("💾 [企业微信运营统计] 数据保存完成 - 成功: {}, 失败: {}", successCount, failureCount);
                         
                     } catch (Exception e) {
                         log.error("❌ [企业微信运营统计] Excel解析失败", e);
-                        return Result.error("Excel解析失败: " + e.getMessage());
+                        return Result.error("Excel解析失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
                     }
                     break;
-                    
+
+                case "wechat-group-statistics":
+                    log.info("📊 [热门社群排行/群组统计] 开始解析Excel文件...");
+                    ExcelUtil<WechatGroupStatistics> groupStatisticsUtil = new ExcelUtil<>(WechatGroupStatistics.class);
+                    try {
+                        byte[] fileBytes = file.getBytes();
+                        List<WechatGroupStatistics> groupStatisticsList = null;
+                        int chosenHeaderRow = -1;
+
+                        int bestSize = -1;
+                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
+                            ExcelUtil.ExcelImportResult<WechatGroupStatistics> enhancedResult = groupStatisticsUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
+                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
+                            boolean success = enhancedResult.isSuccess() && size > 0;
+                            log.info("📊 [群组统计] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}, 错误数: {}, 警告数: {}",
+                                    titleNum, success, size,
+                                    enhancedResult.getErrors() != null ? enhancedResult.getErrors().size() : 0,
+                                    enhancedResult.getWarnings() != null ? enhancedResult.getWarnings().size() : 0);
+                            if (success && size > bestSize) {
+                                groupStatisticsList = enhancedResult.getData();
+                                bestSize = size;
+                                chosenHeaderRow = titleNum;
+                            }
+                        }
+
+                        if (groupStatisticsList == null || groupStatisticsList.isEmpty()) {
+                            log.warn("📊 [群组统计] 增强导入未得到有效数据，回退到标准导入（首行表头）");
+                            groupStatisticsList = groupStatisticsUtil.importExcel(new ByteArrayInputStream(fileBytes));
+                            chosenHeaderRow = 0;
+                        }
+
+                        log.info("📊 [群组统计] Excel解析完成，使用表头行: {}，解析到 {} 条数据",
+                                chosenHeaderRow, groupStatisticsList != null ? groupStatisticsList.size() : 0);
+
+                        if (groupStatisticsList == null || groupStatisticsList.isEmpty()) {
+                            log.error("📊 [群组统计] Excel文件中没有解析到任何数据");
+                            return Result.error("Excel文件中没有找到有效的数据行，请检查文件内容");
+                        }
+
+                        boolean headerMismatchSuspected = groupStatisticsList.stream().allMatch(g -> g == null || (
+                                g.getStatMonth() == null &&
+                                g.getGroupId() == null &&
+                                g.getActivityScore() == null &&
+                                g.getJoinRate() == null &&
+                                g.getInteractionCount() == null &&
+                                g.getMessageCount() == null &&
+                                g.getActiveMemberCount() == null
+                        ));
+                        if (headerMismatchSuspected) {
+                            log.error("📊 [群组统计] 解析后所有行关键字段均为空，疑似列头不匹配或首行不是字段名。请使用模板下载接口获取规范模板，并确保第一行是字段名。");
+                            return Result.error("Excel列名不匹配：请使用模板并确保首行为字段名");
+                        }
+
+                        // 仅解析到群组ID+月份，其它关键字段均为空，判定模板/列头不匹配
+                        boolean onlyKeysAvailable = groupStatisticsList.stream().allMatch(g -> g != null &&
+                                g.getStatMonth() != null && g.getGroupId() != null &&
+                                g.getActivityScore() == null && g.getJoinRate() == null &&
+                                g.getInteractionCount() == null && g.getMessageCount() == null &&
+                                g.getActiveMemberCount() == null);
+                        if (onlyKeysAvailable) {
+                            log.error("📊 [群组统计] 仅解析到群组ID与月份，其它字段均为空，疑似列头不匹配。请使用模板下载接口获取规范模板，并确保第一行是字段名。");
+                            return Result.error("仅解析到群组ID与月份，其它字段为空：请使用模板并确保首行为字段名");
+                        }
+
+                        // 打印前几条数据用于调试
+                        for (int i = 0; i < Math.min(3, groupStatisticsList.size()); i++) {
+                            WechatGroupStatistics gs = groupStatisticsList.get(i);
+                            if (gs != null) {
+                                log.info("📊 [群组统计] 第{}条数据详情 - 月份: {}, 群组ID: {}, 活跃度评分: {}, 入群率: {}, 互动次数: {}",
+                                        (i + 1), gs.getStatMonth(), gs.getGroupId(), gs.getActivityScore(), gs.getJoinRate(), gs.getInteractionCount());
+                            }
+                        }
+
+                        log.info("💾 [群组统计] 开始保存数据到数据库...");
+                        for (WechatGroupStatistics data : groupStatisticsList) {
+                            try {
+                                // 基础校验
+                                if (data == null) {
+                                    failureCount++;
+                                    errorMessages.add("存在空行，已跳过");
+                                    continue;
+                                }
+                                String month = normalizeMonth(data.getStatMonth());
+                                data.setStatMonth(month);
+                                Long groupId = data.getGroupId();
+                                if (month == null || month.trim().isEmpty() || groupId == null) {
+                                    failureCount++;
+                                    errorMessages.add("群组ID或统计月份为空，无法保存该条记录");
+                                    log.error("❌ [群组统计] 保存失败 - 原因: 群组ID或统计月份为空");
+                                    continue;
+                                }
+
+                                // 校验并自动创建缺失的群组，确保外键不报错
+                                try {
+                                    WechatGroup groupEntity = wechatGroupService.selectWechatGroupByGroupId(groupId);
+                                    if (groupEntity == null) {
+                                        // 自动创建群组（最小字段集），以保证导入不中断
+                                        WechatGroup autoGroup = new WechatGroup();
+                                        autoGroup.setGroupId(groupId);
+                                        autoGroup.setGroupName("群组-" + groupId);
+                                        autoGroup.setStatus(1);
+                                        autoGroup.setCreateBy(operName);
+                                        autoGroup.setCreateTime(new Date());
+                                        int created = wechatGroupService.insertWechatGroup(autoGroup);
+                                        if (created > 0) {
+                                            log.info("✅ [群组统计] 自动创建缺失群组成功 - 群组ID: {}", groupId);
+                                        } else {
+                                            failureCount++;
+                                            errorMessages.add("自动创建缺失群组失败: 群组ID=" + groupId + ", 月份=" + month);
+                                            log.error("❌ [群组统计] 自动创建群组失败 - 群组ID: {}，月份: {}", groupId, month);
+                                            continue;
+                                        }
+                                    }
+                                } catch (Exception ex) {
+                                    // 若查询或创建群组发生异常，标记失败并继续后续行，避免中断整个导入
+                                    failureCount++;
+                                    errorMessages.add("群组校验/创建失败，已跳过: 群组ID=" + groupId + ", 月份=" + month + ", 错误=" + (ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+                                    log.error("❌ [群组统计] 群组校验/创建异常", ex);
+                                    continue;
+                                }
+
+                                // 查重：根据群组ID+月份
+                                WechatGroupStatistics query = new WechatGroupStatistics();
+                                query.setGroupId(groupId);
+                                query.setStatMonth(month);
+                                List<WechatGroupStatistics> existedList = wechatGroupStatisticsService.selectWechatGroupStatisticsList(query);
+                                WechatGroupStatistics existing = (existedList != null && !existedList.isEmpty()) ? existedList.get(0) : null;
+
+                                if (existing != null) {
+                                    if (Boolean.TRUE.equals(updateSupport)) {
+                                        // 安全合并更新
+                                        data.setStatId(existing.getStatId());
+                                        data.setActivityScore(data.getActivityScore() != null ? data.getActivityScore() : existing.getActivityScore());
+                                        data.setJoinRate(data.getJoinRate() != null ? data.getJoinRate() : existing.getJoinRate());
+                                        data.setInteractionCount(data.getInteractionCount() != null ? data.getInteractionCount() : existing.getInteractionCount());
+                                        data.setMessageCount(data.getMessageCount() != null ? data.getMessageCount() : existing.getMessageCount());
+                                        data.setActiveMemberCount(data.getActiveMemberCount() != null ? data.getActiveMemberCount() : existing.getActiveMemberCount());
+                                        data.setUpdateBy(operName);
+                                        data.setUpdateTime(new Date());
+
+                                        int update = wechatGroupStatisticsService.updateWechatGroupStatistics(data);
+                                        if (update > 0) {
+                                            successCount++;
+                                        } else {
+                                            failureCount++;
+                                            errorMessages.add("更新群组统计失败: 群组ID=" + groupId + ", 月份=" + month);
+                                        }
+                                    } else {
+                                        // 跳过
+                                        log.warn("⚠️ [群组统计] 记录已存在，按配置跳过 - 群组ID: {}, 月份: {}", groupId, month);
+                                        errorMessages.add("记录已存在，已跳过: 群组ID=" + groupId + ", 月份=" + month);
+                                    }
+                                } else {
+                                    // 新增
+                                    data.setCreateBy(operName);
+                                    data.setCreateTime(new Date());
+                                    int insert = wechatGroupStatisticsService.insertWechatGroupStatistics(data);
+                                    if (insert > 0) {
+                                        successCount++;
+                                    } else {
+                                        failureCount++;
+                                        errorMessages.add("保存群组统计失败: 群组ID=" + groupId + ", 月份=" + month);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                failureCount++;
+                                errorMessages.add("保存群组统计数据失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
+                                log.error("❌ [群组统计] 保存失败 - 错误: {}", e.getMessage());
+                                log.error("❌ [群组统计] 保存失败堆栈", e);
+                            }
+                        }
+                        log.info("💾 [群组统计] 数据保存完成 - 成功: {}, 失败: {}", successCount, failureCount);
+                    } catch (Exception e) {
+                        log.error("❌ [群组统计] Excel解析失败", e);
+                        return Result.error("Excel解析失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
+                    }
+                    break;
+
+                case "wechat-group-activity-trend":
+                    log.info("📊 [社群活跃度趋势] 开始解析Excel文件（精简模板）...");
+                    ExcelUtil<WechatOperationMetrics> trendUtil = new ExcelUtil<>(WechatOperationMetrics.class);
+                    try {
+                        byte[] fileBytes = file.getBytes();
+                        List<WechatOperationMetrics> trendList = null;
+                        int chosenHeaderRow = -1;
+
+                        int bestSize = -1;
+                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
+                            ExcelUtil.ExcelImportResult<WechatOperationMetrics> enhancedResult = trendUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
+                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
+                            boolean success = enhancedResult.isSuccess() && size > 0;
+                            log.info("📊 [社群活跃度趋势] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}", titleNum, success, size);
+                            if (success && size > bestSize) {
+                                trendList = enhancedResult.getData();
+                                bestSize = size;
+                                chosenHeaderRow = titleNum;
+                            }
+                        }
+
+                        if (trendList == null || trendList.isEmpty()) {
+                            log.warn("📊 [社群活跃度趋势] 增强导入未得到有效数据，回退到标准导入（首行表头）");
+                            trendList = trendUtil.importExcel(new ByteArrayInputStream(fileBytes));
+                            chosenHeaderRow = 0;
+                        }
+
+                        log.info("📊 [社群活跃度趋势] Excel解析完成，使用表头行: {}，解析到 {} 条数据", chosenHeaderRow, trendList != null ? trendList.size() : 0);
+                        if (trendList == null || trendList.isEmpty()) {
+                            return Result.error("Excel文件中没有找到有效的数据行，请检查文件内容");
+                        }
+
+                        // 允许精简列：只要包含统计月份或群聊互动数中的任一关键列即可
+                        boolean headerMismatchSuspected = trendList.stream().allMatch(m -> m == null || (
+                                m.getStatMonth() == null && m.getGroupInteractions() == null
+                        ));
+                        if (headerMismatchSuspected) {
+                            log.error("📊 [社群活跃度趋势] 未检测到关键列（统计月份或群聊互动数），疑似表头不匹配");
+                            return Result.error("Excel列名不匹配：请使用社群活跃度趋势模板，并确保首行为字段名");
+                        }
+
+                        // 过滤空行
+                        trendList = trendList.stream().filter(Objects::nonNull).collect(Collectors.toList());
+
+                        // 保存数据：仅依赖statMonth与groupInteractions
+                        log.info("💾 [社群活跃度趋势] 开始保存数据到数据库...");
+                        for (int rowIndex = 0; rowIndex < trendList.size(); rowIndex++) {
+                            WechatOperationMetrics metricsData = trendList.get(rowIndex);
+                            if (metricsData == null) {
+                                failureCount++;
+                                errorMessages.add("第" + (rowIndex + 1) + "行为空，已跳过");
+                                continue;
+                            }
+                            if (metricsData.getStatMonth() == null || metricsData.getStatMonth().trim().isEmpty()) {
+                                failureCount++;
+                                errorMessages.add("第" + (rowIndex + 1) + "行缺少统计月份(statMonth)");
+                                continue;
+                            }
+                            if (metricsData.getGroupInteractions() == null) {
+                                failureCount++;
+                                errorMessages.add("第" + (rowIndex + 1) + "行缺少群聊互动数(groupInteractions)");
+                                continue;
+                            }
+                            try {
+                                // 自动设置stat_date为该统计月份的第一天，避免数据库非空约束错误
+                                try {
+                                    String monthStr = metricsData.getStatMonth().trim();
+                                    LocalDate firstDay = LocalDate.parse(monthStr + "-01");
+                                    Date statDate = Date.from(firstDay.atStartOfDay(ZoneId.systemDefault()).toInstant());
+                                    metricsData.setStatDate(statDate);
+                                } catch (Exception parseEx) {
+                                    log.warn("⚠️ [社群活跃度趋势] 统计月份格式异常: {}，将使用当前月第一天作为stat_date", metricsData.getStatMonth());
+                                    LocalDate firstDay = LocalDate.now().withDayOfMonth(1);
+                                    Date statDate = Date.from(firstDay.atStartOfDay(ZoneId.systemDefault()).toInstant());
+                                    metricsData.setStatDate(statDate);
+                                }
+
+                                metricsData.setCreateBy(operName);
+                                metricsData.setCreateTime(new Date());
+                                int insertResult = wechatOperationMetricsService.insertWechatOperationMetrics(metricsData);
+                                if (insertResult > 0) {
+                                    successCount++;
+                                } else {
+                                    failureCount++;
+                                    errorMessages.add("保存社群活跃度趋势数据失败");
+                                }
+                            } catch (Exception e) {
+                                failureCount++;
+                                errorMessages.add("保存社群活跃度趋势数据失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
+                                log.error("❌ [社群活跃度趋势] 保存失败 - 行: {}, 错误: {}", (rowIndex + 1), e.getMessage());
+                            }
+                        }
+                        log.info("💾 [社群活跃度趋势] 数据保存完成 - 成功: {}, 失败: {}", successCount, failureCount);
+                    } catch (Exception e) {
+                        log.error("❌ [社群活跃度趋势] Excel解析失败", e);
+                        return Result.error("Excel解析失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
+                    }
+                    break;
+
+                case "wechat-binding-rate":
+                    log.info("📈 [企业微信绑定率] 开始解析Excel文件（精简模板）...");
+                    ExcelUtil<WechatOperationStatistics> bindingRateUtil = new ExcelUtil<>(WechatOperationStatistics.class);
+                    try {
+                        byte[] fileBytes = file.getBytes();
+                        List<WechatOperationStatistics> bindingList = null;
+                        int chosenHeaderRow = -1;
+
+                        int bestSize = -1;
+                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
+                            ExcelUtil.ExcelImportResult<WechatOperationStatistics> enhancedResult = bindingRateUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
+                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
+                            boolean success = enhancedResult.isSuccess() && size > 0;
+                            log.info("📈 [企业微信绑定率] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}", titleNum, success, size);
+                            if (success && size > bestSize) {
+                                bindingList = enhancedResult.getData();
+                                bestSize = size;
+                                chosenHeaderRow = titleNum;
+                            }
+                        }
+
+                        if (bindingList == null || bindingList.isEmpty()) {
+                            log.warn("📈 [企业微信绑定率] 增强导入未得到有效数据，回退到标准导入（首行表头）");
+                            bindingList = bindingRateUtil.importExcel(new ByteArrayInputStream(fileBytes));
+                            chosenHeaderRow = 0;
+                        }
+
+                        log.info("📈 [企业微信绑定率] Excel解析完成，使用表头行: {}，解析到 {} 条数据", chosenHeaderRow, bindingList != null ? bindingList.size() : 0);
+                        if (bindingList == null || bindingList.isEmpty()) {
+                            return Result.error("Excel文件中没有找到有效的数据行，请检查文件内容");
+                        }
+
+                        // 防御：若所有行均缺少关键列，判定列头不匹配
+                        boolean headerMismatch = bindingList.stream().allMatch(s -> s == null || (
+                                s.getStatMonth() == null && s.getBindingRate() == null
+                        ));
+                        if (headerMismatch) {
+                            return Result.error("Excel列名不匹配：请使用绑定率模板并确保首行为字段名");
+                        }
+
+                        // 过滤空行
+                        bindingList = bindingList.stream().filter(Objects::nonNull).collect(Collectors.toList());
+
+                        log.info("💾 [企业微信绑定率] 开始保存数据到数据库...");
+                        for (WechatOperationStatistics row : bindingList) {
+                            try {
+                                if (row.getStatMonth() == null || row.getStatMonth().trim().isEmpty()) {
+                                    failureCount++;
+                                    errorMessages.add("统计月份为空，无法保存该条记录");
+                                    continue;
+                                }
+                                if (row.getBindingRate() == null) {
+                                    failureCount++;
+                                    errorMessages.add("绑定率为空，无法保存月份 " + row.getStatMonth());
+                                    continue;
+                                }
+
+                                String month = row.getStatMonth().trim();
+                                WechatOperationStatistics existing = wechatOperationStatisticsService.selectWechatOperationStatisticsByMonth(month);
+                                if (existing != null) {
+                                    if (Boolean.TRUE.equals(updateSupport)) {
+                                        existing.setBindingRate(row.getBindingRate());
+                                        existing.setUpdateBy(operName);
+                                        existing.setUpdateTime(new Date());
+                                        int update = wechatOperationStatisticsService.updateWechatOperationStatistics(existing);
+                                        if (update > 0) {
+                                            successCount++;
+                                        } else {
+                                            failureCount++;
+                                            errorMessages.add("更新失败 - 月份: " + month);
+                                        }
+                                    } else {
+                                        failureCount++;
+                                        errorMessages.add("月份 " + month + " 已存在，未更新（请勾选允许更新后重试）");
+                                    }
+                                } else {
+                                    WechatOperationStatistics insertObj = new WechatOperationStatistics();
+                                    insertObj.setStatMonth(month);
+                                    insertObj.setBindingRate(row.getBindingRate());
+                                    insertObj.setCreateBy(operName);
+                                    insertObj.setCreateTime(new Date());
+                                    int insert = wechatOperationStatisticsService.insertWechatOperationStatistics(insertObj);
+                                    if (insert > 0) {
+                                        successCount++;
+                                    } else {
+                                        failureCount++;
+                                        errorMessages.add("新增失败 - 月份: " + month);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                failureCount++;
+                                errorMessages.add("保存绑定率数据失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
+                                log.error("❌ [企业微信绑定率] 保存失败", e);
+                            }
+                        }
+                        log.info("💾 [企业微信绑定率] 数据保存完成 - 成功: {}, 失败: {}", successCount, failureCount);
+                    } catch (Exception e) {
+                        log.error("❌ [企业微信绑定率] Excel解析失败", e);
+                        return Result.error("Excel解析失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
+                    }
+                    break;
+
+                case "wechat-conversion-rate":
+                    log.info("📈 [企微转化率] 开始解析Excel文件（精简模板）...");
+                    ExcelUtil<WechatOperationStatistics> conversionRateUtil = new ExcelUtil<>(WechatOperationStatistics.class);
+                    try {
+                        byte[] fileBytes = file.getBytes();
+                        List<WechatOperationStatistics> conversionList = null;
+                        int chosenHeaderRow = -1;
+
+                        int bestSize = -1;
+                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
+                            ExcelUtil.ExcelImportResult<WechatOperationStatistics> enhancedResult = conversionRateUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
+                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
+                            boolean success = enhancedResult.isSuccess() && size > 0;
+                            log.info("📈 [企微转化率] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}", titleNum, success, size);
+                            if (success && size > bestSize) {
+                                conversionList = enhancedResult.getData();
+                                bestSize = size;
+                                chosenHeaderRow = titleNum;
+                            }
+                        }
+
+                        if (conversionList == null || conversionList.isEmpty()) {
+                            log.warn("📈 [企微转化率] 增强导入未得到有效数据，回退到标准导入（首行表头）");
+                            conversionList = conversionRateUtil.importExcel(new ByteArrayInputStream(fileBytes));
+                            chosenHeaderRow = 0;
+                        }
+
+                        log.info("📈 [企微转化率] Excel解析完成，使用表头行: {}，解析到 {} 条数据", chosenHeaderRow, conversionList != null ? conversionList.size() : 0);
+                        if (conversionList == null || conversionList.isEmpty()) {
+                            return Result.error("Excel文件中没有找到有效的数据行，请检查文件内容");
+                        }
+
+                        boolean headerMismatch = conversionList.stream().allMatch(s -> s == null || (
+                                s.getStatMonth() == null && s.getConversionRate() == null
+                        ));
+                        if (headerMismatch) {
+                            return Result.error("Excel列名不匹配：请使用转化率模板并确保首行为字段名");
+                        }
+
+                        conversionList = conversionList.stream().filter(Objects::nonNull).collect(Collectors.toList());
+
+                        log.info("💾 [企微转化率] 开始保存数据到数据库...");
+                        for (WechatOperationStatistics row : conversionList) {
+                            try {
+                                if (row.getStatMonth() == null || row.getStatMonth().trim().isEmpty()) {
+                                    failureCount++;
+                                    errorMessages.add("统计月份为空，无法保存该条记录");
+                                    continue;
+                                }
+                                if (row.getConversionRate() == null) {
+                                    failureCount++;
+                                    errorMessages.add("转化率为空，无法保存月份 " + row.getStatMonth());
+                                    continue;
+                                }
+
+                                String month = row.getStatMonth().trim();
+                                WechatOperationStatistics existing = wechatOperationStatisticsService.selectWechatOperationStatisticsByMonth(month);
+                                if (existing != null) {
+                                    if (Boolean.TRUE.equals(updateSupport)) {
+                                        existing.setConversionRate(row.getConversionRate());
+                                        existing.setUpdateBy(operName);
+                                        existing.setUpdateTime(new Date());
+                                        int update = wechatOperationStatisticsService.updateWechatOperationStatistics(existing);
+                                        if (update > 0) {
+                                            successCount++;
+                                        } else {
+                                            failureCount++;
+                                            errorMessages.add("更新失败 - 月份: " + month);
+                                        }
+                                    } else {
+                                        failureCount++;
+                                        errorMessages.add("月份 " + month + " 已存在，未更新（请勾选允许更新后重试）");
+                                    }
+                                } else {
+                                    WechatOperationStatistics insertObj = new WechatOperationStatistics();
+                                    insertObj.setStatMonth(month);
+                                    insertObj.setConversionRate(row.getConversionRate());
+                                    insertObj.setCreateBy(operName);
+                                    insertObj.setCreateTime(new Date());
+                                    int insert = wechatOperationStatisticsService.insertWechatOperationStatistics(insertObj);
+                                    if (insert > 0) {
+                                        successCount++;
+                                    } else {
+                                        failureCount++;
+                                        errorMessages.add("新增失败 - 月份: " + month);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                failureCount++;
+                                errorMessages.add("保存转化率数据失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
+                                log.error("❌ [企微转化率] 保存失败", e);
+                            }
+                        }
+                        log.info("💾 [企微转化率] 数据保存完成 - 成功: {}, 失败: {}", successCount, failureCount);
+                    } catch (Exception e) {
+                        log.error("❌ [企微转化率] Excel解析失败", e);
+                        return Result.error("Excel解析失败: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
+                    }
+                    break;
+                
                 default:
                     log.error("❌ [批量导入] 不支持的数据类型: {}", dataType);
                     return Result.error("不支持的数据类型: " + dataType);
@@ -807,8 +1653,17 @@ public class WechatOperationController extends BaseController {
             log.info("🎉 [批量导入] 企业微信运营数据导入完成 - 总计: {}, 成功: {}, 失败: {}", 
                     (successCount + failureCount), successCount, failureCount);
             
-            if (failureCount > 0) {
-                result.put("message", String.format("导入完成，成功 %d 条，失败 %d 条", successCount, failureCount));
+            // 返回语义调整：
+            // - 若全部失败（成功数为0），返回错误码并附带数据详情，避免前端误判为成功
+            // - 若部分成功，维持成功码但在 message 中体现失败数量
+            // - 若全部成功，返回成功码与成功信息
+            if (successCount == 0) {
+                result.put("message", String.format("导入失败，全部失败 %d 条", failureCount));
+                Result<Map<String, Object>> errorResult = Result.error("导入失败");
+                errorResult.put("data", result);
+                return errorResult;
+            } else if (failureCount > 0) {
+                result.put("message", String.format("部分成功，成功 %d 条，失败 %d 条", successCount, failureCount));
                 return Result.success(result);
             } else {
                 result.put("message", String.format("导入成功，共导入 %d 条数据", successCount));
@@ -895,5 +1750,165 @@ public class WechatOperationController extends BaseController {
         sampleData.add(statistics2);
         
         return sampleData;
+    }
+
+    /**
+     * 创建热门社群排行（群组统计）示例数据
+     */
+    private List<WechatGroupStatistics> createWechatGroupStatisticsSampleData() {
+        List<WechatGroupStatistics> sampleData = new ArrayList<>();
+
+        WechatGroupStatistics gs1 = new WechatGroupStatistics();
+        gs1.setGroupId(2001L);
+        gs1.setStatMonth("2025-01");
+        gs1.setActivityScore(new BigDecimal("88.5"));
+        gs1.setJoinRate(new BigDecimal("72.3"));
+        gs1.setInteractionCount(560L);
+        gs1.setMessageCount(1200L);
+        gs1.setActiveMemberCount(320L);
+        sampleData.add(gs1);
+
+        WechatGroupStatistics gs2 = new WechatGroupStatistics();
+        gs2.setGroupId(2002L);
+        gs2.setStatMonth("2025-01");
+        gs2.setActivityScore(new BigDecimal("84.2"));
+        gs2.setJoinRate(new BigDecimal("68.9"));
+        gs2.setInteractionCount(480L);
+        gs2.setMessageCount(980L);
+        gs2.setActiveMemberCount(290L);
+        sampleData.add(gs2);
+
+        // 更多示例数据，便于用户理解模板格式并批量填写
+        WechatGroupStatistics gs3 = new WechatGroupStatistics();
+        gs3.setGroupId(2003L);
+        gs3.setStatMonth("2025-01");
+        gs3.setActivityScore(new BigDecimal("81.7"));
+        gs3.setJoinRate(new BigDecimal("65.2"));
+        gs3.setInteractionCount(430L);
+        gs3.setMessageCount(905L);
+        gs3.setActiveMemberCount(270L);
+        sampleData.add(gs3);
+
+        WechatGroupStatistics gs4 = new WechatGroupStatistics();
+        gs4.setGroupId(2004L);
+        gs4.setStatMonth("2025-01");
+        gs4.setActivityScore(new BigDecimal("79.3"));
+        gs4.setJoinRate(new BigDecimal("61.8"));
+        gs4.setInteractionCount(390L);
+        gs4.setMessageCount(840L);
+        gs4.setActiveMemberCount(250L);
+        sampleData.add(gs4);
+
+        WechatGroupStatistics gs5 = new WechatGroupStatistics();
+        gs5.setGroupId(2005L);
+        gs5.setStatMonth("2025-01");
+        gs5.setActivityScore(new BigDecimal("76.5"));
+        gs5.setJoinRate(new BigDecimal("58.4"));
+        gs5.setInteractionCount(355L);
+        gs5.setMessageCount(780L);
+        gs5.setActiveMemberCount(235L);
+        sampleData.add(gs5);
+
+        WechatGroupStatistics gs6 = new WechatGroupStatistics();
+        gs6.setGroupId(2006L);
+        gs6.setStatMonth("2025-01");
+        gs6.setActivityScore(new BigDecimal("74.1"));
+        gs6.setJoinRate(new BigDecimal("55.9"));
+        gs6.setInteractionCount(330L);
+        gs6.setMessageCount(720L);
+        gs6.setActiveMemberCount(220L);
+        sampleData.add(gs6);
+
+        WechatGroupStatistics gs7 = new WechatGroupStatistics();
+        gs7.setGroupId(2007L);
+        gs7.setStatMonth("2025-01");
+        gs7.setActivityScore(new BigDecimal("71.8"));
+        gs7.setJoinRate(new BigDecimal("53.2"));
+        gs7.setInteractionCount(305L);
+        gs7.setMessageCount(690L);
+        gs7.setActiveMemberCount(210L);
+        sampleData.add(gs7);
+
+        WechatGroupStatistics gs8 = new WechatGroupStatistics();
+        gs8.setGroupId(2008L);
+        gs8.setStatMonth("2025-01");
+        gs8.setActivityScore(new BigDecimal("69.4"));
+        gs8.setJoinRate(new BigDecimal("50.1"));
+        gs8.setInteractionCount(280L);
+        gs8.setMessageCount(640L);
+        gs8.setActiveMemberCount(195L);
+        sampleData.add(gs8);
+
+        WechatGroupStatistics gs9 = new WechatGroupStatistics();
+        gs9.setGroupId(2009L);
+        gs9.setStatMonth("2025-01");
+        gs9.setActivityScore(new BigDecimal("67.0"));
+        gs9.setJoinRate(new BigDecimal("47.8"));
+        gs9.setInteractionCount(255L);
+        gs9.setMessageCount(600L);
+        gs9.setActiveMemberCount(185L);
+        sampleData.add(gs9);
+
+        WechatGroupStatistics gs10 = new WechatGroupStatistics();
+        gs10.setGroupId(2010L);
+        gs10.setStatMonth("2025-01");
+        gs10.setActivityScore(new BigDecimal("64.6"));
+        gs10.setJoinRate(new BigDecimal("45.2"));
+        gs10.setInteractionCount(230L);
+        gs10.setMessageCount(560L);
+        gs10.setActiveMemberCount(170L);
+        sampleData.add(gs10);
+
+        return sampleData;
+    }
+
+    /**
+     * 将输入的月份字符串归一化为标准格式 YYYY-MM。
+     * 支持 "yyyy-MM", "yyyy/MM", "yyyy年MM月", "yyyy-MM-dd" 等常见形式；
+     * 也支持纯数字形式如 "yyyyMM" 或 "yyyyMMdd"（取前6位作为年月）。
+     * 若无法解析，则回退为当前系统月份。
+     */
+    private String normalizeMonth(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String s = raw.trim();
+        if (s.isEmpty()) {
+            return "";
+        }
+        try {
+            // 1) 常见分隔符形式：yyyy-MM / yyyy/MM / yyyy年MM月 / 含日的形式
+            java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("^(\\d{4})\\D*(\\d{1,2}).*");
+            java.util.regex.Matcher m1 = p1.matcher(s);
+            if (m1.matches()) {
+                int year = Integer.parseInt(m1.group(1));
+                int month = Integer.parseInt(m1.group(2));
+                if (month < 1) month = 1;
+                if (month > 12) month = 12;
+                return String.format("%04d-%02d", year, month);
+            }
+
+            // 2) 纯数字：优先按前6位解析为 yyyyMM（也兼容 yyyyMMdd）
+            String digits = s.replaceAll("[^0-9]", "");
+            if (digits.length() >= 6) {
+                int year = Integer.parseInt(digits.substring(0, 4));
+                int month = Integer.parseInt(digits.substring(4, 6));
+                if (month < 1) month = 1;
+                if (month > 12) month = 12;
+                return String.format("%04d-%02d", year, month);
+            }
+
+            // 3) 回退：尝试截取形如 yyyy-MM 或 yyyy/MM 的前7位
+            if (s.length() >= 7 && Character.isDigit(s.charAt(0)) && Character.isDigit(s.charAt(1))
+                    && Character.isDigit(s.charAt(2)) && Character.isDigit(s.charAt(3))
+                    && (s.charAt(4) == '-' || s.charAt(4) == '/') && Character.isDigit(s.charAt(5))) {
+                String candidate = s.substring(0, 7).replace('/', '-');
+                return candidate;
+            }
+        } catch (Exception ignored) {
+        }
+
+        // 最终回退：当前系统月
+        return java.time.LocalDate.now().toString().substring(0, 7);
     }
 }

@@ -118,4 +118,11 @@ public interface WechatOperationMetricsMapper
      * @return 指标数量
      */
     public int countWechatOperationMetrics(WechatOperationMetrics wechatOperationMetrics);
+
+    /**
+     * 查询数据库中去重后的统计月份列表（YYYY-MM），按时间倒序
+     *
+     * @return 月份字符串集合
+     */
+    public List<String> selectDistinctStatMonths();
 }
