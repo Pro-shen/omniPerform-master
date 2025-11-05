@@ -70,6 +70,10 @@ public class SmartOperationAlert extends BaseEntity
     @Excel(name = "处理备注")
     private String processNote;
 
+    /** 月份（格式：YYYY-MM），用于按月查询 */
+    @Excel(name = "月份", prompt = "格式：YYYY-MM，可留空由处理时间自动推断")
+    private String monthYear;
+
     public Long getId()
     {
         return id;
@@ -208,6 +212,16 @@ public class SmartOperationAlert extends BaseEntity
         this.processNote = processNote;
     }
 
+    public String getMonthYear()
+    {
+        return monthYear;
+    }
+
+    public void setMonthYear(String monthYear)
+    {
+        this.monthYear = monthYear;
+    }
+
     @Override
     public String toString() {
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
@@ -224,6 +238,7 @@ public class SmartOperationAlert extends BaseEntity
             .append("processTime", getProcessTime())
             .append("processUser", getProcessUser())
             .append("processNote", getProcessNote())
+            .append("monthYear", getMonthYear())
             .append("createTime", getCreateTime())
             .append("updateTime", getUpdateTime())
             .toString();

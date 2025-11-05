@@ -8,7 +8,10 @@ import com.omniperform.system.service.ISmartOperationOverviewService;
 import com.omniperform.system.service.ISmartOperationAlertService;
 import com.omniperform.system.service.ISmartMarketingTaskService;
 import com.omniperform.system.service.IMemberProfileAnalysisService;
+import com.omniperform.system.service.IOptimizationEffectDataService;
+import com.omniperform.system.service.IBestTouchTimeAnalysisService;
 import com.omniperform.common.utils.poi.ExcelUtil;
+import com.omniperform.common.utils.file.FileUtils;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
@@ -49,6 +52,127 @@ public class SmartOperationController {
     @Autowired
     private IMemberProfileAnalysisService memberProfileAnalysisService;
 
+    @Autowired
+    private IOptimizationEffectDataService optimizationEffectDataService;
+
+    @Autowired
+    private IBestTouchTimeAnalysisService bestTouchTimeAnalysisService;
+
+    /**
+     * 下载智能运营概览Excel导入模板
+     */
+    @GetMapping("/overview/import/template")
+    @ApiOperation("下载智能运营概览Excel导入模板")
+    public void downloadSmartOperationOverviewImportTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<com.omniperform.system.domain.SmartOperationOverview> util = new ExcelUtil<>(com.omniperform.system.domain.SmartOperationOverview.class);
+            // 导出包含示例数据与标题的模板，便于参考填写
+            java.util.List<com.omniperform.system.domain.SmartOperationOverview> sample = createSmartOperationOverviewSampleData();
+            // 显式设置下载文件名，避免浏览器使用URL最后一段“template”作为文件名
+            FileUtils.setAttachmentResponseHeader(response, "概览.xlsx");
+            util.exportExcel(response, sample, "概览数据", "概览导入模板");
+        } catch (Exception e) {
+            log.error("下载智能运营概览Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 导入智能运营概览Excel数据（按统计日期+区域去重，存在则更新）
+     */
+    @PostMapping("/overview/import")
+    @ApiOperation("导入智能运营概览Excel数据")
+    public Result<Map<String, Object>> importSmartOperationOverview(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+        try {
+            ExcelUtil<com.omniperform.system.domain.SmartOperationOverview> util = new ExcelUtil<>(com.omniperform.system.domain.SmartOperationOverview.class);
+            // 读取字节并按标准模板跳过1行标题进行解析（模板首行是标题，第二行是表头）
+            byte[] bytes = file.getBytes();
+            List<com.omniperform.system.domain.SmartOperationOverview> dataList;
+            try {
+                dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 1);
+            } catch (Exception e2) {
+                log.error("导入智能运营概览Excel解析失败: {}", e2.getMessage(), e2);
+                return Result.error("Excel解析失败，请检查模板格式或文件内容");
+            }
+
+            // 若按标准模板解析后无数据，直接提示用户从第三行开始填写数据
+            if (dataList == null || dataList.isEmpty() || dataList.stream().allMatch(java.util.Objects::isNull)) {
+                return Result.error("导入数据为空，请从第三行开始填写数据后再导入");
+            }
+
+            for (int i = 0; i < dataList.size(); i++) {
+                com.omniperform.system.domain.SmartOperationOverview data = dataList.get(i);
+                try {
+                    if (data == null) {
+                        failCount++;
+                        String msg = "第" + (i + 1) + "条记录为空或字段映射失败";
+                        errors.add(msg);
+                        log.warn(msg);
+                        continue;
+                    }
+                    // 兜底补全monthYear或statDate
+                    Date statDate = data.getStatDate();
+                    String monthYear = data.getMonthYear();
+                    String regionCode = data.getRegionCode();
+
+                    if ((statDate == null) && monthYear != null && !monthYear.trim().isEmpty()) {
+                        // 若仅提供月份，则按该月最后一天作为统计日期
+                        try {
+                            java.time.LocalDate ld = java.time.LocalDate.parse(monthYear + "-01");
+                            ld = ld.withDayOfMonth(ld.lengthOfMonth());
+                            statDate = java.sql.Date.valueOf(ld);
+                            data.setStatDate(statDate);
+                        } catch (Exception pe) {
+                            // 月份解析失败
+                            throw new IllegalArgumentException("无效的月份格式: " + monthYear + ", 期望YYYY-MM");
+                        }
+                    }
+
+                    if (monthYear == null || monthYear.trim().isEmpty()) {
+                        if (statDate != null) {
+                            java.time.LocalDate ld = ((java.sql.Date) statDate).toLocalDate();
+                            monthYear = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                            data.setMonthYear(monthYear);
+                        }
+                    }
+
+                    // 去重依据：stat_date + region_code（region为空视为'all'匹配由SQL处理）
+                    String regionForQuery = regionCode;
+                    if (regionForQuery != null) {
+                        regionForQuery = regionForQuery.trim();
+                    }
+
+                    com.omniperform.system.domain.SmartOperationOverview existing = smartOperationOverviewService.selectSmartOperationOverviewByDate(statDate, regionForQuery);
+                    if (existing != null && existing.getId() != null) {
+                        // 更新已有记录
+                        data.setId(existing.getId());
+                        smartOperationOverviewService.updateSmartOperationOverview(data);
+                    } else {
+                        // 插入新记录
+                        smartOperationOverviewService.insertSmartOperationOverview(data);
+                    }
+                    successCount++;
+                } catch (Exception e) {
+                    failCount++;
+                    String msg = "第" + (i + 1) + "条数据处理失败: " + e.getMessage();
+                    errors.add(msg);
+                    log.error(msg, e);
+                }
+            }
+
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("errors", errors);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("导入智能运营概览Excel失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
     /**
      * 获取智能运营概览数据
      */
@@ -58,7 +182,7 @@ public class SmartOperationController {
         try {
             // 使用Service层获取概览数据，支持月份参数
             Map<String, Object> overview = smartOperationOverviewService.getSmartOperationOverview("all", month);
-            
+
             log.info("获取智能运营概览数据成功，月份: {}", month.isEmpty() ? "当前月份" : month);
             return Result.success("获取智能运营概览数据成功", overview);
         } catch (Exception e) {
@@ -73,14 +197,20 @@ public class SmartOperationController {
     @GetMapping("/alerts")
     @ApiOperation("获取实时监控预警数据")
     public Result getAlerts(@RequestParam(defaultValue = "1") int page,
-                           @RequestParam(defaultValue = "10") int size,
-                           @RequestParam(defaultValue = "待处理") String status,
-                           @RequestParam(defaultValue = "all") String region,
-                           @RequestParam(required = false) String month) {
+                            @RequestParam(defaultValue = "10") int size,
+                            @RequestParam(defaultValue = "待处理") String status,
+                            @RequestParam(defaultValue = "all") String region,
+                            @RequestParam(required = false) String month) {
         try {
-            // 暂时使用不带月份参数的方法，避免方法重载问题
-            Map<String, Object> result = smartOperationAlertService.getAlertsDataWithPagination(region, status, page, size);
-            
+            Map<String, Object> result;
+            String monthYear = (month == null) ? null : month.trim();
+            if (monthYear != null && !monthYear.isEmpty()) {
+                // 当仅选择月份时，默认展示该月的全部状态数据（不按“待处理”过滤）
+                result = smartOperationAlertService.getAlertsDataWithPagination(region, "", page, size, monthYear);
+            } else {
+                result = smartOperationAlertService.getAlertsDataWithPagination(region, status.trim(), page, size);
+            }
+
             log.info("获取实时监控预警数据成功，页码: {}, 大小: {}, 状态: {}, 区域: {}, 月份: {}", page, size, status, region, month);
             return Result.success("获取实时监控预警数据成功", result);
         } catch (Exception e) {
@@ -113,8 +243,8 @@ public class SmartOperationController {
     @GetMapping("/ai-tasks")
     @ApiOperation("获取AI推荐任务数据")
     public Result getAiTasks(@RequestParam(defaultValue = "1") int page,
-                            @RequestParam(defaultValue = "10") int size,
-                            @RequestParam(required = false) String month) {
+                             @RequestParam(defaultValue = "10") int size,
+                             @RequestParam(required = false) String month) {
         try {
             // 使用Service层获取AI任务数据
             Map<String, Object> result;
@@ -123,7 +253,7 @@ public class SmartOperationController {
             } else {
                 result = smartMarketingTaskService.getAiTasksData("待执行", "AI推荐");
             }
-            
+
             log.info("获取AI推荐任务数据成功，页码: {}, 大小: {}, 月份: {}", page, size, month);
             return Result.success("获取AI推荐任务数据成功", result);
         } catch (Exception e) {
@@ -138,8 +268,8 @@ public class SmartOperationController {
     @GetMapping("/marketing-tasks")
     @ApiOperation("获取AI推荐营销任务数据")
     public Result getMarketingTasks(@RequestParam(defaultValue = "1") int page,
-                                   @RequestParam(defaultValue = "10") int size,
-                                   @RequestParam(required = false) String month) {
+                                    @RequestParam(defaultValue = "10") int size,
+                                    @RequestParam(required = false) String month) {
         try {
             // 使用Service层获取营销任务数据，不过滤任务类型，返回所有待执行的任务
             Map<String, Object> result;
@@ -148,7 +278,7 @@ public class SmartOperationController {
             } else {
                 result = smartMarketingTaskService.getMarketingTasksData("待执行", null);
             }
-            
+
             log.info("获取AI推荐营销任务数据成功，页码: {}, 大小: {}, 月份: {}", page, size, month);
             return Result.success("获取AI推荐营销任务数据成功", result);
         } catch (Exception e) {
@@ -166,13 +296,19 @@ public class SmartOperationController {
                                    @RequestParam(required = false) String profileType,
                                    @RequestParam(required = false) String regionCode) {
         try {
+            log.info("[member-profile] 请求开始, month={}, profileType={}, regionCode={}", month, profileType, regionCode);
             Map<String, Object> profileData;
             if (month != null && !month.trim().isEmpty()) {
                 profileData = memberProfileAnalysisService.getMemberProfileData(profileType, regionCode, month);
             } else {
                 profileData = memberProfileAnalysisService.getMemberProfileData(profileType, regionCode);
             }
-            
+            int listSize = 0;
+            Object listObj = profileData != null ? profileData.get("profileList") : null;
+            if (listObj instanceof java.util.List) {
+                listSize = ((java.util.List<?>) listObj).size();
+            }
+            log.info("[member-profile] 请求结束, month={}, 返回条数={}", month, listSize);
             return Result.success("获取会员画像分析数据成功", profileData);
         } catch (Exception e) {
             log.error("获取会员画像分析数据失败: {}", e.getMessage(), e);
@@ -189,11 +325,11 @@ public class SmartOperationController {
         try {
             // 直接查询最新的会员画像分析数据，不传任何参数
             List<MemberProfileAnalysis> profileList = memberProfileAnalysisService.selectLatestMemberProfileAnalysis(null, null);
-            
+
             Map<String, Object> result = new HashMap<>();
             result.put("profileList", profileList);
             result.put("totalCount", profileList.size());
-            
+
             log.info("测试获取会员画像分析数据成功，共{}条记录", profileList.size());
             return Result.success("测试获取会员画像分析数据成功", result);
         } catch (Exception e) {
@@ -210,6 +346,8 @@ public class SmartOperationController {
     public void downloadMemberProfileImportTemplate(HttpServletResponse response) {
         try {
             ExcelUtil<MemberProfileAnalysis> util = new ExcelUtil<>(MemberProfileAnalysis.class);
+            // 显式设置下载文件名
+            FileUtils.setAttachmentResponseHeader(response, "会员画像.xlsx");
             util.importTemplateExcel(response, "会员画像数据", "会员画像导入模板");
         } catch (Exception e) {
             log.error("下载会员画像Excel导入模板失败: {}", e.getMessage(), e);
@@ -264,22 +402,350 @@ public class SmartOperationController {
     }
 
     /**
+     * 下载智能运营预警Excel导入模板
+     */
+    @GetMapping("/alerts/import/template")
+    @ApiOperation("下载智能运营预警Excel导入模板")
+    public void downloadAlertsImportTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<com.omniperform.system.domain.SmartOperationAlert> util = new ExcelUtil<>(com.omniperform.system.domain.SmartOperationAlert.class);
+            java.util.List<com.omniperform.system.domain.SmartOperationAlert> sample = createSmartOperationAlertSampleData();
+            FileUtils.setAttachmentResponseHeader(response, "预警.xlsx");
+            util.exportExcel(response, sample, "预警导入模板");
+        } catch (Exception e) {
+            log.error("下载智能运营预警Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 导入智能运营预警Excel数据（按预警编号去重，存在则更新）
+     */
+    @PostMapping("/alerts/import")
+    @ApiOperation("导入智能运营预警Excel数据")
+    public Result<Map<String, Object>> importAlerts(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+        try {
+            ExcelUtil<com.omniperform.system.domain.SmartOperationAlert> util = new ExcelUtil<>(com.omniperform.system.domain.SmartOperationAlert.class);
+            List<com.omniperform.system.domain.SmartOperationAlert> dataList = util.importExcel(file.getInputStream());
+            if (dataList == null || dataList.isEmpty()) {
+                return Result.error("导入数据为空");
+            }
+
+            for (int i = 0; i < dataList.size(); i++) {
+                com.omniperform.system.domain.SmartOperationAlert data = dataList.get(i);
+                try {
+                    // 规范化字符串，避免状态/区域因空格或大小写不一致导致查询不到
+                    if (data.getStatus() != null) {
+                        data.setStatus(data.getStatus().trim());
+                    }
+                    if (data.getRegion() != null) {
+                        data.setRegion(data.getRegion().trim());
+                    }
+
+                    // 规范化/自动补全月份字段 monthYear（统一为：YYYY-MM），供前端按月筛选
+                    String normalizedMonthYear = null;
+                    String rawMonthYear = data.getMonthYear();
+                    if (rawMonthYear == null || rawMonthYear.trim().isEmpty()) {
+                        // 无显式月份时，基于处理时间推断
+                        java.util.Date pt = data.getProcessTime();
+                        java.time.LocalDate ld;
+                        if (pt != null) {
+                            ld = pt.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+                        } else {
+                            ld = java.time.LocalDate.now();
+                        }
+                        normalizedMonthYear = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                    } else {
+                        rawMonthYear = rawMonthYear.trim();
+                        try {
+                            // 支持：YYYY-MM、YYYY/M、YYYY/MM
+                            if (rawMonthYear.matches("^\\d{4}-\\d{1,2}$") || rawMonthYear.matches("^\\d{4}/\\d{1,2}$")) {
+                                String sep = rawMonthYear.contains("/") ? "/" : "-";
+                                String[] parts = rawMonthYear.split(sep);
+                                String mm = parts[1].length() == 1 ? ("0" + parts[1]) : parts[1];
+                                normalizedMonthYear = parts[0] + "-" + mm;
+                            }
+                            // 支持：YYYY年M月 或 YYYY年MM月
+                            else if (rawMonthYear.matches("^\\d{4}年\\d{1,2}月$")) {
+                                String year = rawMonthYear.substring(0, 4);
+                                String monthStr = rawMonthYear.substring(5, rawMonthYear.length() - 1);
+                                String mm = monthStr.length() == 1 ? ("0" + monthStr) : monthStr;
+                                normalizedMonthYear = year + "-" + mm;
+                            }
+                            // 支持：YYYY-M-D 或 YYYY-MM-DD（取年-月）
+                            else if (rawMonthYear.matches("^\\d{4}-\\d{1,2}-\\d{1,2}$")) {
+                                java.time.LocalDate ld = java.time.LocalDate.parse(rawMonthYear, java.time.format.DateTimeFormatter.ofPattern("yyyy-M-d"));
+                                normalizedMonthYear = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                            } else if (rawMonthYear.matches("^\\d{4}-\\d{2}-\\d{2}$")) {
+                                java.time.LocalDate ld = java.time.LocalDate.parse(rawMonthYear, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                                normalizedMonthYear = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                            }
+                            // 兜底：替换中文与斜杠为连字符，并提取前两段
+                            else {
+                                String candidate = rawMonthYear.replace("年", "-").replace("月", "").replace("/", "-");
+                                candidate = candidate.replaceAll("\\s+", "");
+                                java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d{4})-(\\d{1,2})").matcher(candidate);
+                                if (m.find()) {
+                                    String year = m.group(1);
+                                    String monthStr = m.group(2);
+                                    String mm = monthStr.length() == 1 ? ("0" + monthStr) : monthStr;
+                                    normalizedMonthYear = year + "-" + mm;
+                                } else {
+                                    java.time.LocalDate now = java.time.LocalDate.now();
+                                    normalizedMonthYear = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                                }
+                            }
+                        } catch (Exception pe) {
+                            java.time.LocalDate now = java.time.LocalDate.now();
+                            normalizedMonthYear = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                        }
+                    }
+                    data.setMonthYear(normalizedMonthYear);
+                    // 查重：按alertId
+                    com.omniperform.system.domain.SmartOperationAlert existing = smartOperationAlertService.selectSmartOperationAlertByAlertId(data.getAlertId());
+                    if (existing != null && existing.getId() != null) {
+                        data.setId(existing.getId());
+                        smartOperationAlertService.updateSmartOperationAlert(data);
+                    } else {
+                        smartOperationAlertService.insertSmartOperationAlert(data);
+                    }
+                    successCount++;
+                } catch (Exception e) {
+                    failCount++;
+                    String msg = "第" + (i + 1) + "条数据处理失败: " + e.getMessage();
+                    errors.add(msg);
+                    log.error(msg, e);
+                }
+            }
+
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("errors", errors);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("导入智能运营预警Excel失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 下载AI推荐营销任务Excel导入模板
+     */
+    @GetMapping("/marketing-tasks/import/template")
+    @ApiOperation("下载AI推荐营销任务Excel导入模板")
+    public void downloadMarketingTasksImportTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<com.omniperform.system.domain.SmartMarketingTask> util = new ExcelUtil<>(com.omniperform.system.domain.SmartMarketingTask.class);
+            java.util.List<com.omniperform.system.domain.SmartMarketingTask> sample = createSmartMarketingTaskSampleData();
+            FileUtils.setAttachmentResponseHeader(response, "AI推荐营销任务.xlsx");
+            util.exportExcel(response, sample, "AI推荐营销任务导入模板");
+        } catch (Exception e) {
+            log.error("下载AI推荐营销任务Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 导入AI推荐营销任务Excel数据（按任务编号去重，存在则更新）
+     */
+    @PostMapping("/marketing-tasks/import")
+    @ApiOperation("导入AI推荐营销任务Excel数据")
+    public Result<Map<String, Object>> importMarketingTasks(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+        try {
+            ExcelUtil<com.omniperform.system.domain.SmartMarketingTask> util = new ExcelUtil<>(com.omniperform.system.domain.SmartMarketingTask.class);
+            List<com.omniperform.system.domain.SmartMarketingTask> dataList = util.importExcel(file.getInputStream());
+            if (dataList == null || dataList.isEmpty()) {
+                return Result.error("导入数据为空");
+            }
+
+            for (int i = 0; i < dataList.size(); i++) {
+                com.omniperform.system.domain.SmartMarketingTask data = dataList.get(i);
+                try {
+                    com.omniperform.system.domain.SmartMarketingTask existing = smartMarketingTaskService.selectSmartMarketingTaskByTaskId(data.getTaskId());
+                    if (existing != null && existing.getId() != null) {
+                        data.setId(existing.getId());
+                        smartMarketingTaskService.updateSmartMarketingTask(data);
+                    } else {
+                        smartMarketingTaskService.insertSmartMarketingTask(data);
+                    }
+                    successCount++;
+                } catch (Exception e) {
+                    failCount++;
+                    String msg = "第" + (i + 1) + "条数据处理失败: " + e.getMessage();
+                    errors.add(msg);
+                    log.error(msg, e);
+                }
+            }
+
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("errors", errors);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("导入AI推荐营销任务Excel失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 下载数据闭环优化效果Excel导入模板
+     */
+    @GetMapping("/optimization-effect/import/template")
+    @ApiOperation("下载数据闭环优化效果Excel导入模板")
+    public void downloadOptimizationEffectImportTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<com.omniperform.system.domain.OptimizationEffectData> util = new ExcelUtil<>(com.omniperform.system.domain.OptimizationEffectData.class);
+            java.util.List<com.omniperform.system.domain.OptimizationEffectData> sample = createOptimizationEffectSampleData();
+            FileUtils.setAttachmentResponseHeader(response, "数据闭环优化效果.xlsx");
+            util.exportExcel(response, sample, "优化效果数据导入模板");
+        } catch (Exception e) {
+            log.error("下载优化效果Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 导入数据闭环优化效果Excel数据（按日期+指标+区域去重）
+     */
+    @PostMapping("/optimization-effect/import")
+    @ApiOperation("导入数据闭环优化效果Excel数据")
+    public Result<Map<String, Object>> importOptimizationEffect(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+        try {
+            ExcelUtil<com.omniperform.system.domain.OptimizationEffectData> util = new ExcelUtil<>(com.omniperform.system.domain.OptimizationEffectData.class);
+            List<com.omniperform.system.domain.OptimizationEffectData> dataList = util.importExcel(file.getInputStream());
+            if (dataList == null || dataList.isEmpty()) {
+                return Result.error("导入数据为空");
+            }
+
+            for (int i = 0; i < dataList.size(); i++) {
+                com.omniperform.system.domain.OptimizationEffectData data = dataList.get(i);
+                try {
+                    optimizationEffectDataService.upsert(data);
+                    successCount++;
+                } catch (Exception e) {
+                    failCount++;
+                    String msg = "第" + (i + 1) + "条数据处理失败: " + e.getMessage();
+                    errors.add(msg);
+                    log.error(msg, e);
+                }
+            }
+
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("errors", errors);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("导入优化效果Excel失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 下载最佳触达时间Excel导入模板
+     */
+    @GetMapping("/best-touch-time/import/template")
+    @ApiOperation("下载最佳触达时间Excel导入模板")
+    public void downloadBestTouchTimeImportTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<com.omniperform.system.domain.BestTouchTimeAnalysis> util = new ExcelUtil<>(com.omniperform.system.domain.BestTouchTimeAnalysis.class);
+            java.util.List<com.omniperform.system.domain.BestTouchTimeAnalysis> sample = createBestTouchTimeSampleData();
+            FileUtils.setAttachmentResponseHeader(response, "最佳触达时间.xlsx");
+            util.exportExcel(response, sample, "最佳触达时间导入模板");
+        } catch (Exception e) {
+            log.error("下载最佳触达时间Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 导入最佳触达时间Excel数据（按日期+时间段+区域去重）
+     */
+    @PostMapping("/best-touch-time/import")
+    @ApiOperation("导入最佳触达时间Excel数据")
+    public Result<Map<String, Object>> importBestTouchTime(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+        try {
+            ExcelUtil<com.omniperform.system.domain.BestTouchTimeAnalysis> util = new ExcelUtil<>(com.omniperform.system.domain.BestTouchTimeAnalysis.class);
+            List<com.omniperform.system.domain.BestTouchTimeAnalysis> dataList = util.importExcel(file.getInputStream());
+            if (dataList == null || dataList.isEmpty()) {
+                return Result.error("导入数据为空");
+            }
+
+            for (int i = 0; i < dataList.size(); i++) {
+                com.omniperform.system.domain.BestTouchTimeAnalysis data = dataList.get(i);
+                try {
+                    bestTouchTimeAnalysisService.upsert(data);
+                    successCount++;
+                } catch (Exception e) {
+                    failCount++;
+                    String msg = "第" + (i + 1) + "条数据处理失败: " + e.getMessage();
+                    errors.add(msg);
+                    log.error(msg, e);
+                }
+            }
+
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("errors", errors);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("导入最佳触达时间Excel失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 获取最佳触达时间数据
      */
     @GetMapping("/best-touch-time")
     @ApiOperation("获取最佳触达时间数据")
-    public Result getBestTouchTime() {
+    public Result getBestTouchTime(@RequestParam(defaultValue = "") String month) {
         try {
             Map<String, Object> touchTimeData = new HashMap<>();
-            
-            // 最佳触达时间柱状图数据
-            List<String> timeSlots = Arrays.asList("6-8点", "8-10点", "10-12点", "12-14点", "14-16点", "16-18点", "18-20点", "20-22点", "22-24点");
-            List<Integer> responseRates = Arrays.asList(15, 22, 35, 28, 25, 30, 42, 65, 38);
-            
+
+            List<String> timeSlots;
+            List<Integer> responseRates;
+
+            log.info("[best-touch-time] 请求开始, month={}", month);
+            if (month != null && !month.isEmpty()) {
+                List<com.omniperform.system.domain.BestTouchTimeAnalysis> list = bestTouchTimeAnalysisService.listByMonth(month, null);
+                if (list != null && !list.isEmpty()) {
+                    timeSlots = new ArrayList<>();
+                    responseRates = new ArrayList<>();
+                    for (com.omniperform.system.domain.BestTouchTimeAnalysis r : list) {
+                        if (r.getTimeSlot() != null) {
+                            timeSlots.add(r.getTimeSlot());
+                        } else {
+                            timeSlots.add("未知时段");
+                        }
+                        responseRates.add(r.getResponseRate() == null ? 0 : r.getResponseRate().setScale(0, java.math.RoundingMode.HALF_UP).intValue());
+                    }
+                    touchTimeData.put("timeSlots", timeSlots);
+                    touchTimeData.put("responseRates", responseRates);
+                    log.info("[best-touch-time] 请求结束, month={}, slots={}, rates={}", month, timeSlots.size(), responseRates.size());
+                    return Result.success("获取最佳触达时间数据成功", touchTimeData);
+                }
+            }
+
+            // 兜底：静态示例数据
+            timeSlots = Arrays.asList("6-8点", "8-10点", "10-12点", "12-14点", "14-16点", "16-18点", "18-20点", "20-22点", "22-24点");
+            responseRates = Arrays.asList(15, 22, 35, 28, 25, 30, 42, 65, 38);
+
             touchTimeData.put("timeSlots", timeSlots);
             touchTimeData.put("responseRates", responseRates);
-            
-            log.info("获取最佳触达时间数据成功");
+
+            log.info("[best-touch-time] 使用示例数据, month={}, slots={}, rates={}", (month == null || month.isEmpty() ? "未指定" : month), timeSlots.size(), responseRates.size());
             return Result.success("获取最佳触达时间数据成功", touchTimeData);
         } catch (Exception e) {
             log.error("获取最佳触达时间数据失败: {}", e.getMessage(), e);
@@ -292,22 +758,62 @@ public class SmartOperationController {
      */
     @GetMapping("/optimization-effect")
     @ApiOperation("获取数据闭环优化效果数据")
-    public Result getOptimizationEffect() {
+    public Result getOptimizationEffect(@RequestParam(defaultValue = "") String month) {
         try {
             Map<String, Object> effectData = new HashMap<>();
-            
-            // 数据闭环优化效果折线图数据
+
+            if (month != null && !month.isEmpty()) {
+                List<com.omniperform.system.domain.OptimizationEffectData> list = optimizationEffectDataService.listByMonth(month, null);
+                if (list != null && !list.isEmpty()) {
+                    // 计算每个指标在当月的均值，并生成4周的稳定趋势
+                    Map<String, java.math.BigDecimal> sum = new HashMap<>();
+                    Map<String, Integer> cnt = new HashMap<>();
+                    for (com.omniperform.system.domain.OptimizationEffectData d : list) {
+                        if (d.getMetricName() == null || d.getMetricValue() == null) continue;
+                        java.math.BigDecimal s = sum.getOrDefault(d.getMetricName(), java.math.BigDecimal.ZERO);
+                        sum.put(d.getMetricName(), s.add(d.getMetricValue()));
+                        cnt.put(d.getMetricName(), cnt.getOrDefault(d.getMetricName(), 0) + 1);
+                    }
+
+                    java.util.function.Function<String, Double> avg = name -> {
+                        java.math.BigDecimal s = sum.get(name);
+                        Integer c = cnt.get(name);
+                        if (s == null || c == null || c == 0) return null;
+                        return s.divide(new java.math.BigDecimal(c), 2, java.math.RoundingMode.HALF_UP).doubleValue();
+                    };
+
+                    List<String> weeks = Arrays.asList("第1周", "第2周", "第3周", "第4周");
+                    Double motAvg = avg.apply("MOT执行率");
+                    Double actAvg = avg.apply("会员活跃度");
+                    Double repAvg = avg.apply("复购率");
+
+                    List<Double> motExecutionRates = motAvg == null ? Collections.emptyList() : Arrays.asList(motAvg, motAvg, motAvg, motAvg);
+                    List<Double> memberActivityRates = actAvg == null ? Collections.emptyList() : Arrays.asList(actAvg, actAvg, actAvg, actAvg);
+                    List<Double> repurchaseRates = repAvg == null ? Collections.emptyList() : Arrays.asList(repAvg, repAvg, repAvg, repAvg);
+
+                    if (!motExecutionRates.isEmpty() || !memberActivityRates.isEmpty() || !repurchaseRates.isEmpty()) {
+                        effectData.put("months", weeks);
+                        effectData.put("motExecutionRates", motExecutionRates);
+                        effectData.put("memberActivityRates", memberActivityRates);
+                        effectData.put("repurchaseRates", repurchaseRates);
+                        log.info("获取数据闭环优化效果数据成功，月份: {}", month);
+                        return Result.success("获取数据闭环优化效果数据成功", effectData);
+                    }
+                }
+            }
+
+            // 兜底：静态示例数据（12周趋势）
             List<String> months = Arrays.asList("第1周", "第2周", "第3周", "第4周", "第5周", "第6周", "第7周", "第8周", "第9周", "第10周", "第11周", "第12周");
             List<Double> motExecutionRates = Arrays.asList(62.5, 63.2, 64.1, 65.8, 67.2, 68.5, 70.1, 71.5, 73.2, 74.8, 76.5, 78.3);
             List<Double> memberActivityRates = Arrays.asList(55.2, 56.5, 57.1, 58.3, 59.2, 60.5, 61.8, 62.5, 63.2, 64.1, 64.8, 65.2);
             List<Double> repurchaseRates = Arrays.asList(32.5, 33.1, 33.8, 34.2, 34.9, 35.5, 36.2, 36.8, 37.5, 38.2, 38.9, 39.5);
-            
+
             effectData.put("months", months);
             effectData.put("motExecutionRates", motExecutionRates);
             effectData.put("memberActivityRates", memberActivityRates);
             effectData.put("repurchaseRates", repurchaseRates);
-            
-            log.info("获取数据闭环优化效果数据成功");
+
+            log.info("获取数据闭环优化效果数据成功（使用示例数据），月份: {}", month == null || month.isEmpty() ? "未指定" : month);
             return Result.success("获取数据闭环优化效果数据成功", effectData);
         } catch (Exception e) {
             log.error("获取数据闭环优化效果数据失败: {}", e.getMessage(), e);
@@ -323,53 +829,53 @@ public class SmartOperationController {
     public Result getTechArchitecture() {
         try {
             Map<String, Object> architectureData = new HashMap<>();
-            
+
             // 技术架构桑基图数据 - 与前端完全匹配
             List<Map<String, Object>> data = new ArrayList<>();
             List<Map<String, Object>> links = new ArrayList<>();
-            
+
             // 节点数据
             String[] nodeNames = {
-                "数据源", "数据采集", "数据仓库", "数据处理", "分析引擎", "机器学习", "规则引擎",
-                "会员管理", "营销自动化", "预警监控", "决策支持", "企业微信", "短信系统", "APP推送", "邮件系统"
+                    "数据源", "数据采集", "数据仓库", "数据处理", "分析引擎", "机器学习", "规则引擎",
+                    "会员管理", "营销自动化", "预警监控", "决策支持", "企业微信", "短信系统", "APP推送", "邮件系统"
             };
-            
+
             for (String nodeName : nodeNames) {
                 Map<String, Object> node = new HashMap<>();
                 node.put("name", nodeName);
                 data.add(node);
             }
-            
+
             // 连接数据 - 与前端桑基图完全匹配
             Object[][] linkData = {
-                {"数据源", "数据采集", 1},
-                {"数据采集", "数据仓库", 1},
-                {"数据仓库", "数据处理", 1},
-                {"数据处理", "分析引擎", 0.7},
-                {"数据处理", "机器学习", 0.5},
-                {"数据处理", "规则引擎", 0.3},
-                {"分析引擎", "会员管理", 0.3},
-                {"分析引擎", "营销自动化", 0.2},
-                {"分析引擎", "预警监控", 0.2},
-                {"分析引擎", "决策支持", 0.2},
-                {"机器学习", "会员管理", 0.1},
-                {"机器学习", "营销自动化", 0.3},
-                {"机器学习", "决策支持", 0.1},
-                {"规则引擎", "预警监控", 0.2},
-                {"规则引擎", "营销自动化", 0.1},
-                {"会员管理", "企业微信", 0.1},
-                {"会员管理", "短信系统", 0.1},
-                {"会员管理", "APP推送", 0.1},
-                {"营销自动化", "企业微信", 0.2},
-                {"营销自动化", "短信系统", 0.1},
-                {"营销自动化", "APP推送", 0.1},
-                {"营销自动化", "邮件系统", 0.1},
-                {"预警监控", "企业微信", 0.1},
-                {"预警监控", "短信系统", 0.1},
-                {"决策支持", "企业微信", 0.1},
-                {"决策支持", "邮件系统", 0.1}
+                    {"数据源", "数据采集", 1},
+                    {"数据采集", "数据仓库", 1},
+                    {"数据仓库", "数据处理", 1},
+                    {"数据处理", "分析引擎", 0.7},
+                    {"数据处理", "机器学习", 0.5},
+                    {"数据处理", "规则引擎", 0.3},
+                    {"分析引擎", "会员管理", 0.3},
+                    {"分析引擎", "营销自动化", 0.2},
+                    {"分析引擎", "预警监控", 0.2},
+                    {"分析引擎", "决策支持", 0.2},
+                    {"机器学习", "会员管理", 0.1},
+                    {"机器学习", "营销自动化", 0.3},
+                    {"机器学习", "决策支持", 0.1},
+                    {"规则引擎", "预警监控", 0.2},
+                    {"规则引擎", "营销自动化", 0.1},
+                    {"会员管理", "企业微信", 0.1},
+                    {"会员管理", "短信系统", 0.1},
+                    {"会员管理", "APP推送", 0.1},
+                    {"营销自动化", "企业微信", 0.2},
+                    {"营销自动化", "短信系统", 0.1},
+                    {"营销自动化", "APP推送", 0.1},
+                    {"营销自动化", "邮件系统", 0.1},
+                    {"预警监控", "企业微信", 0.1},
+                    {"预警监控", "短信系统", 0.1},
+                    {"决策支持", "企业微信", 0.1},
+                    {"决策支持", "邮件系统", 0.1}
             };
-            
+
             for (Object[] link : linkData) {
                 Map<String, Object> linkMap = new HashMap<>();
                 linkMap.put("source", link[0]);
@@ -377,10 +883,10 @@ public class SmartOperationController {
                 linkMap.put("value", link[2]);
                 links.add(linkMap);
             }
-            
+
             architectureData.put("data", data);
             architectureData.put("links", links);
-            
+
             return Result.success("获取智能运营技术架构数据成功", architectureData);
         } catch (Exception e) {
             log.error("获取智能运营技术架构数据失败: {}", e.getMessage(), e);
@@ -396,17 +902,17 @@ public class SmartOperationController {
     public Result getBestPractices() {
         try {
             List<Map<String, Object>> practices = new ArrayList<>();
-            
+
             String[] guideNames = {"张小丽", "李明华", "王雅琪", "赵晓燕", "钱志强"};
             String[] regions = {"华东区", "华南区", "华中区", "华北区", "西南区"};
             String[] practices_desc = {
-                "建立客户档案，定期跟进，提供个性化服务",
-                "利用社群营销，增强客户粘性和转介绍",
-                "专业知识分享，建立专家形象和信任度",
-                "及时响应客户需求，提供优质售后服务",
-                "数据驱动决策，精准营销和客户管理"
+                    "建立客户档案，定期跟进，提供个性化服务",
+                    "利用社群营销，增强客户粘性和转介绍",
+                    "专业知识分享，建立专家形象和信任度",
+                    "及时响应客户需求，提供优质售后服务",
+                    "数据驱动决策，精准营销和客户管理"
             };
-            
+
             for (int i = 0; i < guideNames.length; i++) {
                 Map<String, Object> practice = new HashMap<>();
                 practice.put("guideName", guideNames[i]);
@@ -416,7 +922,7 @@ public class SmartOperationController {
                 practice.put("improvement", "+" + (15 + i * 3) + "%");
                 practices.add(practice);
             }
-            
+
             return Result.success("获取精英导购最佳实践数据成功", practices);
         } catch (Exception e) {
             log.error("获取精英导购最佳实践数据失败: {}", e.getMessage(), e);
@@ -432,18 +938,18 @@ public class SmartOperationController {
     public Result getRegionalStrategies() {
         try {
             List<Map<String, Object>> strategies = new ArrayList<>();
-            
+
             String[] regions = {"华东区", "华南区", "华中区", "华北区", "西南区"};
             String[] strategies_desc = {
-                "重点发展线上渠道，提升数字化体验",
-                "加强社群运营，利用口碑传播优势",
-                "注重性价比宣传，满足理性消费需求",
-                "强化品牌形象，提升高端产品占比",
-                "深耕下沉市场，扩大品牌覆盖面"
+                    "重点发展线上渠道，提升数字化体验",
+                    "加强社群运营，利用口碑传播优势",
+                    "注重性价比宣传，满足理性消费需求",
+                    "强化品牌形象，提升高端产品占比",
+                    "深耕下沉市场，扩大品牌覆盖面"
             };
-            
+
             String[] focuses = {"数字化", "社群化", "性价比", "品牌化", "下沉化"};
-            
+
             for (int i = 0; i < regions.length; i++) {
                 Map<String, Object> strategy = new HashMap<>();
                 strategy.put("region", regions[i]);
@@ -453,7 +959,7 @@ public class SmartOperationController {
                 strategy.put("expectedROI", (120 + i * 10) + "%");
                 strategies.add(strategy);
             }
-            
+
             return Result.success("获取区域差异化策略数据成功", strategies);
         } catch (Exception e) {
             log.error("获取区域差异化策略数据失败: {}", e.getMessage(), e);
@@ -471,22 +977,22 @@ public class SmartOperationController {
             String memberProfile = (String) request.get("memberProfile");
             String marketingGoal = (String) request.get("marketingGoal");
             List<String> channels = (List<String>) request.get("channels");
-            
+
             log.info("收到生成内容请求 - 会员画像: {}, 营销目标: {}, 渠道: {}", memberProfile, marketingGoal, channels);
-            
+
             // 模拟内容生成逻辑
             Map<String, Object> generatedContent = new HashMap<>();
-            
+
             // 根据会员画像和营销目标生成内容
             String contentTitle = generateContentTitle(memberProfile, marketingGoal);
             String contentBody = generateContentBody(memberProfile, marketingGoal);
             List<String> channelStrategies = generateChannelStrategies(channels);
-            
+
             generatedContent.put("title", contentTitle);
             generatedContent.put("content", contentBody);
             generatedContent.put("channels", channelStrategies);
             generatedContent.put("generatedAt", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            
+
             log.info("生成推荐内容成功");
             return Result.success("生成推荐内容成功", generatedContent);
         } catch (Exception e) {
@@ -509,7 +1015,7 @@ public class SmartOperationController {
         titleTemplates.put("价格敏感型_提升复购率", "超值回购福利，让实惠成为习惯");
         titleTemplates.put("价格敏感型_增加客单价", "组合优惠套装，更多选择更多实惠");
         titleTemplates.put("价格敏感型_促进新品试用", "新品特价体验，好产品不贵才是真的好");
-        
+
         String key = memberProfile + "_" + marketingGoal;
         return titleTemplates.getOrDefault(key, "专属推荐内容，为您精心定制");
     }
@@ -519,7 +1025,7 @@ public class SmartOperationController {
      */
     private String generateContentBody(String memberProfile, String marketingGoal) {
         StringBuilder content = new StringBuilder();
-        
+
         // 根据会员画像定制开头
         switch (memberProfile) {
             case "品质追求型":
@@ -534,7 +1040,7 @@ public class SmartOperationController {
             default:
                 content.append("尊敬的客户，我们为您精心准备了专属推荐。");
         }
-        
+
         // 根据营销目标定制内容
         switch (marketingGoal) {
             case "提升复购率":
@@ -549,7 +1055,7 @@ public class SmartOperationController {
             default:
                 content.append("我们为您准备了精选推荐，希望能为您带来更好的体验。");
         }
-        
+
         return content.toString();
     }
 
@@ -558,7 +1064,7 @@ public class SmartOperationController {
      */
     private List<String> generateChannelStrategies(List<String> channels) {
         List<String> strategies = new ArrayList<>();
-        
+
         if (channels != null) {
             for (String channel : channels) {
                 switch (channel) {
@@ -577,7 +1083,382 @@ public class SmartOperationController {
                 }
             }
         }
-        
+
         return strategies;
     }
+
+    /**
+     * 构造智能运营概览示例数据（含2025-01与2025-02）
+     */
+    private java.util.List<com.omniperform.system.domain.SmartOperationOverview> createSmartOperationOverviewSampleData() {
+        java.util.List<com.omniperform.system.domain.SmartOperationOverview> list = new java.util.ArrayList<>();
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            com.omniperform.system.domain.SmartOperationOverview jan = new com.omniperform.system.domain.SmartOperationOverview();
+            jan.setStatDate(sdf.parse("2025-01-31"));
+            jan.setMonthYear("2025-01");
+            jan.setTodayAlerts(12);
+            jan.setAiRecommendedTasks(8);
+            jan.setMotExecutionRate(new java.math.BigDecimal("76.5"));
+            jan.setMemberActivityRate(new java.math.BigDecimal("42.3"));
+            jan.setRegionCode("CN");
+
+            com.omniperform.system.domain.SmartOperationOverview feb = new com.omniperform.system.domain.SmartOperationOverview();
+            feb.setStatDate(sdf.parse("2025-02-28"));
+            feb.setMonthYear("2025-02");
+            feb.setTodayAlerts(15);
+            feb.setAiRecommendedTasks(10);
+            feb.setMotExecutionRate(new java.math.BigDecimal("79.2"));
+            feb.setMemberActivityRate(new java.math.BigDecimal("44.8"));
+            feb.setRegionCode("CN");
+
+            list.add(jan);
+            list.add(feb);
+        } catch (Exception ignore) {
+        }
+        return list;
+    }
+
+    /**
+     * 构造智能运营预警示例数据（用处理时间体现2025-01与2025-02）
+     */
+    private java.util.List<com.omniperform.system.domain.SmartOperationAlert> createSmartOperationAlertSampleData() {
+        java.util.List<com.omniperform.system.domain.SmartOperationAlert> list = new java.util.ArrayList<>();
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            com.omniperform.system.domain.SmartOperationAlert a1 = new com.omniperform.system.domain.SmartOperationAlert();
+            a1.setAlertId("AL202501001");
+            a1.setAlertType("会员流失风险");
+            a1.setAlertContent("过去30天未复购，建议回访");
+            a1.setSeverity("中");
+            a1.setStatus("待处理");
+            a1.setRegion("CN-North");
+            a1.setMemberId(10001L);
+            a1.setGuideId(20001L);
+            a1.setProcessTime(sdf.parse("2025-01-20 10:30:00"));
+
+            com.omniperform.system.domain.SmartOperationAlert a2 = new com.omniperform.system.domain.SmartOperationAlert();
+            a2.setAlertId("AL202502001");
+            a2.setAlertType("销售异常");
+            a2.setAlertContent("当日销量异常下降，需核查");
+            a2.setSeverity("高");
+            a2.setStatus("处理中");
+            a2.setRegion("CN-East");
+            a2.setMemberId(10002L);
+            a2.setGuideId(20002L);
+            a2.setProcessTime(sdf.parse("2025-02-18 15:45:00"));
+
+            // 新增示例：2025-05、2025-06、2025-07
+            com.omniperform.system.domain.SmartOperationAlert a3 = new com.omniperform.system.domain.SmartOperationAlert();
+            a3.setAlertId("AL202505001");
+            a3.setAlertType("库存预警");
+            a3.setAlertContent("热门SKU库存低于安全线");
+            a3.setSeverity("中");
+            a3.setStatus("待处理");
+            a3.setRegion("CN-South");
+            a3.setMemberId(10003L);
+            a3.setGuideId(20003L);
+            a3.setProcessTime(sdf.parse("2025-05-12 09:20:00"));
+
+            com.omniperform.system.domain.SmartOperationAlert a4 = new com.omniperform.system.domain.SmartOperationAlert();
+            a4.setAlertId("AL202506001");
+            a4.setAlertType("服务质量");
+            a4.setAlertContent("客服满意度下降，需培训跟进");
+            a4.setSeverity("低");
+            a4.setStatus("处理中");
+            a4.setRegion("CN-North");
+            a4.setMemberId(10004L);
+            a4.setGuideId(20004L);
+            a4.setProcessTime(sdf.parse("2025-06-22 14:10:00"));
+
+            com.omniperform.system.domain.SmartOperationAlert a5 = new com.omniperform.system.domain.SmartOperationAlert();
+            a5.setAlertId("AL202507001");
+            a5.setAlertType("系统异常");
+            a5.setAlertContent("支付回调延迟，订单确认异常");
+            a5.setSeverity("高");
+            a5.setStatus("已处理");
+            a5.setRegion("CN-East");
+            a5.setMemberId(10005L);
+            a5.setGuideId(20005L);
+            a5.setProcessTime(sdf.parse("2025-07-03 11:05:00"));
+
+            list.add(a1);
+            list.add(a2);
+            list.add(a3);
+            list.add(a4);
+            list.add(a5);
+        } catch (Exception ignore) {
+        }
+        return list;
+    }
+
+    /**
+     * 构造AI推荐营销任务示例数据（用推荐/执行时间体现月份）
+     */
+    private java.util.List<com.omniperform.system.domain.SmartMarketingTask> createSmartMarketingTaskSampleData() {
+        java.util.List<com.omniperform.system.domain.SmartMarketingTask> list = new java.util.ArrayList<>();
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            // 2025-01 多条示例
+            com.omniperform.system.domain.SmartMarketingTask jan1 = new com.omniperform.system.domain.SmartMarketingTask();
+            jan1.setTaskId("MT202501001");
+            jan1.setTaskName("春节复购提升");
+            jan1.setTaskType("个性化推荐");
+            jan1.setTargetGroup("近90天活跃会员");
+            jan1.setMemberCount(500);
+            jan1.setExpectedEffect("提升复购率2%");
+            jan1.setRecommendTime(sdf.parse("2025-01-10 09:00:00"));
+            jan1.setStatus("待执行");
+            jan1.setPriority("高");
+            jan1.setAiConfidence(new java.math.BigDecimal("82.5"));
+
+            com.omniperform.system.domain.SmartMarketingTask jan2 = new com.omniperform.system.domain.SmartMarketingTask();
+            jan2.setTaskId("MT202501002");
+            jan2.setTaskName("新春拉新礼包");
+            jan2.setTaskType("活动邀请");
+            jan2.setTargetGroup("新注册会员");
+            jan2.setMemberCount(800);
+            jan2.setExpectedEffect("提升注册转化率3%");
+            jan2.setRecommendTime(sdf.parse("2025-01-15 14:30:00"));
+            jan2.setStatus("待执行");
+            jan2.setPriority("中");
+            jan2.setAiConfidence(new java.math.BigDecimal("74.0"));
+
+            com.omniperform.system.domain.SmartMarketingTask jan3 = new com.omniperform.system.domain.SmartMarketingTask();
+            jan3.setTaskId("MT202501003");
+            jan3.setTaskName("老客关怀短信");
+            jan3.setTaskType("触达优化");
+            jan3.setTargetGroup("近180天有购买");
+            jan3.setMemberCount(420);
+            jan3.setExpectedEffect("提升回流率1.5%");
+            jan3.setRecommendTime(sdf.parse("2025-01-22 18:00:00"));
+            jan3.setStatus("待执行");
+            jan3.setPriority("低");
+            jan3.setAiConfidence(new java.math.BigDecimal("68.2"));
+
+            // 2025-02 多条示例
+            com.omniperform.system.domain.SmartMarketingTask feb1 = new com.omniperform.system.domain.SmartMarketingTask();
+            feb1.setTaskId("MT202502001");
+            feb1.setTaskName("情人节新品试用");
+            feb1.setTaskType("内容推送");
+            feb1.setTargetGroup("价格敏感型会员");
+            feb1.setMemberCount(300);
+            feb1.setExpectedEffect("提升新品试用率5%");
+            feb1.setRecommendTime(sdf.parse("2025-02-05 10:00:00"));
+            feb1.setStatus("待执行");
+            feb1.setPriority("中");
+            feb1.setAiConfidence(new java.math.BigDecimal("76.0"));
+
+            com.omniperform.system.domain.SmartMarketingTask feb2 = new com.omniperform.system.domain.SmartMarketingTask();
+            feb2.setTaskId("MT202502002");
+            feb2.setTaskName("节后复购关怀");
+            feb2.setTaskType("关怀提醒");
+            feb2.setTargetGroup("春节期间有购买");
+            feb2.setMemberCount(650);
+            feb2.setExpectedEffect("提升复购率2.5%");
+            feb2.setRecommendTime(sdf.parse("2025-02-18 11:20:00"));
+            feb2.setStatus("待执行");
+            feb2.setPriority("高");
+            feb2.setAiConfidence(new java.math.BigDecimal("80.3"));
+
+            com.omniperform.system.domain.SmartMarketingTask feb3 = new com.omniperform.system.domain.SmartMarketingTask();
+            feb3.setTaskId("MT202502003");
+            feb3.setTaskName("售后满意度回访");
+            feb3.setTaskType("触达优化");
+            feb3.setTargetGroup("近30天完成售后");
+            feb3.setMemberCount(200);
+            feb3.setExpectedEffect("提升满意度1.2%");
+            feb3.setRecommendTime(sdf.parse("2025-02-25 16:45:00"));
+            feb3.setStatus("待执行");
+            feb3.setPriority("低");
+            feb3.setAiConfidence(new java.math.BigDecimal("65.0"));
+
+            // 2025-05 多条示例
+            com.omniperform.system.domain.SmartMarketingTask may1 = new com.omniperform.system.domain.SmartMarketingTask();
+            may1.setTaskId("MT202505001");
+            may1.setTaskName("五一出游礼包");
+            may1.setTaskType("活动邀请");
+            may1.setTargetGroup("亲子家庭会员");
+            may1.setMemberCount(450);
+            may1.setExpectedEffect("提升活动报名4%");
+            may1.setRecommendTime(sdf.parse("2025-05-01 09:30:00"));
+            may1.setStatus("待执行");
+            may1.setPriority("中");
+            may1.setAiConfidence(new java.math.BigDecimal("71.0"));
+
+            com.omniperform.system.domain.SmartMarketingTask may2 = new com.omniperform.system.domain.SmartMarketingTask();
+            may2.setTaskId("MT202505002");
+            may2.setTaskName("新品口碑种草");
+            may2.setTaskType("内容推送");
+            may2.setTargetGroup("社交分享型会员");
+            may2.setMemberCount(380);
+            may2.setExpectedEffect("提升分享率3%");
+            may2.setRecommendTime(sdf.parse("2025-05-12 13:00:00"));
+            may2.setStatus("待执行");
+            may2.setPriority("高");
+            may2.setAiConfidence(new java.math.BigDecimal("83.1"));
+
+            com.omniperform.system.domain.SmartMarketingTask may3 = new com.omniperform.system.domain.SmartMarketingTask();
+            may3.setTaskId("MT202505003");
+            may3.setTaskName("老客专属返利");
+            may3.setTaskType("个性化推荐");
+            may3.setTargetGroup("忠诚依赖型会员");
+            may3.setMemberCount(520);
+            may3.setExpectedEffect("提升复购率3.2%");
+            may3.setRecommendTime(sdf.parse("2025-05-25 17:20:00"));
+            may3.setStatus("待执行");
+            may3.setPriority("中");
+            may3.setAiConfidence(new java.math.BigDecimal("78.4"));
+
+            // 2025-06 多条示例
+            com.omniperform.system.domain.SmartMarketingTask jun1 = new com.omniperform.system.domain.SmartMarketingTask();
+            jun1.setTaskId("MT202506001");
+            jun1.setTaskName("618大促预热");
+            jun1.setTaskType("内容推送");
+            jun1.setTargetGroup("价格敏感型会员");
+            jun1.setMemberCount(900);
+            jun1.setExpectedEffect("提升转化率5%");
+            jun1.setRecommendTime(sdf.parse("2025-06-10 10:00:00"));
+            jun1.setStatus("待执行");
+            jun1.setPriority("高");
+            jun1.setAiConfidence(new java.math.BigDecimal("85.0"));
+
+            com.omniperform.system.domain.SmartMarketingTask jun2 = new com.omniperform.system.domain.SmartMarketingTask();
+            jun2.setTaskId("MT202506002");
+            jun2.setTaskName("冷启动用户唤醒");
+            jun2.setTaskType("关怀提醒");
+            jun2.setTargetGroup("近180天未购买");
+            jun2.setMemberCount(600);
+            jun2.setExpectedEffect("提升唤醒率2%");
+            jun2.setRecommendTime(sdf.parse("2025-06-18 15:10:00"));
+            jun2.setStatus("待执行");
+            jun2.setPriority("中");
+            jun2.setAiConfidence(new java.math.BigDecimal("72.6"));
+
+            com.omniperform.system.domain.SmartMarketingTask jun3 = new com.omniperform.system.domain.SmartMarketingTask();
+            jun3.setTaskId("MT202506003");
+            jun3.setTaskName("导购专属优惠券");
+            jun3.setTaskType("触达优化");
+            jun3.setTargetGroup("有导购互动会员");
+            jun3.setMemberCount(350);
+            jun3.setExpectedEffect("提升互动转化1.8%");
+            jun3.setRecommendTime(sdf.parse("2025-06-25 19:30:00"));
+            jun3.setStatus("待执行");
+            jun3.setPriority("低");
+            jun3.setAiConfidence(new java.math.BigDecimal("66.9"));
+
+            // 2025-07 多条示例
+            com.omniperform.system.domain.SmartMarketingTask jul1 = new com.omniperform.system.domain.SmartMarketingTask();
+            jul1.setTaskId("MT202507001");
+            jul1.setTaskName("暑期清凉套餐");
+            jul1.setTaskType("个性化推荐");
+            jul1.setTargetGroup("成长探索型会员");
+            jul1.setMemberCount(480);
+            jul1.setExpectedEffect("提升客单价2.3%");
+            jul1.setRecommendTime(sdf.parse("2025-07-06 09:40:00"));
+            jul1.setStatus("待执行");
+            jul1.setPriority("中");
+            jul1.setAiConfidence(new java.math.BigDecimal("77.7"));
+
+            com.omniperform.system.domain.SmartMarketingTask jul2 = new com.omniperform.system.domain.SmartMarketingTask();
+            jul2.setTaskId("MT202507002");
+            jul2.setTaskName("暑期会员关怀");
+            jul2.setTaskType("关怀提醒");
+            jul2.setTargetGroup("近60天活跃会员");
+            jul2.setMemberCount(520);
+            jul2.setExpectedEffect("提升互动率1.7%");
+            jul2.setRecommendTime(sdf.parse("2025-07-18 12:15:00"));
+            jul2.setStatus("待执行");
+            jul2.setPriority("低");
+            jul2.setAiConfidence(new java.math.BigDecimal("69.5"));
+
+            com.omniperform.system.domain.SmartMarketingTask jul3 = new com.omniperform.system.domain.SmartMarketingTask();
+            jul3.setTaskId("MT202507003");
+            jul3.setTaskName("新品直播引流");
+            jul3.setTaskType("内容推送");
+            jul3.setTargetGroup("社交分享型会员");
+            jul3.setMemberCount(700);
+            jul3.setExpectedEffect("提升直播观看率6%");
+            jul3.setRecommendTime(sdf.parse("2025-07-28 20:00:00"));
+            jul3.setStatus("待执行");
+            jul3.setPriority("高");
+            jul3.setAiConfidence(new java.math.BigDecimal("84.2"));
+
+            // 汇总加入列表
+            list.add(jan1); list.add(jan2); list.add(jan3);
+            list.add(feb1); list.add(feb2); list.add(feb3);
+            list.add(may1); list.add(may2); list.add(may3);
+            list.add(jun1); list.add(jun2); list.add(jun3);
+            list.add(jul1); list.add(jul2); list.add(jul3);
+        } catch (Exception ignore) {
+        }
+        return list;
+    }
+
+    /**
+     * 构造优化效果示例数据（含monthYear字段）
+     */
+    private java.util.List<com.omniperform.system.domain.OptimizationEffectData> createOptimizationEffectSampleData() {
+        java.util.List<com.omniperform.system.domain.OptimizationEffectData> list = new java.util.ArrayList<>();
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            com.omniperform.system.domain.OptimizationEffectData d1 = new com.omniperform.system.domain.OptimizationEffectData();
+            d1.setStatDate(sdf.parse("2025-01-31"));
+            d1.setMonthYear("2025-01");
+            d1.setMetricName("MOT执行率");
+            d1.setMetricValue(new java.math.BigDecimal("76.5"));
+            d1.setMomRate(new java.math.BigDecimal("3.2"));
+            d1.setYoyRate(new java.math.BigDecimal("5.1"));
+            d1.setRegionCode("CN");
+
+            com.omniperform.system.domain.OptimizationEffectData d2 = new com.omniperform.system.domain.OptimizationEffectData();
+            d2.setStatDate(sdf.parse("2025-02-28"));
+            d2.setMonthYear("2025-02");
+            d2.setMetricName("会员活跃度");
+            d2.setMetricValue(new java.math.BigDecimal("44.8"));
+            d2.setMomRate(new java.math.BigDecimal("2.5"));
+            d2.setYoyRate(new java.math.BigDecimal("4.3"));
+            d2.setRegionCode("CN");
+
+            list.add(d1);
+            list.add(d2);
+        } catch (Exception ignore) {
+        }
+        return list;
+    }
+
+    /**
+     * 构造最佳触达时间示例数据（含monthYear字段）
+     */
+    private java.util.List<com.omniperform.system.domain.BestTouchTimeAnalysis> createBestTouchTimeSampleData() {
+        java.util.List<com.omniperform.system.domain.BestTouchTimeAnalysis> list = new java.util.ArrayList<>();
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            com.omniperform.system.domain.BestTouchTimeAnalysis b1 = new com.omniperform.system.domain.BestTouchTimeAnalysis();
+            b1.setAnalysisDate(sdf.parse("2025-01-15"));
+            b1.setMonthYear("2025-01");
+            b1.setTimeSlot("09:00-10:00");
+            b1.setResponseRate(new java.math.BigDecimal("12.4"));
+            b1.setConversionRate(new java.math.BigDecimal("3.1"));
+            b1.setTotalTouches(1200);
+            b1.setSuccessfulTouches(148);
+            b1.setRegionCode("CN-East");
+
+            com.omniperform.system.domain.BestTouchTimeAnalysis b2 = new com.omniperform.system.domain.BestTouchTimeAnalysis();
+            b2.setAnalysisDate(sdf.parse("2025-02-12"));
+            b2.setMonthYear("2025-02");
+            b2.setTimeSlot("20:00-21:00");
+            b2.setResponseRate(new java.math.BigDecimal("14.8"));
+            b2.setConversionRate(new java.math.BigDecimal("3.9"));
+            b2.setTotalTouches(980);
+            b2.setSuccessfulTouches(145);
+            b2.setRegionCode("CN-North");
+
+            list.add(b1);
+            list.add(b2);
+        } catch (Exception ignore) {
+        }
+        return list;
+    }
+
 }

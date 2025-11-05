@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.BestTouchTimeAnalysisMapper">
+
+    <resultMap id="BestTouchTimeAnalysisResult" type="com.omniperform.system.domain.BestTouchTimeAnalysis">
+        <result property="id" column="id" />
+        <result property="analysisDate" column="analysis_date" />
+        <result property="monthYear" column="month_year" />
+        <result property="timeSlot" column="time_slot" />
+        <result property="responseRate" column="response_rate" />
+        <result property="conversionRate" column="conversion_rate" />
+        <result property="totalTouches" column="total_touches" />
+        <result property="successfulTouches" column="successful_touches" />
+        <result property="regionCode" column="region_code" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <select id="selectByUnique" resultMap="BestTouchTimeAnalysisResult">
+        select id, analysis_date, month_year, time_slot, response_rate, conversion_rate, total_touches, successful_touches, region_code, create_time, update_time
+        from best_touch_time_analysis
+        where analysis_date = #{analysisDate}
+          and time_slot = #{timeSlot}
+          <if test="regionCode != null">and region_code = #{regionCode}</if>
+          <if test="regionCode == null">and region_code is null</if>
+    </select>
+
+    <insert id="insertBestTouchTimeAnalysis" parameterType="com.omniperform.system.domain.BestTouchTimeAnalysis">
+        insert into best_touch_time_analysis (analysis_date, month_year, time_slot, response_rate, conversion_rate, total_touches, successful_touches, region_code, create_time, update_time)
+        values (#{analysisDate}, #{monthYear}, #{timeSlot}, #{responseRate}, #{conversionRate}, #{totalTouches}, #{successfulTouches}, #{regionCode}, #{createTime}, #{updateTime})
+    </insert>
+
+    <update id="updateBestTouchTimeAnalysis" parameterType="com.omniperform.system.domain.BestTouchTimeAnalysis">
+        update best_touch_time_analysis
+        <trim prefix="set" suffixOverrides=",">
+            <if test="analysisDate != null">analysis_date = #{analysisDate},</if>
+            <if test="monthYear != null">month_year = #{monthYear},</if>
+            <if test="timeSlot != null">time_slot = #{timeSlot},</if>
+            <if test="responseRate != null">response_rate = #{responseRate},</if>
+            <if test="conversionRate != null">conversion_rate = #{conversionRate},</if>
+            <if test="totalTouches != null">total_touches = #{totalTouches},</if>
+            <if test="successfulTouches != null">successful_touches = #{successfulTouches},</if>
+            <if test="regionCode != null">region_code = #{regionCode},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <select id="selectList" resultMap="BestTouchTimeAnalysisResult">
+        select id, analysis_date, month_year, time_slot, response_rate, conversion_rate, total_touches, successful_touches, region_code, create_time, update_time
+        from best_touch_time_analysis
+        <where>
+            <if test="analysisDate != null">and analysis_date = #{analysisDate}</if>
+            <if test="monthYear != null and monthYear != ''">and month_year = #{monthYear}</if>
+            <if test="timeSlot != null and timeSlot != ''">and time_slot = #{timeSlot}</if>
+            <if test="regionCode != null and regionCode != ''">and region_code = #{regionCode}</if>
+        </where>
+        order by analysis_date desc, time_slot asc
+    </select>
+
+</mapper>

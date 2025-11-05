@@ -97,6 +97,8 @@ CREATE TABLE optimization_effect_data (
     stat_date DATE NOT NULL COMMENT '统计日期',
     metric_name VARCHAR(100) NOT NULL COMMENT '指标名称：MOT执行率、会员活跃度、复购率等',
     metric_value DECIMAL(10,2) NOT NULL COMMENT '指标值',
+    mom_rate DECIMAL(5,2) COMMENT '环比(%)',
+    yoy_rate DECIMAL(5,2) COMMENT '同比(%)',
     previous_value DECIMAL(10,2) COMMENT '前期值',
     improvement_rate DECIMAL(5,2) COMMENT '提升率(%)',
     region_code VARCHAR(20) COMMENT '区域代码，NULL表示全国统计',

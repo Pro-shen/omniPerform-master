@@ -74,7 +74,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                     and region_code = #{regionCode}
                 </when>
                 <otherwise>
-                    and (region_code IS NULL OR region_code = '' OR region_code = 'all')
+                    
                 </otherwise>
             </choose>
         </where>

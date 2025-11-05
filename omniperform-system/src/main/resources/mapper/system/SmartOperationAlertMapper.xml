@@ -23,7 +23,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectSmartOperationAlertVo">
-        select id, alert_id, alert_type, alert_content, severity, status, region, member_id, guide_id, trigger_data, process_time, process_user, process_note, create_time, update_time from smart_operation_alerts
+        select id, alert_id, alert_type, alert_content, severity, status, region, member_id, guide_id, trigger_data, process_time, process_user, process_note, month_year, create_time, update_time from smart_operation_alerts
     </sql>
 
     <select id="selectSmartOperationAlertList" parameterType="SmartOperationAlert" resultMap="SmartOperationAlertResult">
@@ -149,6 +149,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="processTime != null">process_time,</if>
             <if test="processUser != null">process_user,</if>
             <if test="processNote != null">process_note,</if>
+            <if test="monthYear != null">month_year,</if>
             <if test="createTime != null">create_time,</if>
             <if test="updateTime != null">update_time,</if>
          </trim>
@@ -165,6 +166,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="processTime != null">#{processTime},</if>
             <if test="processUser != null">#{processUser},</if>
             <if test="processNote != null">#{processNote},</if>
+            <if test="monthYear != null">#{monthYear},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="updateTime != null">#{updateTime},</if>
          </trim>
@@ -185,6 +187,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="processTime != null">process_time = #{processTime},</if>
             <if test="processUser != null">process_user = #{processUser},</if>
             <if test="processNote != null">process_note = #{processNote},</if>
+            <if test="monthYear != null">month_year = #{monthYear},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </trim>
         where id = #{id}
