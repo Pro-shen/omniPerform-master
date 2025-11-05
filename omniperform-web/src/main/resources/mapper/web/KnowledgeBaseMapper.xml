@@ -97,7 +97,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="likes != null">likes,</if>
             <if test="status != null">status,</if>
             <if test="createBy != null">create_by,</if>
-            <if test="remark != null">remark,</if>
             create_time
          </trim>
          <trim prefix="values (" suffix=")" suffixOverrides=",">
@@ -110,7 +109,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="likes != null">#{likes},</if>
             <if test="status != null">#{status},</if>
             <if test="createBy != null">#{createBy},</if>
-            <if test="remark != null">#{remark},</if>
             sysdate()
          </trim>
     </insert>
@@ -127,7 +125,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="likes != null">likes = #{likes},</if>
             <if test="status != null">status = #{status},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
-            <if test="remark != null">remark = #{remark},</if>
             update_time = sysdate()
         </trim>
         where knowledge_id = #{knowledgeId}
@@ -159,5 +156,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{knowledgeId}
         </foreach>
     </delete>
+
+    <select id="selectByTitleAndCategoryId" resultMap="KnowledgeBaseResult">
+        <include refid="selectKnowledgeBaseVo"/>
+        where k.title = #{title} and k.category_id = #{categoryId}
+        limit 1
+    </select>
 
 </mapper>

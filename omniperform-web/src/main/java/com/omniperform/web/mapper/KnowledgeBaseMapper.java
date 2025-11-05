@@ -103,4 +103,13 @@ public interface KnowledgeBaseMapper {
      * @return 总数量
      */
     public int countAll();
+
+    /**
+     * 根据标题与分类查询记录（用于导入查重）
+     *
+     * @param title 标题
+     * @param categoryId 分类ID
+     * @return 知识记录
+     */
+    public KnowledgeBase selectByTitleAndCategoryId(@Param("title") String title, @Param("categoryId") Long categoryId);
 }

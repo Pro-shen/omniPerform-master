@@ -1,6 +1,7 @@
 package com.omniperform.web.service;
 
 import com.omniperform.web.domain.KnowledgeBase;
+import com.omniperform.web.domain.KnowledgeImportDTO;
 import java.util.List;
 import java.util.Map;
 
@@ -86,4 +87,14 @@ public interface IKnowledgeBaseService {
      * @return 结果
      */
     public int incrementLikes(Long knowledgeId);
+
+    /**
+     * 导入知识库Excel数据
+     *
+     * @param dataList 导入数据列表
+     * @param updateSupport 是否允许更新（存在则更新）
+     * @param defaultCategory 默认分类代码（导入行未填写分类时使用）
+     * @return 导入统计与错误信息
+     */
+    public Map<String, Object> importKnowledgeExcel(List<KnowledgeImportDTO> dataList, boolean updateSupport, String defaultCategory);
 }

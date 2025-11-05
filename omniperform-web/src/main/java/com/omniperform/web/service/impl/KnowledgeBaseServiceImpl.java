@@ -4,6 +4,7 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.omniperform.web.domain.KnowledgeBase;
 import com.omniperform.web.domain.KnowledgeCategory;
+import com.omniperform.web.domain.KnowledgeImportDTO;
 import com.omniperform.web.mapper.KnowledgeBaseMapper;
 import com.omniperform.web.mapper.KnowledgeCategoryMapper;
 import com.omniperform.web.service.IKnowledgeBaseService;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.Objects;
 
 /**
  * 知识库Service业务层处理
@@ -159,5 +162,98 @@ public class KnowledgeBaseServiceImpl implements IKnowledgeBaseService {
     @Override
     public int incrementLikes(Long knowledgeId) {
         return knowledgeBaseMapper.incrementLikes(knowledgeId);
+    }
+
+    /**
+     * 导入知识库Excel数据
+     */
+    @Override
+    public Map<String, Object> importKnowledgeExcel(List<KnowledgeImportDTO> dataList, boolean updateSupport, String defaultCategory) {
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+
+        String defaultCat = defaultCategory == null ? "" : defaultCategory.trim();
+
+        if (dataList == null || dataList.isEmpty() || dataList.stream().allMatch(Objects::isNull)) {
+            result.put("successCount", 0);
+            result.put("failCount", 0);
+            result.put("errors", errors);
+            return result;
+        }
+
+        for (int i = 0; i < dataList.size(); i++) {
+            KnowledgeImportDTO dto = dataList.get(i);
+            try {
+                if (dto == null) {
+                    failCount++;
+                    errors.add("第" + (i + 1) + "条记录为空或字段映射失败");
+                    continue;
+                }
+
+                String title = dto.getTitle() == null ? "" : dto.getTitle().trim();
+                if (title.isEmpty()) {
+                    failCount++;
+                    errors.add("第" + (i + 1) + "条记录标题为空");
+                    continue;
+                }
+
+                String categoryCode = (dto.getCategoryCode() != null ? dto.getCategoryCode().trim() : "");
+                if (categoryCode.isEmpty()) {
+                    categoryCode = defaultCat;
+                }
+                if (categoryCode.isEmpty()) {
+                    failCount++;
+                    errors.add("第" + (i + 1) + "条记录分类代码为空，且未提供默认分类代码");
+                    continue;
+                }
+
+                KnowledgeCategory category = knowledgeCategoryMapper.selectKnowledgeCategoryByCategoryCode(categoryCode);
+                if (category == null) {
+                    failCount++;
+                    errors.add("第" + (i + 1) + "条记录分类代码不存在: " + categoryCode);
+                    continue;
+                }
+
+                Long categoryId = category.getCategoryId();
+                KnowledgeBase existing = knowledgeBaseMapper.selectByTitleAndCategoryId(title, categoryId);
+
+                KnowledgeBase kb = new KnowledgeBase();
+                kb.setCategoryId(categoryId);
+                kb.setTitle(title);
+                kb.setSummary(dto.getSummary());
+                kb.setContent(dto.getContent());
+                kb.setTags(dto.getTags());
+                // 仅存储支持列：status、views、likes 等，其余列在当前XML未映射将被忽略
+                String status = dto.getStatus();
+                kb.setStatus((status == null || status.trim().isEmpty()) ? "0" : status.trim());
+
+                if (existing != null) {
+                    if (updateSupport) {
+                        kb.setKnowledgeId(existing.getKnowledgeId());
+                        knowledgeBaseMapper.updateKnowledgeBase(kb);
+                        successCount++;
+                    } else {
+                        failCount++;
+                        errors.add("第" + (i + 1) + "条记录已存在（同标题同分类），未更新");
+                    }
+                } else {
+                    // 初始化浏览/点赞计数
+                    kb.setViews(0L);
+                    kb.setLikes(0L);
+                    knowledgeBaseMapper.insertKnowledgeBase(kb);
+                    successCount++;
+                }
+            } catch (Exception e) {
+                failCount++;
+                errors.add("第" + (i + 1) + "条处理失败：" + e.getMessage());
+            }
+        }
+
+        result.put("successCount", successCount);
+        result.put("failCount", failCount);
+        result.put("errors", errors);
+        return result;
     }
 }
