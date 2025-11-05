@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.DashboardOverviewKpiMapper">
+
+    <resultMap id="DashboardOverviewKpiResult" type="com.omniperform.system.domain.DashboardOverviewKpi">
+        <result property="id" column="id" />
+        <result property="dataMonth" column="data_month" />
+        <result property="regionCode" column="region_code" />
+        <result property="newMembers" column="new_members" />
+        <result property="newMembersGrowth" column="new_members_growth" />
+        <result property="repeatPurchaseRate" column="repeat_purchase_rate" />
+        <result property="repeatPurchaseGrowth" column="repeat_purchase_growth" />
+        <result property="motSuccessRate" column="mot_success_rate" />
+        <result property="motSuccessGrowth" column="mot_success_growth" />
+        <result property="memberActivityRate" column="member_activity_rate" />
+        <result property="memberActivityGrowth" column="member_activity_growth" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <select id="selectByUnique" resultMap="DashboardOverviewKpiResult">
+        select id, data_month, region_code, new_members, new_members_growth,
+               repeat_purchase_rate, repeat_purchase_growth,
+               mot_success_rate, mot_success_growth,
+               member_activity_rate, member_activity_growth,
+               create_time, update_time
+        from dashboard_overview_kpi
+        where data_month = #{dataMonth}
+          <if test="regionCode != null">and region_code = #{regionCode}</if>
+          <if test="regionCode == null">and region_code is null</if>
+    </select>
+
+    <insert id="insertDashboardOverviewKpi" parameterType="com.omniperform.system.domain.DashboardOverviewKpi">
+        insert into dashboard_overview_kpi (
+            data_month, region_code, new_members, new_members_growth,
+            repeat_purchase_rate, repeat_purchase_growth,
+            mot_success_rate, mot_success_growth,
+            member_activity_rate, member_activity_growth,
+            create_by, create_time, update_by, update_time, remark
+        ) values (
+            #{dataMonth}, #{regionCode}, #{newMembers}, #{newMembersGrowth},
+            #{repeatPurchaseRate}, #{repeatPurchaseGrowth},
+            #{motSuccessRate}, #{motSuccessGrowth},
+            #{memberActivityRate}, #{memberActivityGrowth},
+            #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}
+        )
+    </insert>
+
+    <update id="updateDashboardOverviewKpi" parameterType="com.omniperform.system.domain.DashboardOverviewKpi">
+        update dashboard_overview_kpi
+        <trim prefix="set" suffixOverrides=",">
+            <if test="dataMonth != null">data_month = #{dataMonth},</if>
+            <if test="regionCode != null">region_code = #{regionCode},</if>
+            <if test="newMembers != null">new_members = #{newMembers},</if>
+            <if test="newMembersGrowth != null">new_members_growth = #{newMembersGrowth},</if>
+            <if test="repeatPurchaseRate != null">repeat_purchase_rate = #{repeatPurchaseRate},</if>
+            <if test="repeatPurchaseGrowth != null">repeat_purchase_growth = #{repeatPurchaseGrowth},</if>
+            <if test="motSuccessRate != null">mot_success_rate = #{motSuccessRate},</if>
+            <if test="motSuccessGrowth != null">mot_success_growth = #{motSuccessGrowth},</if>
+            <if test="memberActivityRate != null">member_activity_rate = #{memberActivityRate},</if>
+            <if test="memberActivityGrowth != null">member_activity_growth = #{memberActivityGrowth},</if>
+            update_time = #{updateTime}
+        </trim>
+        where id = #{id}
+    </update>
+
+    <select id="selectList" resultMap="DashboardOverviewKpiResult">
+        select id, data_month, region_code, new_members, new_members_growth,
+               repeat_purchase_rate, repeat_purchase_growth,
+               mot_success_rate, mot_success_growth,
+               member_activity_rate, member_activity_growth,
+               create_time, update_time
+        from dashboard_overview_kpi
+        <where>
+            <if test="dataMonth != null and dataMonth != ''">and data_month = #{dataMonth}</if>
+            <if test="regionCode != null and regionCode != ''">and region_code = #{regionCode}</if>
+        </where>
+        order by data_month desc
+    </select>
+
+</mapper>

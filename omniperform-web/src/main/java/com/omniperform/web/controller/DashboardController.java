@@ -11,6 +11,8 @@ import com.omniperform.web.domain.GuidePerformance;
 import com.omniperform.web.domain.MotTask;
 import com.omniperform.common.utils.poi.ExcelUtil;
 import com.omniperform.common.core.domain.AjaxResult;
+import com.omniperform.web.domain.OverviewKpiImportRow;
+import com.omniperform.system.service.IDashboardOverviewKpiService;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -65,6 +67,9 @@ public class DashboardController {
     @Autowired
     private IMotTaskService motTaskService;
 
+    @Autowired
+    private IDashboardOverviewKpiService dashboardOverviewKpiService;
+
     /**
      * 获取仪表盘概览数据
      */
@@ -73,21 +78,27 @@ public class DashboardController {
         Map<String, Object> data = new HashMap<>();
         
         try {
+            log.info("[Dashboard] /overview 请求, month={}, thread={}", month, Thread.currentThread().getName());
             // 获取会员概览数据
             DashboardMemberOverview queryParam = new DashboardMemberOverview();
             if (month != null && !month.isEmpty()) {
                 queryParam.setDataMonth(month);
             }
             List<DashboardMemberOverview> overviewList = memberOverviewService.selectDashboardMemberOverviewList(queryParam);
+            log.info("[Dashboard] /overview 查询结果条数: {}", overviewList != null ? overviewList.size() : 0);
             
             // 核心指标
             Map<String, Object> metrics = new HashMap<>();
             if (!overviewList.isEmpty()) {
                 DashboardMemberOverview latest = overviewList.get(0);
+                log.info("[Dashboard] /overview 使用最新记录 data_month={}, totalMembers={}, newMembers={}, activeMembers={}, growthRate={}",
+                        latest.getDataMonth(), latest.getTotalMembers(), latest.getNewMembers(), latest.getActiveMembers(), latest.getMemberGrowthRate());
                 metrics.put("totalMembers", latest.getTotalMembers());
                 metrics.put("newMembersToday", latest.getNewMembers());
                 metrics.put("activeMembers", latest.getActiveMembers());
                 metrics.put("memberGrowthRate", latest.getMemberGrowthRate());
+            } else {
+                log.warn("[Dashboard] /overview 未找到数据，month={}，将返回空指标", month);
             }
             
             // 趋势数据（最近7天）
@@ -99,6 +110,7 @@ public class DashboardController {
                 dailyNewMembers.add(overview.getNewMembers());
                 dailyMemberGrowthRate.add(overview.getMemberGrowthRate() != null ? overview.getMemberGrowthRate().doubleValue() : 0.0);
             }
+            log.info("[Dashboard] /overview 返回趋势数据: dailyNewMembers.size={}, dailyMemberGrowthRate.size={}", dailyNewMembers.size(), dailyMemberGrowthRate.size());
             
             data.put("metrics", metrics);
             data.put("dailyNewMembers", dailyNewMembers);
@@ -117,27 +129,63 @@ public class DashboardController {
     @GetMapping("/metrics")
     public Result<Map<String, Object>> getMetrics(@RequestParam(required = false) String month) {
         Map<String, Object> data = new HashMap<>();
-        
+
         try {
-            // 获取会员概览数据
+            log.info("[getMetrics] 请求参数 month={}", month);
+            // 从独立首页KPI表读取（按月份）
+            if (month != null && !month.isEmpty()) {
+                List<DashboardOverviewKpi> list = dashboardOverviewKpiService.listByMonth(month, null);
+                log.info("[getMetrics] dashboard_overview_kpi 查询结果条数: {} (month={}, region=null)",
+                         (list == null ? 0 : list.size()), month);
+                if (list != null && !list.isEmpty()) {
+                    DashboardOverviewKpi k = list.get(0);
+                    log.info("[getMetrics] 命中KPI记录 id={}, dataMonth={}, regionCode={}",
+                             k.getId(), k.getDataMonth(), k.getRegionCode());
+                    data.put("newMembers", k.getNewMembers());
+                    data.put("newMembersGrowth", toRate(k.getNewMembersGrowth()));
+                    data.put("repeatPurchaseRate", toRate(k.getRepeatPurchaseRate()));
+                    data.put("repeatPurchaseGrowth", toRate(k.getRepeatPurchaseGrowth()));
+                    data.put("motSuccessRate", toRate(k.getMotSuccessRate()));
+                    data.put("motSuccessGrowth", toRate(k.getMotSuccessGrowth()));
+                    data.put("memberActivityRate", toRate(k.getMemberActivityRate()));
+                    data.put("memberActivityGrowth", toRate(k.getMemberActivityGrowth()));
+                } else {
+                    log.warn("[getMetrics] 未在 dashboard_overview_kpi 查到该月份记录: month={}, 可能原因: 1) 数据未导入; 2) 月份格式不为YYYY-MM; 3) 全国数据region_code非NULL;", month);
+                }
+            }
+
+            // 兼容原先的实时指标字段
             DashboardMemberOverview queryParam = new DashboardMemberOverview();
             if (month != null && !month.isEmpty()) {
                 queryParam.setDataMonth(month);
             }
             List<DashboardMemberOverview> overviewList = memberOverviewService.selectDashboardMemberOverviewList(queryParam);
-            
-            // 实时指标
+            log.info("[getMetrics] 兼容查询 member_overview 结果条数: {} (month={})",
+                     (overviewList == null ? 0 : overviewList.size()), month);
             if (!overviewList.isEmpty()) {
                 DashboardMemberOverview latest = overviewList.get(0);
                 data.put("todayNewMembers", latest.getNewMembers());
                 data.put("todayActiveMot", latest.getActiveMembers());
+            } else {
+                log.info("[getMetrics] 兼容查询 member_overview 无记录 (month={})", month);
             }
-            
+
+            log.info("[getMetrics] 返回数据键: {}", data.keySet());
             return Result.success("获取核心指标成功", data);
         } catch (Exception e) {
             log.error("获取核心指标失败: {}", e.getMessage(), e);
             return Result.error("获取核心指标失败: " + e.getMessage());
         }
+    }
+
+    private Integer toInt(BigDecimal v) {
+        if (v == null) return null;
+        try { return v.setScale(0, java.math.RoundingMode.HALF_UP).intValue(); } catch (Exception ignore) { return null; }
+    }
+
+    private String toRate(BigDecimal v) {
+        if (v == null) return null;
+        try { return v.setScale(1, java.math.RoundingMode.HALF_UP).toPlainString(); } catch (Exception ignore) { return null; }
     }
 
     /**
@@ -595,6 +643,191 @@ public class DashboardController {
             log.error("下载会员来源分析数据Excel导入模板失败: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * 下载首页概览KPI（新会员数量、复购率、MOT成功率、会员活跃度）Excel导入模板
+     */
+    @GetMapping("/import/template/overview-kpi")
+    public void downloadOverviewKpiTemplate(HttpServletResponse response) {
+        try {
+            // 使用Apache POI生成包含示例数据和校验规则的模板
+            org.apache.poi.xssf.usermodel.XSSFWorkbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+
+            // =========================
+            // 主数据表: 首页KPI
+            // =========================
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("首页KPI");
+
+            // 样式：表头加粗、整数与小数格式
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = workbook.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = workbook.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+
+            org.apache.poi.ss.usermodel.CellStyle integerStyle = workbook.createCellStyle();
+            integerStyle.setDataFormat(workbook.createDataFormat().getFormat("0"));
+
+            org.apache.poi.ss.usermodel.CellStyle decimalStyle = workbook.createCellStyle();
+            decimalStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00"));
+
+            // 表头
+            org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+            String[] headers = new String[] {
+                    "月份", "新会员数量", "复购率", "MOT成功率", "会员活跃度",
+                    "新会员数量环比", "复购率环比", "MOT成功率环比", "会员活跃度环比"
+            };
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = header.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // 示例数据：确保包含 2025-01 与 2025-02
+            Object[][] sampleRows = new Object[][]{
+                    { "2025-01", 985, 32.50, 20.10, 60.00, 0.00, 0.00, 0.00, 0.00 },
+                    { "2025-02", 1052, 33.50, 20.90, 61.20, 6.80, 1.00, 0.80, 1.20 },
+                    { "2025-05", 1138, 34.30, 22.60, 63.10, 8.20, 0.80, 1.70, 1.90 },
+                    { "2025-06", 1285, 38.20, 24.50, 65.20, 12.80, 3.50, 2.10, 1.80 },
+                    { "2025-07", 1302, 38.80, 25.20, 66.00, 1.30, 0.60, 0.70, 0.80 }
+            };
+            for (int r = 0; r < sampleRows.length; r++) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
+                Object[] values = sampleRows[r];
+                for (int c = 0; c < values.length; c++) {
+                    org.apache.poi.ss.usermodel.Cell cell = row.createCell(c);
+                    Object v = values[c];
+                    if (v instanceof Number) {
+                        cell.setCellValue(((Number) v).doubleValue());
+                        // 第2列为整数，新会员数量；其它为两位小数
+                        if (c == 1) {
+                            cell.setCellStyle(integerStyle);
+                        } else if (c >= 2) {
+                            cell.setCellStyle(decimalStyle);
+                        }
+                    } else {
+                        cell.setCellValue(String.valueOf(v));
+                    }
+                }
+            }
+
+            // 冻结首行，避免滚动丢失表头
+            sheet.createFreezePane(0, 1);
+
+            // 自动列宽
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            // 月份列数据校验：必须为YYYY-MM格式
+            try {
+                org.apache.poi.xssf.usermodel.XSSFSheet xssfSheet = (org.apache.poi.xssf.usermodel.XSSFSheet) sheet;
+                org.apache.poi.ss.usermodel.DataValidationHelper helper = new org.apache.poi.xssf.usermodel.XSSFDataValidationHelper(xssfSheet);
+                org.apache.poi.ss.usermodel.DataValidationConstraint constraint = helper.createCustomConstraint("AND(LEN(A2)=7, MID(A2,5,1)='-', ISNUMBER(VALUE(LEFT(A2,4))), ISNUMBER(VALUE(RIGHT(A2,2))))");
+                org.apache.poi.ss.util.CellRangeAddressList addressList = new org.apache.poi.ss.util.CellRangeAddressList(1, 200, 0, 0); // A2:A201
+                org.apache.poi.ss.usermodel.DataValidation validation = helper.createValidation(constraint, addressList);
+                validation.setShowErrorBox(true);
+                validation.createErrorBox("格式错误", "月份必须为YYYY-MM，例如 2025-01");
+                validation.setShowPromptBox(true);
+                validation.createPromptBox("填写提示", "月份请填写YYYY-MM，例如 2025-01；区域留空表示全国");
+                xssfSheet.addValidationData(validation);
+            } catch (Exception e) {
+                log.warn("创建月份数据校验时发生异常: {}", e.getMessage());
+            }
+
+            // 说明页：导入规则与注意事项
+            org.apache.poi.ss.usermodel.Sheet guide = workbook.createSheet("说明");
+            String[] lines = new String[] {
+                    "首页KPI数据导入模板使用说明：",
+                    "1. 月份格式必须为YYYY-MM，例如 2025-01、2025-02。",
+                    "2. 区域代码无需填写，模板不含该列；后端将写入全国数据（region_code=NULL）。",
+                    "3. 复购率、MOT成功率、会员活跃度及其环比均为数值，请直接填写数字，不要加百分号。",
+                    "4. 新会员数量为整数，其余指标建议保留两位小数。",
+                    "5. 示例数据已包含 2025-01 与 2025-02，可直接按需修改后导入。",
+                    "6. 若某行格式不正确，系统将跳过该行并在返回结果中给出错误提示。"
+            };
+            for (int i = 0; i < lines.length; i++) {
+                org.apache.poi.ss.usermodel.Row row = guide.createRow(i);
+                row.createCell(0).setCellValue(lines[i]);
+            }
+            guide.autoSizeColumn(0);
+
+            // 设置下载文件名并输出
+            com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "首页KPI模板.xlsx");
+            java.io.OutputStream os = response.getOutputStream();
+            workbook.write(os);
+            os.flush();
+            workbook.close();
+            log.info("下载首页概览KPI模板成功");
+        } catch (Exception e) {
+            log.error("下载首页概览KPI模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 首页KPI导入（模板：overview-kpi），写入 dashboard_overview_kpi 表（全国数据 region_code 为空）
+     */
+    @PostMapping("/import/overview-kpi")
+    public Result<Map<String, Object>> importOverviewKpi(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+        try {
+            ExcelUtil<OverviewKpiImportRow> util = new ExcelUtil<>(OverviewKpiImportRow.class);
+            // 使用默认解析，模板首行是标题
+            List<OverviewKpiImportRow> rows = util.importExcel(file.getInputStream());
+            if (rows == null || rows.isEmpty()) {
+                return Result.error("导入数据为空");
+            }
+            List<DashboardOverviewKpi> batch = new ArrayList<>();
+            for (int i = 0; i < rows.size(); i++) {
+                OverviewKpiImportRow r = rows.get(i);
+                try {
+                    String monthYear = r.getMonth();
+                    if (monthYear == null || monthYear.trim().isEmpty()) {
+                        throw new IllegalArgumentException("月份为空");
+                    }
+                    monthYear = monthYear.trim();
+                    // 严格校验月份格式为 YYYY-MM
+                    if (!monthYear.matches("\\d{4}-\\d{2}")) {
+                        throw new IllegalArgumentException("月份格式须为YYYY-MM");
+                    }
+
+                    DashboardOverviewKpi k = new DashboardOverviewKpi();
+                    k.setDataMonth(monthYear);
+                    k.setRegionCode(null);
+                    k.setNewMembers(r.getNewMembers());
+                    k.setNewMembersGrowth(r.getNewMembersGrowth());
+                    k.setRepeatPurchaseRate(r.getRepeatPurchaseRate());
+                    k.setRepeatPurchaseGrowth(r.getRepeatPurchaseGrowth());
+                    k.setMotSuccessRate(r.getMotSuccessRate());
+                    k.setMotSuccessGrowth(r.getMotSuccessGrowth());
+                    k.setMemberActivityRate(r.getMemberActivityRate());
+                    k.setMemberActivityGrowth(r.getMemberActivityGrowth());
+                    batch.add(k);
+                } catch (Exception e) {
+                    failCount++;
+                    errors.add("第" + (i + 1) + "行处理失败: " + e.getMessage());
+                    log.warn("首页KPI导入失败: {}", e.getMessage());
+                }
+            }
+
+            if (!batch.isEmpty()) {
+                // 按真实入库成功的条数统计成功数
+                successCount = dashboardOverviewKpiService.upsertBatch(batch);
+            }
+
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("errors", errors);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("导入首页KPI失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    // 旧的优化效果数据构建方法已废弃，首页KPI改为独立表管理
 
     /**
      * 创建会员概览示例数据
