@@ -54,4 +54,3 @@ public class OverviewKpiImportRow {
     public BigDecimal getMemberActivityGrowth() { return memberActivityGrowth; }
     public void setMemberActivityGrowth(BigDecimal memberActivityGrowth) { this.memberActivityGrowth = memberActivityGrowth; }
 }
-

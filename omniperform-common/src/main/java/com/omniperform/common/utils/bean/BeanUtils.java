@@ -36,7 +36,7 @@ public class BeanUtils extends org.springframework.beans.BeanUtils
         }
         catch (Exception e)
         {
-            e.printStackTrace();
+            // 移除控制台堆栈打印
         }
     }
 

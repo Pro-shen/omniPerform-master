@@ -124,7 +124,7 @@ public class ServletUtils
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            // 前端控制台输出已禁用：此处不打印堆栈
         }
         return null;
     }
