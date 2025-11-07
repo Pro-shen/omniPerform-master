@@ -3,9 +3,12 @@ spring:
     datasource:
         type: com.alibaba.druid.pool.DruidDataSource
         driverClassName: com.mysql.cj.jdbc.Driver
-        url: jdbc:mysql://sh-cynosdbmysql-grp-ajuvq89i.sql.tencentcdb.com:20442/omniperform?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&allowMultiQueries=true
+#        url: jdbc:mysql://sh-cynosdbmysql-grp-ajuvq89i.sql.tencentcdb.com:20442/omniperform?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&allowMultiQueries=true
+#        username: root
+#        password: SC020917sc
+        url: jdbc:mysql://39.104.102.38:3308/omniperform?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
         username: root
-        password: SC020917sc
+        password: Password01!
         druid:
             # 初始连接数
             initialSize: 5
