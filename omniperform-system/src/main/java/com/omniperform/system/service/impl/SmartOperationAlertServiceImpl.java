@@ -201,6 +201,7 @@ public class SmartOperationAlertServiceImpl implements ISmartOperationAlertServi
             // 按月份查询
             allAlerts = smartOperationAlertMapper.selectSmartOperationAlertByMonth(monthYear.trim(), region, status);
             totalCount = smartOperationAlertMapper.countSmartOperationAlertByMonth(monthYear.trim(), region, status);
+            // 若该月无数据，返回空数据（由上层控制器决定是否回退到状态查询）
         }
         else
         {

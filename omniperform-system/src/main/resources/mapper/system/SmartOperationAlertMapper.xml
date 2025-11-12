@@ -108,7 +108,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectSmartOperationAlertByMonth" resultMap="SmartOperationAlertResult">
         <include refid="selectSmartOperationAlertVo"/>
         <where>
-            month_year = #{monthYear}
+            ( month_year = #{monthYear}
+              or DATE_FORMAT(create_time, '%Y-%m') = #{monthYear} )
             <if test="status != null and status != ''">
                 and status = #{status}
             </if>
@@ -124,7 +125,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select count(*)
         from smart_operation_alerts
         <where>
-            month_year = #{monthYear}
+            ( month_year = #{monthYear}
+              or DATE_FORMAT(create_time, '%Y-%m') = #{monthYear} )
             <if test="status != null and status != ''">
                 and status = #{status}
             </if>

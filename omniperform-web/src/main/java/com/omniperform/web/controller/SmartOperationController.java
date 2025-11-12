@@ -207,11 +207,18 @@ public class SmartOperationController {
             if (monthYear != null && !monthYear.isEmpty()) {
                 // 当仅选择月份时，默认展示该月的全部状态数据（不按“待处理”过滤）
                 result = smartOperationAlertService.getAlertsDataWithPagination(region, "", page, size, monthYear);
+                Integer monthlyTotal = (result != null && result.get("totalCount") instanceof Integer)
+                        ? (Integer) result.get("totalCount") : 0;
+                if (monthlyTotal == 0) {
+                    // 若该月无数据，回退到按状态查询，避免前端空白
+                    result = smartOperationAlertService.getAlertsDataWithPagination(region, status.trim(), page, size);
+                }
             } else {
                 result = smartOperationAlertService.getAlertsDataWithPagination(region, status.trim(), page, size);
             }
 
-            log.info("获取实时监控预警数据成功，页码: {}, 大小: {}, 状态: {}, 区域: {}, 月份: {}", page, size, status, region, month);
+            Integer total = (result != null && result.get("totalCount") instanceof Integer) ? (Integer) result.get("totalCount") : null;
+            log.info("获取实时监控预警数据成功，页码: {}, 大小: {}, 状态: {}, 区域: {}, 月份: {}, 总数: {}", page, size, status, region, month, total);
             return Result.success("获取实时监控预警数据成功", result);
         } catch (Exception e) {
             log.error("获取实时监控预警数据失败: {}", e.getMessage(), e);
