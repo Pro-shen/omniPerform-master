@@ -21,7 +21,7 @@ public class DashboardMemberOverview extends BaseEntity
     private Long id;
 
     /** 数据月份(格式:2025-05) */
-    @Excel(name = "数据月份")
+    @Excel(name = "数据月份", cellType = ColumnType.TEXT)
     private String dataMonth;
 
     /** 总会员数 */

@@ -447,8 +447,15 @@ public class DashboardController {
         Map<String, Object> data = new HashMap<>();
         
         try {
-            // 获取会员来源数据
-            String queryMonth = (month != null && !month.isEmpty()) ? month : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            String queryMonth = month;
+            if (queryMonth == null || queryMonth.isEmpty()) {
+                List<DashboardMemberSource> all = memberSourceService.selectDashboardMemberSourceList(new DashboardMemberSource());
+                if (all != null && !all.isEmpty()) {
+                    queryMonth = all.get(0).getDataMonth();
+                } else {
+                    queryMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+                }
+            }
             
             // 查询会员来源数据
             List<DashboardMemberSource> sourceList = memberSourceService.selectByDataMonth(queryMonth);
@@ -463,6 +470,7 @@ public class DashboardController {
             
             data.put("sources", sources);
             data.put("total", total);
+            data.put("month", queryMonth);
             
             return Result.success("获取会员来源分析成功", data);
         } catch (Exception e) {
@@ -473,29 +481,45 @@ public class DashboardController {
     /**
      * 获取有数据的月份列表
      */
-    @GetMapping("/available-months")
-    public Result<List<String>> getAvailableMonths() {
-        try {
-            Set<String> monthSet = new HashSet<>();
-            
-            // 从各个数据表中获取有数据的月份
-            List<DashboardMemberOverview> overviewList = memberOverviewService.selectDashboardMemberOverviewList(new DashboardMemberOverview());
-            log.info("Member Overview 表中的月份数据: {}", overviewList.size());
-            for (DashboardMemberOverview overview : overviewList) {
-                if (overview.getDataMonth() != null && !overview.getDataMonth().isEmpty()) {
-                    monthSet.add(overview.getDataMonth());
-                    log.info("添加月份: {} (来自 Member Overview)", overview.getDataMonth());
+        @GetMapping("/available-months")
+        public Result<List<String>> getAvailableMonths() {
+            try {
+                Set<String> monthSet = new HashSet<>();
+                
+                // 从各个数据表中获取有数据的月份
+                List<DashboardMemberOverview> overviewList = memberOverviewService.selectDashboardMemberOverviewList(new DashboardMemberOverview());
+                log.info("Member Overview 表中的月份数据: {}", overviewList.size());
+                for (DashboardMemberOverview overview : overviewList) {
+                    if (overview.getDataMonth() != null && !overview.getDataMonth().isEmpty()) {
+                        monthSet.add(overview.getDataMonth());
+                        log.info("添加月份: {} (来自 Member Overview)", overview.getDataMonth());
+                    }
                 }
-            }
-            
-            List<DashboardMemberGrowth> growthList = memberGrowthService.selectDashboardMemberGrowthList(new DashboardMemberGrowth());
-            log.info("Member Growth 表中的月份数据: {}", growthList.size());
-            for (DashboardMemberGrowth growth : growthList) {
-                if (growth.getDataMonth() != null && !growth.getDataMonth().isEmpty()) {
-                    monthSet.add(growth.getDataMonth());
-                    log.info("添加月份: {} (来自 Member Growth)", growth.getDataMonth());
+                
+                // 首页概览KPI月份（import/overview-kpi 写入的表），此前未纳入月份列表
+                try {
+                    List<DashboardOverviewKpi> kpiList = dashboardOverviewKpiService.listByMonth(null, null);
+                    log.info("Overview KPI 表中的月份数据: {}", kpiList != null ? kpiList.size() : 0);
+                    if (kpiList != null) {
+                        for (DashboardOverviewKpi kpi : kpiList) {
+                            if (kpi.getDataMonth() != null && !kpi.getDataMonth().isEmpty()) {
+                                monthSet.add(kpi.getDataMonth());
+                                log.info("添加月份: {} (来自 Overview KPI)", kpi.getDataMonth());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("获取 Overview KPI 月份失败: {}", e.getMessage());
                 }
-            }
+
+                List<DashboardMemberGrowth> growthList = memberGrowthService.selectDashboardMemberGrowthList(new DashboardMemberGrowth());
+                log.info("Member Growth 表中的月份数据: {}", growthList.size());
+                for (DashboardMemberGrowth growth : growthList) {
+                    if (growth.getDataMonth() != null && !growth.getDataMonth().isEmpty()) {
+                        monthSet.add(growth.getDataMonth());
+                        log.info("添加月份: {} (来自 Member Growth)", growth.getDataMonth());
+                    }
+                }
             
             List<DashboardMemberStage> stageList = memberStageService.selectDashboardMemberStageList(new DashboardMemberStage());
             log.info("Member Stage 表中的月份数据: {}", stageList.size());
@@ -562,6 +586,7 @@ public class DashboardController {
             // 创建会员概览数据的Excel模板，包含示例数据
             List<DashboardMemberOverview> sampleData = createMemberOverviewSampleData();
             ExcelUtil<DashboardMemberOverview> util = new ExcelUtil<>(DashboardMemberOverview.class);
+            com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员概览模板.xlsx");
             util.exportExcel(response, sampleData, "会员概览数据", "会员概览数据模板");
             log.info("下载Excel导入模板成功");
         } catch (Exception e) {
@@ -577,6 +602,7 @@ public class DashboardController {
         try {
             List<DashboardProductSales> sampleData = createProductSalesSampleData();
             ExcelUtil<DashboardProductSales> util = new ExcelUtil<>(DashboardProductSales.class);
+            com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "产品销售分析模板.xlsx");
             util.exportExcel(response, sampleData, "产品销售数据", "产品销售数据模板");
             log.info("下载产品销售数据Excel导入模板成功");
         } catch (Exception e) {
@@ -592,6 +618,7 @@ public class DashboardController {
         try {
             List<DashboardRegionPerformance> sampleData = createRegionPerformanceSampleData();
             ExcelUtil<DashboardRegionPerformance> util = new ExcelUtil<>(DashboardRegionPerformance.class);
+            com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "区域绩效对比模板.xlsx");
             util.exportExcel(response, sampleData, "区域绩效数据", "区域绩效数据模板");
             log.info("下载区域绩效数据Excel导入模板成功");
         } catch (Exception e) {
@@ -607,6 +634,7 @@ public class DashboardController {
         try {
             List<DashboardMemberGrowth> sampleData = createMemberGrowthSampleData();
             ExcelUtil<DashboardMemberGrowth> util = new ExcelUtil<>(DashboardMemberGrowth.class);
+            com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员增长与复购趋势模板.xlsx");
             util.exportExcel(response, sampleData, "会员增长趋势数据", "会员增长趋势数据模板");
             log.info("下载会员增长趋势数据Excel导入模板成功");
         } catch (Exception e) {
@@ -620,10 +648,51 @@ public class DashboardController {
     @GetMapping("/import/template/member-stage")
     public void downloadMemberStageTemplate(HttpServletResponse response) {
         try {
-            List<DashboardMemberStage> sampleData = createMemberStageSampleData();
-            ExcelUtil<DashboardMemberStage> util = new ExcelUtil<>(DashboardMemberStage.class);
-            util.exportExcel(response, sampleData, "会员阶段分布数据", "会员阶段分布数据模板");
-            log.info("下载会员阶段分布数据Excel导入模板成功");
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("会员阶段分布");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+            org.apache.poi.ss.usermodel.CellStyle textStyle = wb.createCellStyle();
+            textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+            org.apache.poi.ss.usermodel.CellStyle intStyle = wb.createCellStyle();
+            intStyle.setDataFormat(wb.createDataFormat().getFormat("0"));
+            org.apache.poi.ss.usermodel.CellStyle decimalStyle = wb.createCellStyle();
+            decimalStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
+            org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+            String[] headers = new String[]{"主键ID","数据月份","阶段名称","会员数量","占比"};
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+            List<DashboardMemberStage> sample = createMemberStageSampleData();
+            for (int r = 0; r < sample.size(); r++) {
+                DashboardMemberStage s = sample.get(r);
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
+                org.apache.poi.ss.usermodel.Cell c0 = row.createCell(0);
+                c0.setCellValue(s.getId() != null ? s.getId() : 0);
+                c0.setCellStyle(intStyle);
+                org.apache.poi.ss.usermodel.Cell c1 = row.createCell(1);
+                c1.setCellValue(s.getDataMonth() != null ? s.getDataMonth() : "");
+                c1.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c2 = row.createCell(2);
+                c2.setCellValue(s.getStageName() != null ? s.getStageName() : "");
+                c2.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c3 = row.createCell(3);
+                c3.setCellValue(s.getMemberCount() != null ? s.getMemberCount() : 0);
+                c3.setCellStyle(intStyle);
+                org.apache.poi.ss.usermodel.Cell c4 = row.createCell(4);
+                c4.setCellValue(s.getPercentage() != null ? s.getPercentage().doubleValue() : 0.0);
+                c4.setCellStyle(decimalStyle);
+            }
+            com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员阶段分布模板.xlsx");
+            java.io.OutputStream os = response.getOutputStream();
+            wb.write(os);
+            os.flush();
+            wb.close();
         } catch (Exception e) {
             log.error("下载会员阶段分布数据Excel导入模板失败: {}", e.getMessage(), e);
         }
@@ -635,10 +704,62 @@ public class DashboardController {
     @GetMapping("/import/template/member-source")
     public void downloadMemberSourceTemplate(HttpServletResponse response) {
         try {
-            List<DashboardMemberSource> sampleData = createMemberSourceSampleData();
-            ExcelUtil<DashboardMemberSource> util = new ExcelUtil<>(DashboardMemberSource.class);
-            util.exportExcel(response, sampleData, "会员来源分析数据", "会员来源分析数据模板");
-            log.info("下载会员来源分析数据Excel导入模板成功");
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("会员来源分析");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+            org.apache.poi.ss.usermodel.CellStyle textStyle = wb.createCellStyle();
+            textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+            org.apache.poi.ss.usermodel.CellStyle intStyle = wb.createCellStyle();
+            intStyle.setDataFormat(wb.createDataFormat().getFormat("0"));
+            org.apache.poi.ss.usermodel.CellStyle decimalStyle = wb.createCellStyle();
+            decimalStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
+
+            org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+            String[] headers = new String[]{"数据月份","来源渠道","会员数量","占比","转化率"};
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
+            java.util.List<java.util.Map<String, Object>> sample = new java.util.ArrayList<>();
+            java.util.Map<String, Object> r1 = new java.util.HashMap<>();
+            r1.put("month", "2025-08"); r1.put("channel", "线下门店"); r1.put("count", 2500); r1.put("pct", new java.math.BigDecimal("25.00")); r1.put("conv", new java.math.BigDecimal("15.00"));
+            java.util.Map<String, Object> r2 = new java.util.HashMap<>();
+            r2.put("month", "2025-09"); r2.put("channel", "线上商城"); r2.put("count", 4500); r2.put("pct", new java.math.BigDecimal("45.00")); r2.put("conv", new java.math.BigDecimal("8.50"));
+            java.util.Map<String, Object> r3 = new java.util.HashMap<>();
+            r3.put("month", "2025-10"); r3.put("channel", "微信推广"); r3.put("count", 1800); r3.put("pct", new java.math.BigDecimal("18.00")); r3.put("conv", new java.math.BigDecimal("12.30"));
+            sample.add(r1); sample.add(r2); sample.add(r3);
+
+            for (int r = 0; r < sample.size(); r++) {
+                java.util.Map<String, Object> s = sample.get(r);
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
+                org.apache.poi.ss.usermodel.Cell c0 = row.createCell(0);
+                c0.setCellValue((String) s.get("month"));
+                c0.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c1 = row.createCell(1);
+                c1.setCellValue((String) s.get("channel"));
+                c1.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c2 = row.createCell(2);
+                c2.setCellValue(((Number) s.get("count")).intValue());
+                c2.setCellStyle(intStyle);
+                org.apache.poi.ss.usermodel.Cell c3 = row.createCell(3);
+                c3.setCellValue(((java.math.BigDecimal) s.get("pct")).doubleValue());
+                c3.setCellStyle(decimalStyle);
+                org.apache.poi.ss.usermodel.Cell c4 = row.createCell(4);
+                c4.setCellValue(((java.math.BigDecimal) s.get("conv")).doubleValue());
+                c4.setCellStyle(decimalStyle);
+            }
+
+            com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员来源分析模板.xlsx");
+            java.io.OutputStream os = response.getOutputStream();
+            wb.write(os);
+            os.flush();
+            wb.close();
         } catch (Exception e) {
             log.error("下载会员来源分析数据Excel导入模板失败: {}", e.getMessage(), e);
         }
@@ -669,6 +790,9 @@ public class DashboardController {
 
             org.apache.poi.ss.usermodel.CellStyle decimalStyle = workbook.createCellStyle();
             decimalStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00"));
+
+            org.apache.poi.ss.usermodel.CellStyle textStyle = workbook.createCellStyle();
+            textStyle.setDataFormat(workbook.createDataFormat().getFormat("@"));
 
             // 表头
             org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
@@ -706,6 +830,9 @@ public class DashboardController {
                         }
                     } else {
                         cell.setCellValue(String.valueOf(v));
+                        if (c == 0) {
+                            cell.setCellStyle(textStyle);
+                        }
                     }
                 }
             }
@@ -717,6 +844,8 @@ public class DashboardController {
             for (int i = 0; i < headers.length; i++) {
                 sheet.autoSizeColumn(i);
             }
+
+            sheet.setDefaultColumnStyle(0, textStyle);
 
             // 月份列数据校验：必须为YYYY-MM格式
             try {
@@ -1211,11 +1340,12 @@ public class DashboardController {
      * 导入会员阶段分布数据
      */
     @PostMapping("/import/member-stage")
-    public Result<String> importMemberStage(@RequestParam("file") MultipartFile file) {
+    public Result<String> importMemberStage(@RequestParam("file") MultipartFile file,
+                                            @RequestParam(value = "allowUpdate", required = false, defaultValue = "true") boolean allowUpdate) {
         try {
             ExcelUtil<DashboardMemberStage> util = new ExcelUtil<>(DashboardMemberStage.class);
-            // 使用titleNum=1跳过标题行
-            List<DashboardMemberStage> dataList = util.importExcel(file.getInputStream(), 1);
+            // 标题行数量为0：首行即表头
+            List<DashboardMemberStage> dataList = util.importExcel(file.getInputStream(), 0);
             
             if (dataList == null || dataList.isEmpty()) {
                 return Result.error("导入数据为空");
@@ -1225,20 +1355,33 @@ public class DashboardController {
             int successCount = 0;
             for (DashboardMemberStage data : dataList) {
                 try {
-                    // 先查重复：按月份+阶段名称，存在则默认更新，避免唯一键报错
-                    boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
-                    boolean hasStage = data.getStageName() != null && !data.getStageName().trim().isEmpty();
+                    String dm = normalizeMonth(data.getDataMonth());
+                    data.setDataMonth(dm);
+                    String stage = data.getStageName() != null ? data.getStageName().trim() : "";
+                    data.setStageName(stage);
+                    if (data.getCreateTime() == null) {
+                        data.setCreateTime(new Date());
+                    }
+                    String createBy = data.getCreateBy();
+                    if (createBy == null || createBy.trim().isEmpty()) {
+                        data.setCreateBy("system");
+                    }
+                    // 先查重复：按月份+阶段名称，存在则更新或跳过，避免唯一键报错
+                    boolean hasMonth = dm != null && !dm.trim().isEmpty();
+                    boolean hasStage = !stage.isEmpty();
                     if (hasMonth && hasStage) {
                         DashboardMemberStage filter = new DashboardMemberStage();
-                        filter.setDataMonth(data.getDataMonth());
-                        filter.setStageName(data.getStageName());
+                        filter.setDataMonth(dm);
+                        filter.setStageName(stage);
                         List<DashboardMemberStage> existingList = memberStageService.selectDashboardMemberStageList(filter);
                         if (existingList != null && !existingList.isEmpty()) {
                             DashboardMemberStage existing = existingList.get(0);
-                            data.setId(existing.getId());
-                            data.setUpdateBy(data.getCreateBy());
-                            data.setUpdateTime(new Date());
-                            memberStageService.updateDashboardMemberStage(data);
+                            if (allowUpdate) {
+                                data.setId(existing.getId());
+                                data.setUpdateBy(data.getCreateBy());
+                                data.setUpdateTime(new Date());
+                                memberStageService.updateDashboardMemberStage(data);
+                            }
                             successCount++;
                             continue;
                         }
@@ -1263,33 +1406,106 @@ public class DashboardController {
      * 导入会员来源分析数据
      */
     @PostMapping("/import/member-source")
-    public Result<String> importMemberSource(@RequestParam("file") MultipartFile file) {
+    public Result<String> importMemberSource(@RequestParam("file") MultipartFile file,
+                                             @RequestParam(value = "allowUpdate", required = false, defaultValue = "true") boolean allowUpdate) {
         try {
             ExcelUtil<DashboardMemberSource> util = new ExcelUtil<>(DashboardMemberSource.class);
-            // 使用titleNum=1跳过标题行
-            List<DashboardMemberSource> dataList = util.importExcel(file.getInputStream(), 1);
+            List<DashboardMemberSource> dataList = util.importExcel(file.getInputStream(), 0);
             
             if (dataList == null || dataList.isEmpty()) {
                 return Result.error("导入数据为空");
             }
             
-            // 批量插入数据
             int successCount = 0;
+            int failCount = 0;
+            List<String> errors = new ArrayList<>();
             for (DashboardMemberSource data : dataList) {
                 try {
+                    String dm = normalizeMonth(data.getDataMonth());
+                    data.setDataMonth(dm);
+                    String sc = data.getSourceChannel() != null ? data.getSourceChannel().trim() : "";
+                    if (dm == null || dm.trim().isEmpty() || sc.isEmpty()) {
+                        failCount++;
+                        errors.add("字段缺失: 月份或来源渠道为空");
+                        continue;
+                    }
+                    if (data.getCreateTime() == null) {
+                        data.setCreateTime(new Date());
+                    }
+                    String createBy = data.getCreateBy();
+                    if (createBy == null || createBy.trim().isEmpty()) {
+                        data.setCreateBy("system");
+                    }
+                    DashboardMemberSource filter = new DashboardMemberSource();
+                    filter.setDataMonth(dm);
+                    filter.setSourceChannel(sc);
+                    List<DashboardMemberSource> existingList = memberSourceService.selectDashboardMemberSourceList(filter);
+                    if (existingList != null && !existingList.isEmpty()) {
+                        DashboardMemberSource existing = existingList.get(0);
+                        if (allowUpdate) {
+                            data.setId(existing.getId());
+                            data.setUpdateBy(data.getCreateBy());
+                            data.setUpdateTime(new Date());
+                            memberSourceService.updateDashboardMemberSource(data);
+                        }
+                        successCount++;
+                        continue;
+                    }
                     memberSourceService.insertDashboardMemberSource(data);
                     successCount++;
                 } catch (Exception e) {
                     log.warn("插入会员来源分析数据失败: {}", e.getMessage());
+                    failCount++;
+                    errors.add(e.getMessage());
                 }
             }
             
-            log.info("导入会员来源分析数据成功，共导入{}条数据", successCount);
-            return Result.success(String.format("导入成功，共导入%d条数据", successCount));
+            String msg = String.format("导入完成：成功%d条，失败%d条", successCount, failCount);
+            if (!errors.isEmpty()) {
+                msg += "；失败原因示例：" + errors.get(0);
+            }
+            log.info("{}", msg);
+            return Result.success(msg);
         } catch (Exception e) {
             log.error("导入会员来源分析数据失败: {}", e.getMessage(), e);
             return Result.error("导入失败: " + e.getMessage());
         }
+    }
+
+    private String normalizeMonth(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String s = raw.trim();
+        if (s.isEmpty()) {
+            return "";
+        }
+        try {
+            java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("^(\\d{4})\\D*(\\d{1,2}).*");
+            java.util.regex.Matcher m1 = p1.matcher(s);
+            if (m1.matches()) {
+                int year = Integer.parseInt(m1.group(1));
+                int month = Integer.parseInt(m1.group(2));
+                if (month < 1) month = 1;
+                if (month > 12) month = 12;
+                return String.format("%04d-%02d", year, month);
+            }
+            if (s.matches("^[A-Za-z]{3}-\\d{2}$")) {
+                java.time.YearMonth ym = java.time.YearMonth.parse(s, java.time.format.DateTimeFormatter.ofPattern("MMM-yy", java.util.Locale.ENGLISH));
+                return ym.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+            }
+            String digits = s.replaceAll("[^0-9]", "");
+            if (digits.length() >= 6) {
+                int year = Integer.parseInt(digits.substring(0, 4));
+                int month = Integer.parseInt(digits.substring(4, 6));
+                if (month < 1) month = 1;
+                if (month > 12) month = 12;
+                return String.format("%04d-%02d", year, month);
+            }
+        } catch (Exception e) {
+        }
+        java.time.LocalDate now = java.time.LocalDate.now();
+        return now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
     }
 
     /**
@@ -1558,8 +1774,8 @@ public class DashboardController {
                     
                 case "member-stage":
                     ExcelUtil<DashboardMemberStage> memberStageUtil = new ExcelUtil<>(DashboardMemberStage.class);
-                    // 使用titleNum=1跳过标题行
-                    List<DashboardMemberStage> memberStageDataList = memberStageUtil.importExcel(file.getInputStream(), 1);
+                    // 标题行数量为0：首行即表头
+                    List<DashboardMemberStage> memberStageDataList = memberStageUtil.importExcel(file.getInputStream(), 0);
                     for (DashboardMemberStage data : memberStageDataList) {
                         try {
                             // 先查重复记录：按月份+阶段名称判断是否存在，存在则更新或跳过，避免唯一键报错
@@ -1597,10 +1813,39 @@ public class DashboardController {
                     
                 case "member-source":
                     ExcelUtil<DashboardMemberSource> memberSourceUtil = new ExcelUtil<>(DashboardMemberSource.class);
-                    // 使用titleNum=1跳过标题行
-                    List<DashboardMemberSource> memberSourceDataList = memberSourceUtil.importExcel(file.getInputStream(), 1);
+                    List<DashboardMemberSource> memberSourceDataList = memberSourceUtil.importExcel(file.getInputStream(), 0);
                     for (DashboardMemberSource data : memberSourceDataList) {
                         try {
+                            String dm = normalizeMonth(data.getDataMonth());
+                            data.setDataMonth(dm);
+                            String sc = data.getSourceChannel() != null ? data.getSourceChannel().trim() : "";
+                            if (dm == null || dm.trim().isEmpty() || sc.isEmpty()) {
+                                failCount++;
+                                errorMessages.add("字段缺失: 月份或来源渠道为空");
+                                continue;
+                            }
+                            if (data.getCreateTime() == null) {
+                                data.setCreateTime(new Date());
+                            }
+                            String createBy = data.getCreateBy();
+                            if (createBy == null || createBy.trim().isEmpty()) {
+                                data.setCreateBy("system");
+                            }
+                            DashboardMemberSource filter = new DashboardMemberSource();
+                            filter.setDataMonth(dm);
+                            filter.setSourceChannel(sc);
+                            List<DashboardMemberSource> existingList = memberSourceService.selectDashboardMemberSourceList(filter);
+                            if (existingList != null && !existingList.isEmpty()) {
+                                DashboardMemberSource existing = existingList.get(0);
+                                if (allowUpdate) {
+                                    data.setId(existing.getId());
+                                    data.setUpdateBy(data.getCreateBy());
+                                    data.setUpdateTime(new Date());
+                                    memberSourceService.updateDashboardMemberSource(data);
+                                }
+                                successCount++;
+                                continue;
+                            }
                             memberSourceService.insertDashboardMemberSource(data);
                             successCount++;
                         } catch (Exception e) {

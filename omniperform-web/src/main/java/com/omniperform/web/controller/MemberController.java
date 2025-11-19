@@ -333,6 +333,7 @@ public class MemberController extends BaseController {
             // 创建示例数据以生成包含正确表头的模板
             List<MemberInfo> sampleData = createMemberInfoSampleData();
             ExcelUtil<MemberInfo> util = new ExcelUtil<>(MemberInfo.class);
+            com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员基础信息模板.xlsx");
             util.exportExcel(response, sampleData, "会员基础信息", "会员基础信息模板");
             log.info("下载会员基础信息Excel导入模板成功");
         } catch (Exception e) {
@@ -350,31 +351,103 @@ public class MemberController extends BaseController {
                 case "member-info":
                     List<MemberInfo> memberSampleData = createMemberInfoSampleData();
                     ExcelUtil<MemberInfo> memberUtil = new ExcelUtil<>(MemberInfo.class);
+                    com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员基础信息模板.xlsx");
                     memberUtil.exportExcel(response, memberSampleData, "会员基础信息");
                     break;
                 case "member-monthly":
                     List<MemberMonthlyStats> monthlySampleData = createMemberMonthlySampleData();
                     ExcelUtil<MemberMonthlyStats> monthlyUtil = new ExcelUtil<>(MemberMonthlyStats.class);
+                    com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员月度统计模板.xlsx");
                     monthlyUtil.exportExcel(response, monthlySampleData, "会员月度统计");
                     break;
                 case "member-lifecycle":
-                    List<MemberLifecycleRecords> lifecycleSampleData = createMemberLifecycleSampleData();
-                    ExcelUtil<MemberLifecycleRecords> lifecycleUtil = new ExcelUtil<>(MemberLifecycleRecords.class);
-                    lifecycleUtil.exportExcel(response, lifecycleSampleData, "会员生命周期记录");
+                    org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+                    org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("会员生命周期记录");
+                    org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+                    org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+                    bold.setBold(true);
+                    headerStyle.setFont(bold);
+                    org.apache.poi.ss.usermodel.CellStyle textStyle = wb.createCellStyle();
+                    textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+                    org.apache.poi.ss.usermodel.CellStyle intStyle = wb.createCellStyle();
+                    intStyle.setDataFormat(wb.createDataFormat().getFormat("0"));
+                    org.apache.poi.ss.usermodel.CellStyle datetimeStyle = wb.createCellStyle();
+                    datetimeStyle.setDataFormat(wb.createDataFormat().getFormat("yyyy-mm-dd hh:mm:ss"));
+
+                    org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+                    String[] headers = new String[]{"数据月份","会员ID","生命周期阶段","阶段开始时间","阶段结束时间","阶段持续天数","阶段描述","触发事件","记录时间"};
+                    for (int i = 0; i < headers.length; i++) {
+                        org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
+                        c.setCellValue(headers[i]);
+                        c.setCellStyle(headerStyle);
+                    }
+                    sheet.setColumnWidth(0, 14 * 256);
+                    sheet.setColumnWidth(1, 20 * 256);
+                    sheet.setColumnWidth(2, 20 * 256);
+                    sheet.setColumnWidth(3, 22 * 256);
+                    sheet.setColumnWidth(4, 22 * 256);
+                    sheet.setColumnWidth(5, 16 * 256);
+                    sheet.setColumnWidth(6, 40 * 256);
+                    sheet.setColumnWidth(7, 24 * 256);
+                    sheet.setColumnWidth(8, 22 * 256);
+
+                    java.util.List<com.omniperform.system.domain.MemberLifecycleRecords> lifecycleSampleData = createMemberLifecycleSampleData();
+                    for (int r = 0; r < lifecycleSampleData.size(); r++) {
+                        com.omniperform.system.domain.MemberLifecycleRecords s = lifecycleSampleData.get(r);
+                        org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
+                        org.apache.poi.ss.usermodel.Cell cm = row.createCell(0);
+                        java.text.SimpleDateFormat ym = new java.text.SimpleDateFormat("yyyy-MM");
+                        String monthStr = s.getRecordTime() != null ? ym.format(s.getRecordTime()) : (s.getStageStartTime() != null ? ym.format(s.getStageStartTime()) : "");
+                        cm.setCellValue(monthStr);
+                        cm.setCellStyle(textStyle);
+                        org.apache.poi.ss.usermodel.Cell c0 = row.createCell(1);
+                        c0.setCellValue(s.getMemberId() != null ? String.valueOf(s.getMemberId()) : "");
+                        c0.setCellStyle(textStyle);
+                        org.apache.poi.ss.usermodel.Cell c1 = row.createCell(2);
+                        c1.setCellValue(s.getLifecycleStage() != null ? s.getLifecycleStage() : "");
+                        c1.setCellStyle(textStyle);
+                        org.apache.poi.ss.usermodel.Cell c2 = row.createCell(3);
+                        if (s.getStageStartTime() != null) { c2.setCellValue(s.getStageStartTime()); }
+                        c2.setCellStyle(datetimeStyle);
+                        org.apache.poi.ss.usermodel.Cell c3 = row.createCell(4);
+                        if (s.getStageEndTime() != null) { c3.setCellValue(s.getStageEndTime()); }
+                        c3.setCellStyle(datetimeStyle);
+                        org.apache.poi.ss.usermodel.Cell c4 = row.createCell(5);
+                        c4.setCellValue(s.getStageDuration() != null ? s.getStageDuration() : 0);
+                        c4.setCellStyle(intStyle);
+                        org.apache.poi.ss.usermodel.Cell c5 = row.createCell(6);
+                        c5.setCellValue(s.getStageDescription() != null ? s.getStageDescription() : "");
+                        c5.setCellStyle(textStyle);
+                        org.apache.poi.ss.usermodel.Cell c6 = row.createCell(7);
+                        c6.setCellValue(s.getTriggerEvent() != null ? s.getTriggerEvent() : "");
+                        c6.setCellStyle(textStyle);
+                        org.apache.poi.ss.usermodel.Cell c7 = row.createCell(8);
+                        if (s.getRecordTime() != null) { c7.setCellValue(s.getRecordTime()); }
+                        c7.setCellStyle(datetimeStyle);
+                    }
+
+                    com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员生命周期记录模板.xlsx");
+                    java.io.OutputStream os = response.getOutputStream();
+                    wb.write(os);
+                    os.flush();
+                    wb.close();
                     break;
                 case "member-crfme":
                     List<MemberCrfmeDistribution> crfmeSampleData = createMemberCrfmeSampleData();
                     ExcelUtil<MemberCrfmeDistribution> crfmeUtil = new ExcelUtil<>(MemberCrfmeDistribution.class);
+                    com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "CRFM-E评分模板.xlsx");
                     crfmeUtil.exportExcel(response, crfmeSampleData, "CRFM-E评分分布");
                     break;
                 case "member-segmentation":
                     List<MemberProfileAnalysis> segmentSampleData = createMemberSegmentationSampleData();
                     ExcelUtil<MemberProfileAnalysis> segmentUtil = new ExcelUtil<>(MemberProfileAnalysis.class);
+                    com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员分层画像模板.xlsx");
                     segmentUtil.exportExcel(response, segmentSampleData, "会员分层画像");
                     break;
                 case "member-stage":
                     List<MemberStageStats> stageSampleData = createMemberStageSampleData();
                     ExcelUtil<MemberStageStats> stageUtil = new ExcelUtil<>(MemberStageStats.class);
+                    com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员月度阶段统计模板.xlsx");
                     stageUtil.exportExcel(response, stageSampleData, "会员月度阶段统计");
                     break;
                 default:

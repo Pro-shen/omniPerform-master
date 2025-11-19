@@ -677,6 +677,7 @@ public class WechatOperationController extends BaseController {
                     log.info("📊 [模板下载] 下载企业微信运营指标模板");
                     ExcelUtil<WechatOperationMetrics> metricsUtil = new ExcelUtil<>(WechatOperationMetrics.class);
                     List<WechatOperationMetrics> metricsSampleData = createWechatMetricsSampleData();
+                    try { com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "企业微信运营指标模板.xlsx"); } catch (Exception ignore) {}
                     metricsUtil.exportExcel(response, metricsSampleData, "企业微信运营指标数据", "企业微信运营指标模板.xlsx");
                     break;
                     
@@ -684,6 +685,7 @@ public class WechatOperationController extends BaseController {
                     log.info("📊 [模板下载] 下载企业微信运营统计模板");
                     ExcelUtil<WechatOperationStatistics> statisticsUtil = new ExcelUtil<>(WechatOperationStatistics.class);
                     List<WechatOperationStatistics> statisticsSampleData = createWechatStatisticsSampleData();
+                    try { com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "企业微信运营统计模板.xlsx"); } catch (Exception ignore) {}
                     statisticsUtil.exportExcel(response, statisticsSampleData, "企业微信运营统计数据", "企业微信运营统计模板.xlsx");
                     break;
 

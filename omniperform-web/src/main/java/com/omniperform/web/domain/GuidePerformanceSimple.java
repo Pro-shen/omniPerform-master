@@ -25,7 +25,7 @@ public class GuidePerformanceSimple extends BaseEntity
     private String guideId;
 
     /** 数据月份(YYYY-MM) */
-    @Excel(name = "数据月份")
+    @Excel(name = "数据月份", cellType = ColumnType.TEXT)
     private String dataMonth;
 
     /** 新增会员数 */

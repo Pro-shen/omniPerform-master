@@ -551,10 +551,20 @@ public class MotController extends BaseController {
         try {
             ExcelUtil<MotTask> util = new ExcelUtil<MotTask>(MotTask.class);
             List<MotTask> sampleData = createMotTaskSampleData();
+            com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "MOT任务导入模板.xlsx");
             util.exportExcel(response, sampleData, "MOT任务导入模板");
         } catch (Exception e) {
             log.error("下载MOT任务导入模板失败: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * 下载MOT任务导入模板（统一提供GET版本）
+     */
+    @GetMapping("/import/template")
+    @ApiOperation("下载MOT任务导入模板(GET)")
+    public void downloadTemplateGet(HttpServletResponse response) {
+        downloadTemplate(response);
     }
 
     /**

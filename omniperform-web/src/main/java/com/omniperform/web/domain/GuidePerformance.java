@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.omniperform.common.annotation.Excel;
+import com.omniperform.common.annotation.Excel.ColumnType;
 import com.omniperform.common.core.domain.BaseEntity;
 
 /**
@@ -24,7 +25,7 @@ public class GuidePerformance extends BaseEntity
     private String guideId;
 
     /** 数据月份(YYYY-MM) */
-    @Excel(name = "数据月份", type = Excel.Type.ALL)
+    @Excel(name = "数据月份", type = Excel.Type.ALL, cellType = ColumnType.TEXT)
     private String dataMonth;
 
     /** 新增会员数 */

@@ -22,7 +22,7 @@ public class MemberCrfmeDistribution extends BaseEntity
     private Long id;
 
     /** 数据月份(格式:2025-05) */
-    @Excel(name = "数据月份")
+    @Excel(name = "数据月份", cellType = ColumnType.TEXT)
     @NotBlank(message = "数据月份不能为空")
     @Size(min = 0, max = 7, message = "数据月份长度不能超过7个字符")
     private String dataMonth;

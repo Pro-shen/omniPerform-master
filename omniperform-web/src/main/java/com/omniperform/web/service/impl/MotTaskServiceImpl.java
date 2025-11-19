@@ -435,19 +435,28 @@ public class MotTaskServiceImpl implements IMotTaskService
                     continue;
                 }
                 
-                // 设置默认值
-                if (StringUtils.isEmpty(motTask.getStatus()))
-                {
-                    motTask.setStatus("待执行");
+                String statusVal = motTask.getStatus();
+                statusVal = statusVal != null ? statusVal.trim() : "";
+                if (StringUtils.isEmpty(statusVal)) {
+                    statusVal = "待执行";
                 }
-                if (StringUtils.isEmpty(motTask.getPriority()))
-                {
-                    motTask.setPriority("中");
+                if (!java.util.Arrays.asList("待执行", "执行中", "已完成").contains(statusVal)) {
+                    statusVal = "待执行";
                 }
-                if (StringUtils.isEmpty(motTask.getDataMonth()))
-                {
-                    motTask.setDataMonth(DateUtils.dateTimeNow("yyyy-MM"));
+                motTask.setStatus(statusVal);
+
+                String priorityVal = motTask.getPriority();
+                priorityVal = priorityVal != null ? priorityVal.trim() : "";
+                if (StringUtils.isEmpty(priorityVal)) {
+                    priorityVal = "中";
                 }
+                motTask.setPriority(priorityVal);
+
+                String monthVal = normalizeMonth(motTask.getDataMonth());
+                if (StringUtils.isEmpty(monthVal)) {
+                    monthVal = DateUtils.dateTimeNow("yyyy-MM");
+                }
+                motTask.setDataMonth(monthVal);
                 
                 // 直接新增任务，不进行重复检测
                 // 业务逻辑：允许同一会员有多个MOT任务，包括相同类型的任务
@@ -486,5 +495,41 @@ public class MotTaskServiceImpl implements IMotTaskService
         }
         
         return result;
+    }
+
+    private String normalizeMonth(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String s = raw.trim();
+        if (s.isEmpty()) {
+            return "";
+        }
+        try {
+            java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("^(\\d{4})\\D*(\\d{1,2}).*");
+            java.util.regex.Matcher m1 = p1.matcher(s);
+            if (m1.matches()) {
+                int year = Integer.parseInt(m1.group(1));
+                int month = Integer.parseInt(m1.group(2));
+                if (month < 1) month = 1;
+                if (month > 12) month = 12;
+                return String.format("%04d-%02d", year, month);
+            }
+            if (s.matches("^[A-Za-z]{3}-\\d{2}$")) {
+                java.time.YearMonth ym = java.time.YearMonth.parse(s, java.time.format.DateTimeFormatter.ofPattern("MMM-yy", java.util.Locale.ENGLISH));
+                return ym.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+            }
+            String digits = s.replaceAll("[^0-9]", "");
+            if (digits.length() >= 6) {
+                int year = Integer.parseInt(digits.substring(0, 4));
+                int month = Integer.parseInt(digits.substring(4, 6));
+                if (month < 1) month = 1;
+                if (month > 12) month = 12;
+                return String.format("%04d-%02d", year, month);
+            }
+        } catch (Exception e) {
+        }
+        java.time.LocalDate now = java.time.LocalDate.now();
+        return now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
     }
 }

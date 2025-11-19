@@ -19,6 +19,10 @@ public class MemberLifecycleRecords extends BaseEntity
     /** 记录ID */
     private Long id;
 
+    /** 数据月份 */
+    @Excel(name = "数据月份")
+    private String dataMonth;
+
     /** 会员ID */
     @Excel(name = "会员ID")
     private Long memberId;
@@ -131,6 +135,13 @@ public class MemberLifecycleRecords extends BaseEntity
     public Date getRecordTime() 
     {
         return recordTime;
+    }
+
+    public String getDataMonth() {
+        return dataMonth;
+    }
+    public void setDataMonth(String dataMonth) {
+        this.dataMonth = dataMonth;
     }
 
     @Override

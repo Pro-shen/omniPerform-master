@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.omniperform.common.annotation.Excel;
+import com.omniperform.common.annotation.Excel.ColumnType;
 import com.omniperform.common.core.domain.BaseEntity;
 
 /**
@@ -92,7 +93,7 @@ public class MotTask extends BaseEntity
     private String storeName;
 
     /** 数据月份 */
-    @Excel(name = "数据月份")
+    @Excel(name = "数据月份", cellType = ColumnType.TEXT)
     private String dataMonth;
 
     public void setTaskId(Long taskId) 

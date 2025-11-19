@@ -18,7 +18,7 @@ public class DashboardOverviewKpi extends BaseEntity {
     private Long id;
 
     /** 数据月份(格式:YYYY-MM) */
-    @Excel(name = "数据月份")
+    @Excel(name = "数据月份", cellType = ColumnType.TEXT)
     private String dataMonth;
 
     /** 区域代码，可为空表示全国 */

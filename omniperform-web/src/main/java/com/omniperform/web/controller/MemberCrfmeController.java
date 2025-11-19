@@ -295,10 +295,11 @@ public class MemberCrfmeController {
      * 导入会员价值分层数据
      */
     @PostMapping("/import")
-    public Result<String> importCrfmeData(@RequestParam("file") MultipartFile file) {
+    public Result<String> importCrfmeData(@RequestParam("file") MultipartFile file,
+                                          @RequestParam(value = "allowUpdate", required = false, defaultValue = "true") boolean allowUpdate) {
         try {
             ExcelUtil<MemberCrfmeDistribution> util = new ExcelUtil<>(MemberCrfmeDistribution.class);
-            List<MemberCrfmeDistribution> dataList = util.importExcel(file.getInputStream());
+            List<MemberCrfmeDistribution> dataList = util.importExcel(file.getInputStream(), 0);
             
             int successCount = 0;
             int failureCount = 0;
@@ -306,6 +307,29 @@ public class MemberCrfmeController {
             
             for (MemberCrfmeDistribution data : dataList) {
                 try {
+                    String dm = normalizeMonth(data.getDataMonth());
+                    data.setDataMonth(dm);
+                    String sr = data.getScoreRange() != null ? data.getScoreRange().trim() : "";
+                    if (dm == null || dm.trim().isEmpty() || sr.isEmpty()) {
+                        failureCount++;
+                        failureMsg.append("<br/>").append(failureCount).append("、数据月份或评分区间为空");
+                        continue;
+                    }
+                    MemberCrfmeDistribution filter = new MemberCrfmeDistribution();
+                    filter.setDataMonth(dm);
+                    filter.setScoreRange(sr);
+                    List<MemberCrfmeDistribution> existing = memberCrfmeDistributionService.selectMemberCrfmeDistributionList(filter);
+                    if (existing != null && !existing.isEmpty()) {
+                        MemberCrfmeDistribution ex = existing.get(0);
+                        if (allowUpdate) {
+                            data.setId(ex.getId());
+                            data.setUpdateBy(data.getCreateBy());
+                            data.setUpdateTime(new java.util.Date());
+                            memberCrfmeDistributionService.updateMemberCrfmeDistribution(data);
+                        }
+                        successCount++;
+                        continue;
+                    }
                     memberCrfmeDistributionService.insertMemberCrfmeDistribution(data);
                     successCount++;
                 } catch (Exception e) {
@@ -326,5 +350,37 @@ public class MemberCrfmeController {
             log.error("导入会员价值分层数据失败: {}", e.getMessage(), e);
             return Result.error("导入失败：" + e.getMessage());
         }
+    }
+
+    private String normalizeMonth(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.isEmpty()) return "";
+        try {
+            java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("^(\\d{4})\\D*(\\d{1,2}).*");
+            java.util.regex.Matcher m1 = p1.matcher(s);
+            if (m1.matches()) {
+                int year = Integer.parseInt(m1.group(1));
+                int month = Integer.parseInt(m1.group(2));
+                if (month < 1) month = 1;
+                if (month > 12) month = 12;
+                return String.format("%04d-%02d", year, month);
+            }
+            if (s.matches("^[A-Za-z]{3}-\\d{2}$")) {
+                java.time.YearMonth ym = java.time.YearMonth.parse(s, java.time.format.DateTimeFormatter.ofPattern("MMM-yy", java.util.Locale.ENGLISH));
+                return ym.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+            }
+            String digits = s.replaceAll("[^0-9]", "");
+            if (digits.length() >= 6) {
+                int year = Integer.parseInt(digits.substring(0, 4));
+                int month = Integer.parseInt(digits.substring(4, 6));
+                if (month < 1) month = 1;
+                if (month > 12) month = 12;
+                return String.format("%04d-%02d", year, month);
+            }
+        } catch (Exception e) {
+        }
+        java.time.LocalDate now = java.time.LocalDate.now();
+        return now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
     }
 }
