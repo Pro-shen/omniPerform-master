@@ -583,11 +583,54 @@ public class DashboardController {
     @GetMapping("/import/template")
     public void downloadTemplate(HttpServletResponse response) {
         try {
-            // 创建会员概览数据的Excel模板，包含示例数据
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("会员概览数据");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+            org.apache.poi.ss.usermodel.CellStyle textStyle = wb.createCellStyle();
+            textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+            org.apache.poi.ss.usermodel.CellStyle intStyle = wb.createCellStyle();
+            intStyle.setDataFormat(wb.createDataFormat().getFormat("0"));
+            org.apache.poi.ss.usermodel.CellStyle decimalStyle = wb.createCellStyle();
+            decimalStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
+
+            String[] headers = new String[]{"数据月份","总会员数","新增会员数","活跃会员数","会员增长率"};
+            org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
             List<DashboardMemberOverview> sampleData = createMemberOverviewSampleData();
-            ExcelUtil<DashboardMemberOverview> util = new ExcelUtil<>(DashboardMemberOverview.class);
+            for (int r = 0; r < sampleData.size(); r++) {
+                DashboardMemberOverview s = sampleData.get(r);
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
+                org.apache.poi.ss.usermodel.Cell c0 = row.createCell(0);
+                c0.setCellValue(s.getDataMonth() != null ? s.getDataMonth() : "");
+                c0.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c1 = row.createCell(1);
+                c1.setCellValue(s.getTotalMembers() != null ? s.getTotalMembers() : 0);
+                c1.setCellStyle(intStyle);
+                org.apache.poi.ss.usermodel.Cell c2 = row.createCell(2);
+                c2.setCellValue(s.getNewMembers() != null ? s.getNewMembers() : 0);
+                c2.setCellStyle(intStyle);
+                org.apache.poi.ss.usermodel.Cell c3 = row.createCell(3);
+                c3.setCellValue(s.getActiveMembers() != null ? s.getActiveMembers() : 0);
+                c3.setCellStyle(intStyle);
+                org.apache.poi.ss.usermodel.Cell c4 = row.createCell(4);
+                c4.setCellValue(s.getMemberGrowthRate() != null ? s.getMemberGrowthRate().doubleValue() : 0.0);
+                c4.setCellStyle(decimalStyle);
+            }
+
             com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员概览模板.xlsx");
-            util.exportExcel(response, sampleData, "会员概览数据", "会员概览数据模板");
+            java.io.OutputStream os = response.getOutputStream();
+            wb.write(os);
+            os.flush();
+            wb.close();
             log.info("下载Excel导入模板成功");
         } catch (Exception e) {
             log.error("下载Excel导入模板失败: {}", e.getMessage(), e);
@@ -600,10 +643,48 @@ public class DashboardController {
     @GetMapping("/import/template/product-sales")
     public void downloadProductSalesTemplate(HttpServletResponse response) {
         try {
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("产品销售数据");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+            org.apache.poi.ss.usermodel.CellStyle textStyle = wb.createCellStyle();
+            textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+            org.apache.poi.ss.usermodel.CellStyle intStyle = wb.createCellStyle();
+            intStyle.setDataFormat(wb.createDataFormat().getFormat("0"));
+            org.apache.poi.ss.usermodel.CellStyle decimalStyle = wb.createCellStyle();
+            decimalStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
+
+            String[] headers = new String[]{"数据月份","产品名称","销售数量"};
+            org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
             List<DashboardProductSales> sampleData = createProductSalesSampleData();
-            ExcelUtil<DashboardProductSales> util = new ExcelUtil<>(DashboardProductSales.class);
+            for (int r = 0; r < sampleData.size(); r++) {
+                DashboardProductSales s = sampleData.get(r);
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
+                org.apache.poi.ss.usermodel.Cell c0 = row.createCell(0);
+                c0.setCellValue(s.getDataMonth() != null ? s.getDataMonth() : "");
+                c0.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c1 = row.createCell(1);
+                c1.setCellValue(s.getProductName() != null ? s.getProductName() : "");
+                c1.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c2 = row.createCell(2);
+                c2.setCellValue(s.getSalesQuantity() != null ? s.getSalesQuantity() : 0);
+                c2.setCellStyle(intStyle);
+            }
+
             com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "产品销售分析模板.xlsx");
-            util.exportExcel(response, sampleData, "产品销售数据", "产品销售数据模板");
+            java.io.OutputStream os = response.getOutputStream();
+            wb.write(os);
+            os.flush();
+            wb.close();
             log.info("下载产品销售数据Excel导入模板成功");
         } catch (Exception e) {
             log.error("下载产品销售数据Excel导入模板失败: {}", e.getMessage(), e);
@@ -616,10 +697,52 @@ public class DashboardController {
     @GetMapping("/import/template/region-performance")
     public void downloadRegionPerformanceTemplate(HttpServletResponse response) {
         try {
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("区域绩效数据");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+            org.apache.poi.ss.usermodel.CellStyle textStyle = wb.createCellStyle();
+            textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+            org.apache.poi.ss.usermodel.CellStyle intStyle = wb.createCellStyle();
+            intStyle.setDataFormat(wb.createDataFormat().getFormat("0"));
+            org.apache.poi.ss.usermodel.CellStyle decimalStyle = wb.createCellStyle();
+            decimalStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
+
+            String[] headers = new String[]{"数据月份","区域名称","销售金额","会员数量"};
+            org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
             List<DashboardRegionPerformance> sampleData = createRegionPerformanceSampleData();
-            ExcelUtil<DashboardRegionPerformance> util = new ExcelUtil<>(DashboardRegionPerformance.class);
+            for (int r = 0; r < sampleData.size(); r++) {
+                DashboardRegionPerformance s = sampleData.get(r);
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
+                org.apache.poi.ss.usermodel.Cell c0 = row.createCell(0);
+                c0.setCellValue(s.getDataMonth() != null ? s.getDataMonth() : "");
+                c0.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c1 = row.createCell(1);
+                c1.setCellValue(s.getRegionName() != null ? s.getRegionName() : "");
+                c1.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c2 = row.createCell(2);
+                c2.setCellValue(s.getSalesAmount() != null ? s.getSalesAmount().doubleValue() : 0.0);
+                c2.setCellStyle(decimalStyle);
+                org.apache.poi.ss.usermodel.Cell c3 = row.createCell(3);
+                c3.setCellValue(s.getMemberCount() != null ? s.getMemberCount() : 0);
+                c3.setCellStyle(intStyle);
+                
+            }
+
             com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "区域绩效对比模板.xlsx");
-            util.exportExcel(response, sampleData, "区域绩效数据", "区域绩效数据模板");
+            java.io.OutputStream os = response.getOutputStream();
+            wb.write(os);
+            os.flush();
+            wb.close();
             log.info("下载区域绩效数据Excel导入模板成功");
         } catch (Exception e) {
             log.error("下载区域绩效数据Excel导入模板失败: {}", e.getMessage(), e);
@@ -632,10 +755,46 @@ public class DashboardController {
     @GetMapping("/import/template/member-growth")
     public void downloadMemberGrowthTemplate(HttpServletResponse response) {
         try {
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("会员增长趋势数据");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+            org.apache.poi.ss.usermodel.CellStyle textStyle = wb.createCellStyle();
+            textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+            org.apache.poi.ss.usermodel.CellStyle intStyle = wb.createCellStyle();
+            intStyle.setDataFormat(wb.createDataFormat().getFormat("0"));
+            org.apache.poi.ss.usermodel.CellStyle decimalStyle = wb.createCellStyle();
+            decimalStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
+
+            String[] headers = new String[]{"数据月份","新增会员数"};
+            org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
             List<DashboardMemberGrowth> sampleData = createMemberGrowthSampleData();
-            ExcelUtil<DashboardMemberGrowth> util = new ExcelUtil<>(DashboardMemberGrowth.class);
+            for (int r = 0; r < sampleData.size(); r++) {
+                DashboardMemberGrowth s = sampleData.get(r);
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
+                org.apache.poi.ss.usermodel.Cell c0 = row.createCell(0);
+                c0.setCellValue(s.getDataMonth() != null ? s.getDataMonth() : "");
+                c0.setCellStyle(textStyle);
+                org.apache.poi.ss.usermodel.Cell c1 = row.createCell(1);
+                c1.setCellValue(s.getNewMembers() != null ? s.getNewMembers() : 0);
+                c1.setCellStyle(intStyle);
+                
+            }
+
             com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员增长与复购趋势模板.xlsx");
-            util.exportExcel(response, sampleData, "会员增长趋势数据", "会员增长趋势数据模板");
+            java.io.OutputStream os = response.getOutputStream();
+            wb.write(os);
+            os.flush();
+            wb.close();
             log.info("下载会员增长趋势数据Excel导入模板成功");
         } catch (Exception e) {
             log.error("下载会员增长趋势数据Excel导入模板失败: {}", e.getMessage(), e);
@@ -658,10 +817,8 @@ public class DashboardController {
             textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
             org.apache.poi.ss.usermodel.CellStyle intStyle = wb.createCellStyle();
             intStyle.setDataFormat(wb.createDataFormat().getFormat("0"));
-            org.apache.poi.ss.usermodel.CellStyle decimalStyle = wb.createCellStyle();
-            decimalStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
             org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
-            String[] headers = new String[]{"主键ID","数据月份","阶段名称","会员数量","占比"};
+            String[] headers = new String[]{"数据月份","阶段名称","会员数量"};
             for (int i = 0; i < headers.length; i++) {
                 org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
                 c.setCellValue(headers[i]);
@@ -673,20 +830,14 @@ public class DashboardController {
                 DashboardMemberStage s = sample.get(r);
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
                 org.apache.poi.ss.usermodel.Cell c0 = row.createCell(0);
-                c0.setCellValue(s.getId() != null ? s.getId() : 0);
-                c0.setCellStyle(intStyle);
+                c0.setCellValue(s.getDataMonth() != null ? s.getDataMonth() : "");
+                c0.setCellStyle(textStyle);
                 org.apache.poi.ss.usermodel.Cell c1 = row.createCell(1);
-                c1.setCellValue(s.getDataMonth() != null ? s.getDataMonth() : "");
+                c1.setCellValue(s.getStageName() != null ? s.getStageName() : "");
                 c1.setCellStyle(textStyle);
                 org.apache.poi.ss.usermodel.Cell c2 = row.createCell(2);
-                c2.setCellValue(s.getStageName() != null ? s.getStageName() : "");
-                c2.setCellStyle(textStyle);
-                org.apache.poi.ss.usermodel.Cell c3 = row.createCell(3);
-                c3.setCellValue(s.getMemberCount() != null ? s.getMemberCount() : 0);
-                c3.setCellStyle(intStyle);
-                org.apache.poi.ss.usermodel.Cell c4 = row.createCell(4);
-                c4.setCellValue(s.getPercentage() != null ? s.getPercentage().doubleValue() : 0.0);
-                c4.setCellStyle(decimalStyle);
+                c2.setCellValue(s.getMemberCount() != null ? s.getMemberCount() : 0);
+                c2.setCellStyle(intStyle);
             }
             com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员阶段分布模板.xlsx");
             java.io.OutputStream os = response.getOutputStream();
@@ -714,25 +865,21 @@ public class DashboardController {
             textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
             org.apache.poi.ss.usermodel.CellStyle intStyle = wb.createCellStyle();
             intStyle.setDataFormat(wb.createDataFormat().getFormat("0"));
-            org.apache.poi.ss.usermodel.CellStyle decimalStyle = wb.createCellStyle();
-            decimalStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
-
             org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
-            String[] headers = new String[]{"数据月份","来源渠道","会员数量","占比","转化率"};
+            String[] headers = new String[]{"数据月份","来源渠道","会员数量"};
             for (int i = 0; i < headers.length; i++) {
                 org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
                 c.setCellValue(headers[i]);
                 c.setCellStyle(headerStyle);
                 sheet.setColumnWidth(i, 20 * 256);
             }
-
             java.util.List<java.util.Map<String, Object>> sample = new java.util.ArrayList<>();
             java.util.Map<String, Object> r1 = new java.util.HashMap<>();
-            r1.put("month", "2025-08"); r1.put("channel", "线下门店"); r1.put("count", 2500); r1.put("pct", new java.math.BigDecimal("25.00")); r1.put("conv", new java.math.BigDecimal("15.00"));
+            r1.put("month", "2025-08"); r1.put("channel", "线下门店"); r1.put("count", 2500);
             java.util.Map<String, Object> r2 = new java.util.HashMap<>();
-            r2.put("month", "2025-09"); r2.put("channel", "线上商城"); r2.put("count", 4500); r2.put("pct", new java.math.BigDecimal("45.00")); r2.put("conv", new java.math.BigDecimal("8.50"));
+            r2.put("month", "2025-09"); r2.put("channel", "线上商城"); r2.put("count", 4500);
             java.util.Map<String, Object> r3 = new java.util.HashMap<>();
-            r3.put("month", "2025-10"); r3.put("channel", "微信推广"); r3.put("count", 1800); r3.put("pct", new java.math.BigDecimal("18.00")); r3.put("conv", new java.math.BigDecimal("12.30"));
+            r3.put("month", "2025-10"); r3.put("channel", "微信推广"); r3.put("count", 1800);
             sample.add(r1); sample.add(r2); sample.add(r3);
 
             for (int r = 0; r < sample.size(); r++) {
@@ -747,12 +894,6 @@ public class DashboardController {
                 org.apache.poi.ss.usermodel.Cell c2 = row.createCell(2);
                 c2.setCellValue(((Number) s.get("count")).intValue());
                 c2.setCellStyle(intStyle);
-                org.apache.poi.ss.usermodel.Cell c3 = row.createCell(3);
-                c3.setCellValue(((java.math.BigDecimal) s.get("pct")).doubleValue());
-                c3.setCellStyle(decimalStyle);
-                org.apache.poi.ss.usermodel.Cell c4 = row.createCell(4);
-                c4.setCellValue(((java.math.BigDecimal) s.get("conv")).doubleValue());
-                c4.setCellStyle(decimalStyle);
             }
 
             com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "会员来源分析模板.xlsx");
@@ -797,8 +938,7 @@ public class DashboardController {
             // 表头
             org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
             String[] headers = new String[] {
-                    "月份", "新会员数量", "复购率", "MOT成功率", "会员活跃度",
-                    "新会员数量环比", "复购率环比", "MOT成功率环比", "会员活跃度环比"
+                    "月份", "新会员数量", "复购率", "MOT成功率", "会员活跃度"
             };
             for (int i = 0; i < headers.length; i++) {
                 org.apache.poi.ss.usermodel.Cell cell = header.createCell(i);
@@ -808,11 +948,11 @@ public class DashboardController {
 
             // 示例数据：确保包含 2025-01 与 2025-02
             Object[][] sampleRows = new Object[][]{
-                    { "2025-01", 985, 32.50, 20.10, 60.00, 0.00, 0.00, 0.00, 0.00 },
-                    { "2025-02", 1052, 33.50, 20.90, 61.20, 6.80, 1.00, 0.80, 1.20 },
-                    { "2025-05", 1138, 34.30, 22.60, 63.10, 8.20, 0.80, 1.70, 1.90 },
-                    { "2025-06", 1285, 38.20, 24.50, 65.20, 12.80, 3.50, 2.10, 1.80 },
-                    { "2025-07", 1302, 38.80, 25.20, 66.00, 1.30, 0.60, 0.70, 0.80 }
+                    { "2025-01", 985, 32.50, 20.10, 60.00 },
+                    { "2025-02", 1052, 33.50, 20.90, 61.20 },
+                    { "2025-05", 1138, 34.30, 22.60, 63.10 },
+                    { "2025-06", 1285, 38.20, 24.50, 65.20 },
+                    { "2025-07", 1302, 38.80, 25.20, 66.00 }
             };
             for (int r = 0; r < sampleRows.length; r++) {
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 1);
@@ -822,7 +962,6 @@ public class DashboardController {
                     Object v = values[c];
                     if (v instanceof Number) {
                         cell.setCellValue(((Number) v).doubleValue());
-                        // 第2列为整数，新会员数量；其它为两位小数
                         if (c == 1) {
                             cell.setCellStyle(integerStyle);
                         } else if (c >= 2) {
@@ -869,7 +1008,7 @@ public class DashboardController {
                     "首页KPI数据导入模板使用说明：",
                     "1. 月份格式必须为YYYY-MM，例如 2025-01、2025-02。",
                     "2. 区域代码无需填写，模板不含该列；后端将写入全国数据（region_code=NULL）。",
-                    "3. 复购率、MOT成功率、会员活跃度及其环比均为数值，请直接填写数字，不要加百分号。",
+                    "3. 复购率、MOT成功率、会员活跃度均为数值，请直接填写数字，不要加百分号。",
                     "4. 新会员数量为整数，其余指标建议保留两位小数。",
                     "5. 示例数据已包含 2025-01 与 2025-02，可直接按需修改后导入。",
                     "6. 若某行格式不正确，系统将跳过该行并在返回结果中给出错误提示。"
@@ -1089,29 +1228,53 @@ public class DashboardController {
      */
     private List<DashboardMemberStage> createMemberStageSampleData() {
         List<DashboardMemberStage> sampleData = new ArrayList<>();
-        
-        // 示例数据1
-        DashboardMemberStage sample1 = new DashboardMemberStage();
-        sample1.setDataMonth("2025-01");
-        sample1.setStageName("新会员");
-        sample1.setMemberCount(2500);
-        sample1.setPercentage(new BigDecimal("25.0"));
-        sample1.setCreateTime(new Date());
-        sample1.setCreateBy("system");
-        sample1.setRemark("示例数据1");
-        sampleData.add(sample1);
-        
-        // 示例数据2
-        DashboardMemberStage sample2 = new DashboardMemberStage();
-        sample2.setDataMonth("2025-01");
-        sample2.setStageName("活跃会员");
-        sample2.setMemberCount(4500);
-        sample2.setPercentage(new BigDecimal("45.0"));
-        sample2.setCreateTime(new Date());
-        sample2.setCreateBy("system");
-        sample2.setRemark("示例数据2");
-        sampleData.add(sample2);
-        
+        String month = "2025-06";
+
+        DashboardMemberStage s0 = new DashboardMemberStage();
+        s0.setDataMonth(month);
+        s0.setStageName("0阶段(孕妇)");
+        s0.setMemberCount(980);
+        s0.setPercentage(new BigDecimal("18.0"));
+        s0.setCreateTime(new Date());
+        s0.setCreateBy("system");
+        sampleData.add(s0);
+
+        DashboardMemberStage s1 = new DashboardMemberStage();
+        s1.setDataMonth(month);
+        s1.setStageName("1阶段(0-6个月)");
+        s1.setMemberCount(1820);
+        s1.setPercentage(new BigDecimal("33.0"));
+        s1.setCreateTime(new Date());
+        s1.setCreateBy("system");
+        sampleData.add(s1);
+
+        DashboardMemberStage s2 = new DashboardMemberStage();
+        s2.setDataMonth(month);
+        s2.setStageName("2阶段(6-12个月)");
+        s2.setMemberCount(1650);
+        s2.setPercentage(new BigDecimal("30.0"));
+        s2.setCreateTime(new Date());
+        s2.setCreateBy("system");
+        sampleData.add(s2);
+
+        DashboardMemberStage s3 = new DashboardMemberStage();
+        s3.setDataMonth(month);
+        s3.setStageName("3阶段(1-2岁)");
+        s3.setMemberCount(1250);
+        s3.setPercentage(new BigDecimal("24.0"));
+        s3.setCreateTime(new Date());
+        s3.setCreateBy("system");
+        sampleData.add(s3);
+
+        DashboardMemberStage s4 = new DashboardMemberStage();
+        s4.setDataMonth(month);
+        s4.setStageName("4阶段(2-3岁)");
+        s4.setMemberCount(1050);
+        s4.setPercentage(new BigDecimal("19.0"));
+        s4.setCreateTime(new Date());
+        s4.setCreateBy("system");
+        sampleData.add(s4);
+
         return sampleData;
     }
 
