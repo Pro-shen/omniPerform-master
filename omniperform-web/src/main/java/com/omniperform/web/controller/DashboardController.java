@@ -138,17 +138,42 @@ public class DashboardController {
                 log.info("[getMetrics] dashboard_overview_kpi 查询结果条数: {} (month={}, region=null)",
                          (list == null ? 0 : list.size()), month);
                 if (list != null && !list.isEmpty()) {
-                    DashboardOverviewKpi k = list.get(0);
-                    log.info("[getMetrics] 命中KPI记录 id={}, dataMonth={}, regionCode={}",
-                             k.getId(), k.getDataMonth(), k.getRegionCode());
-                    data.put("newMembers", k.getNewMembers());
-                    data.put("newMembersGrowth", toRate(k.getNewMembersGrowth()));
-                    data.put("repeatPurchaseRate", toRate(k.getRepeatPurchaseRate()));
-                    data.put("repeatPurchaseGrowth", toRate(k.getRepeatPurchaseGrowth()));
-                    data.put("motSuccessRate", toRate(k.getMotSuccessRate()));
-                    data.put("motSuccessGrowth", toRate(k.getMotSuccessGrowth()));
-                    data.put("memberActivityRate", toRate(k.getMemberActivityRate()));
-                    data.put("memberActivityGrowth", toRate(k.getMemberActivityGrowth()));
+                    DashboardOverviewKpi k = null;
+                    try {
+                        java.util.List<DashboardOverviewKpi> prefer = new java.util.ArrayList<>();
+                        for (DashboardOverviewKpi x : list) {
+                            if (x.getRegionCode() == null || x.getRegionCode().trim().isEmpty()) {
+                                prefer.add(x);
+                            }
+                        }
+                        if (!prefer.isEmpty()) {
+                            prefer.sort((a,b) -> {
+                                java.util.Date ta = a.getCreateTime();
+                                java.util.Date tb = b.getCreateTime();
+                                if (ta == null && tb == null) return 0;
+                                if (ta == null) return 1;
+                                if (tb == null) return -1;
+                                return tb.compareTo(ta);
+                            });
+                            k = prefer.get(0);
+                        } else {
+                            k = list.get(0);
+                        }
+                    } catch (Exception ignore) {
+                        k = list.get(0);
+                    }
+                    log.info("[getMetrics] 选择KPI记录 id={}, dataMonth={}, regionCode={}",
+                             (k != null ? k.getId() : null), (k != null ? k.getDataMonth() : null), (k != null ? k.getRegionCode() : null));
+                    if (k != null) {
+                        data.put("newMembers", k.getNewMembers());
+                        data.put("newMembersGrowth", toRate(k.getNewMembersGrowth()));
+                        data.put("repeatPurchaseRate", toRate(k.getRepeatPurchaseRate()));
+                        data.put("repeatPurchaseGrowth", toRate(k.getRepeatPurchaseGrowth()));
+                        data.put("motSuccessRate", toRate(k.getMotSuccessRate()));
+                        data.put("motSuccessGrowth", toRate(k.getMotSuccessGrowth()));
+                        data.put("memberActivityRate", toRate(k.getMemberActivityRate()));
+                        data.put("memberActivityGrowth", toRate(k.getMemberActivityGrowth()));
+                    }
                 } else {
                     log.warn("[getMetrics] 未在 dashboard_overview_kpi 查到该月份记录: month={}, 可能原因: 1) 数据未导入; 2) 月份格式不为YYYY-MM; 3) 全国数据region_code非NULL;", month);
                 }
