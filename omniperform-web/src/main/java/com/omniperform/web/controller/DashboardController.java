@@ -177,6 +177,49 @@ public class DashboardController {
                 } else {
                     log.warn("[getMetrics] 未在 dashboard_overview_kpi 查到该月份记录: month={}, 可能原因: 1) 数据未导入; 2) 月份格式不为YYYY-MM; 3) 全国数据region_code非NULL;", month);
                 }
+            } else {
+                // 未指定月份时，读取最新的首页KPI（优先全国数据）
+                List<DashboardOverviewKpi> list = dashboardOverviewKpiService.listByMonth(null, null);
+                log.info("[getMetrics] 未带月份，查询全部KPI记录条数: {}", (list == null ? 0 : list.size()));
+                if (list != null && !list.isEmpty()) {
+                    DashboardOverviewKpi k = null;
+                    try {
+                        java.util.List<DashboardOverviewKpi> prefer = new java.util.ArrayList<>();
+                        for (DashboardOverviewKpi x : list) {
+                            if (x.getRegionCode() == null || x.getRegionCode().trim().isEmpty()) {
+                                prefer.add(x);
+                            }
+                        }
+                        if (!prefer.isEmpty()) {
+                            // selectList 已按 data_month desc 排序，这里再按 create_time 降序挑选最新
+                            prefer.sort((a,b) -> {
+                                java.util.Date ta = a.getCreateTime();
+                                java.util.Date tb = b.getCreateTime();
+                                if (ta == null && tb == null) return 0;
+                                if (ta == null) return 1;
+                                if (tb == null) return -1;
+                                return tb.compareTo(ta);
+                            });
+                            k = prefer.get(0);
+                        } else {
+                            k = list.get(0);
+                        }
+                    } catch (Exception ignore) {
+                        k = list.get(0);
+                    }
+                    log.info("[getMetrics] 未带月份，选用KPI记录 id={}, dataMonth={}, regionCode={}",
+                             (k != null ? k.getId() : null), (k != null ? k.getDataMonth() : null), (k != null ? k.getRegionCode() : null));
+                    if (k != null) {
+                        data.put("newMembers", k.getNewMembers());
+                        data.put("newMembersGrowth", toRate(k.getNewMembersGrowth()));
+                        data.put("repeatPurchaseRate", toRate(k.getRepeatPurchaseRate()));
+                        data.put("repeatPurchaseGrowth", toRate(k.getRepeatPurchaseGrowth()));
+                        data.put("motSuccessRate", toRate(k.getMotSuccessRate()));
+                        data.put("motSuccessGrowth", toRate(k.getMotSuccessGrowth()));
+                        data.put("memberActivityRate", toRate(k.getMemberActivityRate()));
+                        data.put("memberActivityGrowth", toRate(k.getMemberActivityGrowth()));
+                    }
+                }
             }
 
             // 兼容原先的实时指标字段
@@ -1376,24 +1419,38 @@ public class DashboardController {
     public Result<String> importProductSales(@RequestParam("file") MultipartFile file) {
         try {
             ExcelUtil<DashboardProductSales> util = new ExcelUtil<>(DashboardProductSales.class);
-            // 使用titleNum=1跳过标题行
             List<DashboardProductSales> dataList = util.importExcel(file.getInputStream(), 1);
-            
-            if (dataList == null || dataList.isEmpty()) {
-                return Result.error("导入数据为空");
+            if (dataList == null || dataList.isEmpty() || isProductSalesRowEmpty(dataList)) {
+                dataList = parseProductSalesRaw(file.getInputStream());
+                if (dataList == null || dataList.isEmpty()) {
+                    return Result.error("导入数据为空");
+                }
             }
             
             // 批量导入：先查重复(月份+产品)，存在则更新，否则插入，避免唯一键冲突
             int successCount = 0;
             for (DashboardProductSales data : dataList) {
                 try {
-                    boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
-                    boolean hasProduct = data.getProductName() != null && !data.getProductName().trim().isEmpty();
+                    // 归一化月份与产品名去空格，提高重复匹配的稳定性
+                    String dm = normalizeMonth(data.getDataMonth());
+                    data.setDataMonth(dm);
+                    String pn = data.getProductName() != null ? data.getProductName().trim() : "";
+                    data.setProductName(pn);
+                    if (data.getCreateTime() == null) {
+                        data.setCreateTime(new Date());
+                    }
+                    String createBy = data.getCreateBy();
+                    if (createBy == null || createBy.trim().isEmpty()) {
+                        data.setCreateBy("system");
+                    }
+                    boolean hasMonth = dm != null && !dm.trim().isEmpty();
+                    boolean hasProduct = pn != null && !pn.trim().isEmpty();
                     if (hasMonth && hasProduct) {
-                        List<DashboardProductSales> existingList = productSalesService.selectByDataMonth(data.getDataMonth());
+                        List<DashboardProductSales> existingList = productSalesService.selectByDataMonth(dm);
                         DashboardProductSales existing = null;
                         for (DashboardProductSales s : existingList) {
-                            if (data.getProductName().equals(s.getProductName())) {
+                            String spn = s.getProductName() != null ? s.getProductName().trim() : "";
+                            if (pn.equals(spn)) {
                                 existing = s;
                                 break;
                             }
@@ -1430,24 +1487,38 @@ public class DashboardController {
     public Result<String> importRegionPerformance(@RequestParam("file") MultipartFile file) {
         try {
             ExcelUtil<DashboardRegionPerformance> util = new ExcelUtil<>(DashboardRegionPerformance.class);
-            // 使用titleNum=1跳过标题行
             List<DashboardRegionPerformance> dataList = util.importExcel(file.getInputStream(), 1);
-            
-            if (dataList == null || dataList.isEmpty()) {
-                return Result.error("导入数据为空");
+            if (dataList == null || dataList.isEmpty() || isRegionPerformanceRowEmpty(dataList)) {
+                dataList = parseRegionPerformanceRaw(file.getInputStream());
+                if (dataList == null || dataList.isEmpty()) {
+                    return Result.error("导入数据为空");
+                }
             }
             
             // 批量导入：先查重复(月份+区域)，存在则更新，否则插入，避免唯一键冲突
             int successCount = 0;
             for (DashboardRegionPerformance data : dataList) {
                 try {
-                    boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
-                    boolean hasRegion = data.getRegionName() != null && !data.getRegionName().trim().isEmpty();
+                    // 归一化月份与去除区域名空格，提高重复匹配的稳定性
+                    String dm = normalizeMonth(data.getDataMonth());
+                    data.setDataMonth(dm);
+                    String rn = data.getRegionName() != null ? data.getRegionName().trim() : "";
+                    data.setRegionName(rn);
+                    if (data.getCreateTime() == null) {
+                        data.setCreateTime(new Date());
+                    }
+                    String createBy = data.getCreateBy();
+                    if (createBy == null || createBy.trim().isEmpty()) {
+                        data.setCreateBy("system");
+                    }
+                    boolean hasMonth = dm != null && !dm.trim().isEmpty();
+                    boolean hasRegion = rn != null && !rn.trim().isEmpty();
                     if (hasMonth && hasRegion) {
-                        List<DashboardRegionPerformance> existingList = regionPerformanceService.selectByDataMonth(data.getDataMonth());
+                        List<DashboardRegionPerformance> existingList = regionPerformanceService.selectByDataMonth(dm);
                         DashboardRegionPerformance existing = null;
                         for (DashboardRegionPerformance s : existingList) {
-                            if (data.getRegionName().equals(s.getRegionName())) {
+                            String srn = s.getRegionName() != null ? s.getRegionName().trim() : "";
+                            if (rn.equals(srn)) {
                                 existing = s;
                                 break;
                             }
@@ -1696,6 +1767,160 @@ public class DashboardController {
         return now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
     }
 
+    private boolean isProductSalesRowEmpty(List<DashboardProductSales> list) {
+        if (list == null || list.isEmpty()) return true;
+        boolean anyValid = false;
+        for (DashboardProductSales d : list) {
+            if (d == null) continue;
+            String dm = d.getDataMonth();
+            String pn = d.getProductName();
+            boolean hasKey = (dm != null && !dm.trim().isEmpty()) || (pn != null && !pn.trim().isEmpty());
+            boolean hasValue = d.getSalesAmount() != null || d.getSalesQuantity() != null || d.getMarketShare() != null;
+            if (hasKey || hasValue) {
+                anyValid = true;
+                break;
+            }
+        }
+        return !anyValid;
+    }
+
+    private boolean isRegionPerformanceRowEmpty(List<DashboardRegionPerformance> list) {
+        if (list == null || list.isEmpty()) return true;
+        boolean anyValid = false;
+        for (DashboardRegionPerformance d : list) {
+            if (d == null) continue;
+            String dm = d.getDataMonth();
+            String rn = d.getRegionName();
+            boolean hasKey = (dm != null && !dm.trim().isEmpty()) || (rn != null && !rn.trim().isEmpty());
+            boolean hasValue = d.getSalesAmount() != null || d.getMemberCount() != null || d.getPerformanceScore() != null;
+            if (hasKey || hasValue) {
+                anyValid = true;
+                break;
+            }
+        }
+        return !anyValid;
+    }
+
+    private List<DashboardProductSales> parseProductSalesRaw(java.io.InputStream in) {
+        java.util.List<DashboardProductSales> out = new java.util.ArrayList<>();
+        try {
+            org.apache.poi.ss.usermodel.Workbook wb = org.apache.poi.ss.usermodel.WorkbookFactory.create(in);
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            int last = sheet.getLastRowNum();
+            int start = 0;
+            org.apache.poi.ss.usermodel.Row first = sheet.getRow(0);
+            if (first != null) {
+                String c0 = cellString(first.getCell(0));
+                if ("数据月份".equals(c0)) start = 1;
+            }
+            for (int r = start; r <= last; r++) {
+                org.apache.poi.ss.usermodel.Row row = sheet.getRow(r);
+                if (row == null) continue;
+                String dm = cellString(row.getCell(0));
+                String pn = cellString(row.getCell(1));
+                java.math.BigDecimal sa = cellDecimal(row.getCell(2));
+                Integer sq = cellInteger(row.getCell(3));
+                java.math.BigDecimal ms = cellDecimal(row.getCell(4));
+                if ((dm == null || dm.trim().isEmpty()) && (pn == null || pn.trim().isEmpty())) continue;
+                DashboardProductSales d = new DashboardProductSales();
+                d.setDataMonth(normalizeMonth(dm));
+                d.setProductName(pn != null ? pn.trim() : pn);
+                d.setSalesAmount(sa);
+                d.setSalesQuantity(sq);
+                d.setMarketShare(ms);
+                d.setCreateBy("system");
+                d.setCreateTime(new java.util.Date());
+                out.add(d);
+            }
+            wb.close();
+        } catch (Exception e) {
+        }
+        return out;
+    }
+
+    private List<DashboardRegionPerformance> parseRegionPerformanceRaw(java.io.InputStream in) {
+        java.util.List<DashboardRegionPerformance> out = new java.util.ArrayList<>();
+        try {
+            org.apache.poi.ss.usermodel.Workbook wb = org.apache.poi.ss.usermodel.WorkbookFactory.create(in);
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            int last = sheet.getLastRowNum();
+            int start = 0;
+            org.apache.poi.ss.usermodel.Row first = sheet.getRow(0);
+            if (first != null) {
+                String c0 = cellString(first.getCell(0));
+                if ("数据月份".equals(c0)) start = 1;
+            }
+            for (int r = start; r <= last; r++) {
+                org.apache.poi.ss.usermodel.Row row = sheet.getRow(r);
+                if (row == null) continue;
+                String dm = cellString(row.getCell(0));
+                String rn = cellString(row.getCell(1));
+                java.math.BigDecimal sa = cellDecimal(row.getCell(2));
+                Integer mc = cellInteger(row.getCell(3));
+                java.math.BigDecimal ps = cellDecimal(row.getCell(4));
+                if ((dm == null || dm.trim().isEmpty()) && (rn == null || rn.trim().isEmpty())) continue;
+                DashboardRegionPerformance d = new DashboardRegionPerformance();
+                d.setDataMonth(normalizeMonth(dm));
+                d.setRegionName(rn != null ? rn.trim() : rn);
+                d.setSalesAmount(sa);
+                d.setMemberCount(mc);
+                d.setPerformanceScore(ps);
+                d.setCreateBy("system");
+                d.setCreateTime(new java.util.Date());
+                out.add(d);
+            }
+            wb.close();
+        } catch (Exception e) {
+        }
+        return out;
+    }
+
+    private String cellString(org.apache.poi.ss.usermodel.Cell c) {
+        if (c == null) return null;
+        try {
+            return c.getStringCellValue();
+        } catch (Exception e) {
+            try {
+                double v = c.getNumericCellValue();
+                String s = String.valueOf(v);
+                if (s.endsWith(".0")) s = s.substring(0, s.length() - 2);
+                return s;
+            } catch (Exception e2) {
+                return c.toString();
+            }
+        }
+    }
+
+    private java.math.BigDecimal cellDecimal(org.apache.poi.ss.usermodel.Cell c) {
+        if (c == null) return null;
+        try {
+            return new java.math.BigDecimal(c.getNumericCellValue()).setScale(2, java.math.RoundingMode.HALF_UP);
+        } catch (Exception e) {
+            try {
+                String s = cellString(c);
+                if (s == null || s.trim().isEmpty()) return null;
+                return new java.math.BigDecimal(s.trim());
+            } catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
+    private Integer cellInteger(org.apache.poi.ss.usermodel.Cell c) {
+        if (c == null) return null;
+        try {
+            return (int) Math.round(c.getNumericCellValue());
+        } catch (Exception e) {
+            try {
+                String s = cellString(c);
+                if (s == null || s.trim().isEmpty()) return null;
+                return Integer.parseInt(s.trim().replaceAll("[^0-9-]", ""));
+            } catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
     /**
      * 批量导入所有类型数据（通用接口）
      */
@@ -1844,18 +2069,32 @@ public class DashboardController {
                     
                 case "product-sales":
                     ExcelUtil<DashboardProductSales> productUtil = new ExcelUtil<>(DashboardProductSales.class);
-                    // 使用titleNum=1跳过标题行
                     List<DashboardProductSales> productDataList = productUtil.importExcel(file.getInputStream(), 1);
+                    if (productDataList == null || productDataList.isEmpty() || isProductSalesRowEmpty(productDataList)) {
+                        productDataList = parseProductSalesRaw(file.getInputStream());
+                    }
                     for (DashboardProductSales data : productDataList) {
                         try {
                             // 先查重复记录：按月份+产品名称判断是否存在，存在则更新或跳过，避免唯一键报错
-                            boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
-                            boolean hasProduct = data.getProductName() != null && !data.getProductName().trim().isEmpty();
+                            String dm = normalizeMonth(data.getDataMonth());
+                            data.setDataMonth(dm);
+                            String pn = data.getProductName() != null ? data.getProductName().trim() : "";
+                            data.setProductName(pn);
+                            if (data.getCreateTime() == null) {
+                                data.setCreateTime(new Date());
+                            }
+                            String createBy = data.getCreateBy();
+                            if (createBy == null || createBy.trim().isEmpty()) {
+                                data.setCreateBy("system");
+                            }
+                            boolean hasMonth = dm != null && !dm.trim().isEmpty();
+                            boolean hasProduct = pn != null && !pn.trim().isEmpty();
                             if (hasMonth && hasProduct) {
-                                List<DashboardProductSales> existingList = productSalesService.selectByDataMonth(data.getDataMonth());
+                                List<DashboardProductSales> existingList = productSalesService.selectByDataMonth(dm);
                                 DashboardProductSales existing = null;
                                 for (DashboardProductSales s : existingList) {
-                                    if (data.getProductName().equals(s.getProductName())) {
+                                    String spn = s.getProductName() != null ? s.getProductName().trim() : "";
+                                    if (pn.equals(spn)) {
                                         existing = s;
                                         break;
                                     }
@@ -1886,18 +2125,32 @@ public class DashboardController {
                     
                 case "region-performance":
                     ExcelUtil<DashboardRegionPerformance> regionUtil = new ExcelUtil<>(DashboardRegionPerformance.class);
-                    // 使用titleNum=1跳过标题行
                     List<DashboardRegionPerformance> regionDataList = regionUtil.importExcel(file.getInputStream(), 1);
+                    if (regionDataList == null || regionDataList.isEmpty() || isRegionPerformanceRowEmpty(regionDataList)) {
+                        regionDataList = parseRegionPerformanceRaw(file.getInputStream());
+                    }
                     for (DashboardRegionPerformance data : regionDataList) {
                         try {
                             // 先查重复记录：按月份+区域名称判断是否存在，存在则更新或跳过，避免唯一键报错
-                            boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
-                            boolean hasRegion = data.getRegionName() != null && !data.getRegionName().trim().isEmpty();
+                            String dm = normalizeMonth(data.getDataMonth());
+                            data.setDataMonth(dm);
+                            String rn = data.getRegionName() != null ? data.getRegionName().trim() : "";
+                            data.setRegionName(rn);
+                            if (data.getCreateTime() == null) {
+                                data.setCreateTime(new Date());
+                            }
+                            String createBy = data.getCreateBy();
+                            if (createBy == null || createBy.trim().isEmpty()) {
+                                data.setCreateBy("system");
+                            }
+                            boolean hasMonth = dm != null && !dm.trim().isEmpty();
+                            boolean hasRegion = rn != null && !rn.trim().isEmpty();
                             if (hasMonth && hasRegion) {
-                                List<DashboardRegionPerformance> existingList = regionPerformanceService.selectByDataMonth(data.getDataMonth());
+                                List<DashboardRegionPerformance> existingList = regionPerformanceService.selectByDataMonth(dm);
                                 DashboardRegionPerformance existing = null;
                                 for (DashboardRegionPerformance s : existingList) {
-                                    if (data.getRegionName().equals(s.getRegionName())) {
+                                    String srn = s.getRegionName() != null ? s.getRegionName().trim() : "";
+                                    if (rn.equals(srn)) {
                                         existing = s;
                                         break;
                                     }
