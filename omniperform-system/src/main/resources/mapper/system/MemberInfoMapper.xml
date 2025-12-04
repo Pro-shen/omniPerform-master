@@ -68,6 +68,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <insert id="insertMemberInfo" parameterType="MemberInfo" useGeneratedKeys="true" keyProperty="memberId">
         insert into member_info
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="memberId != null">member_id,</if>
             <if test="memberCode != null and memberCode != ''">member_code,</if>
             <if test="memberName != null and memberName != ''">member_name,</if>
             <if test="phone != null">phone,</if>
@@ -91,6 +92,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateTime != null">update_time,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="memberId != null">#{memberId},</if>
             <if test="memberCode != null and memberCode != ''">#{memberCode},</if>
             <if test="memberName != null and memberName != ''">#{memberName},</if>
             <if test="phone != null">#{phone},</if>
@@ -177,5 +179,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         LEFT JOIN (SELECT member_id, 60 as engagement_score FROM member_info WHERE member_id = #{memberId}) e ON mi.member_id = e.member_id
         WHERE mi.member_id = #{memberId}
     </select>
+
+    <update id="updateMemberId">
+        update member_info set member_id = #{newId} where member_id = #{oldId}
+    </update>
 
 </mapper>

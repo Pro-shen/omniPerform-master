@@ -15,6 +15,8 @@ import com.omniperform.system.domain.MemberMonthlyStats;
 import com.omniperform.system.domain.MemberStageStats;
 import com.omniperform.system.service.IMemberOverviewService;
 import com.omniperform.common.utils.DateUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 会员概览Service业务层处理
@@ -24,6 +26,8 @@ import com.omniperform.common.utils.DateUtils;
 @Service
 public class MemberOverviewServiceImpl implements IMemberOverviewService 
 {
+    private static final Logger log = LoggerFactory.getLogger(MemberOverviewServiceImpl.class);
+
     @Autowired
     private MemberInfoMapper memberInfoMapper;
 
@@ -302,6 +306,8 @@ public class MemberOverviewServiceImpl implements IMemberOverviewService
             throw new RuntimeException("导入会员数据不能为空！");
         }
         
+        log.info("开始导入会员数据，总条数: {}, 更新支持: {}", memberList.size(), isUpdateSupport);
+        
         int successNum = 0;
         int failureNum = 0;
         int totalCount = memberList.size();
@@ -312,6 +318,8 @@ public class MemberOverviewServiceImpl implements IMemberOverviewService
             MemberInfo memberInfo = memberList.get(i);
             try
             {
+                log.info("处理第 {} 条数据: Phone={}, ID={}", i+1, memberInfo.getPhone(), memberInfo.getMemberId());
+                
                 // 验证必填字段
                 if (memberInfo.getMemberName() == null || memberInfo.getMemberName().trim().isEmpty())
                 {
@@ -330,12 +338,38 @@ public class MemberOverviewServiceImpl implements IMemberOverviewService
                 MemberInfo existingMember = memberInfoMapper.selectMemberInfoByPhone(memberInfo.getPhone());
                 if (existingMember != null)
                 {
+                    log.info("手机号 {} 已存在，现有ID: {}", memberInfo.getPhone(), existingMember.getMemberId());
+                    
                     if (isUpdateSupport != null && isUpdateSupport)
                     {
-                        // 更新现有会员信息
-                        memberInfo.setMemberId(existingMember.getMemberId());
-                        memberInfo.setUpdateTime(DateUtils.getNowDate());
-                        memberInfoMapper.updateMemberInfo(memberInfo);
+                        // 如果Excel中指定了新的ID，且与现有ID不同，则需要删除原记录并重新插入
+                        // 这是一个"替换"操作，以支持修改会员ID的需求
+                        if (memberInfo.getMemberId() != null && !memberInfo.getMemberId().equals(existingMember.getMemberId())) {
+                            log.info("检测到ID变更: 旧ID={} -> 新ID={}", existingMember.getMemberId(), memberInfo.getMemberId());
+                            
+                            // 1. 直接更新ID (避免删除操作可能导致的FK问题)
+                            int updateRows = memberInfoMapper.updateMemberId(existingMember.getMemberId(), memberInfo.getMemberId());
+                            log.info("更新ID结果: {} 行受影响", updateRows);
+                            
+                            // 2. 准备更新其他字段
+                            // 尝试保留原记录的创建时间
+                            if (memberInfo.getCreateTime() == null) {
+                                memberInfo.setCreateTime(existingMember.getCreateTime());
+                            }
+                            // 设置更新时间
+                            memberInfo.setUpdateTime(DateUtils.getNowDate());
+                            
+                            // 3. 更新其他字段
+                            memberInfoMapper.updateMemberInfo(memberInfo);
+                            log.info("更新会员详细信息完成, ID: {}", memberInfo.getMemberId());
+                        } else {
+                            log.info("ID未变更或未指定新ID，执行常规更新");
+                            // ID相同或未指定ID，执行标准更新
+                            // 保持原ID
+                            memberInfo.setMemberId(existingMember.getMemberId());
+                            memberInfo.setUpdateTime(DateUtils.getNowDate());
+                            memberInfoMapper.updateMemberInfo(memberInfo);
+                        }
                         successNum++;
                     }
                     else
@@ -347,14 +381,18 @@ public class MemberOverviewServiceImpl implements IMemberOverviewService
                 }
                 else
                 {
+                    log.info("手机号 {} 不存在，执行新增", memberInfo.getPhone());
                     // 新增会员信息
                     memberInfo.setCreateTime(DateUtils.getNowDate());
+                    // 如果Excel中指定了memberId，MyBatis将使用它插入；如果未指定(null)，则使用自增ID
                     memberInfoMapper.insertMemberInfo(memberInfo);
+                    log.info("新增记录完成, ID: {}", memberInfo.getMemberId());
                     successNum++;
                 }
             }
             catch (Exception e)
             {
+                log.error("处理第 {} 条数据失败", i+1, e);
                 failureNum++;
                 errorMessages.add("第" + (i + 1) + "行：导入失败 - " + e.getMessage());
             }

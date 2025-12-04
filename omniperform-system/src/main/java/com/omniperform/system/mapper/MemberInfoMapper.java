@@ -74,4 +74,13 @@ public interface MemberInfoMapper
      * @return CRFM-E评分数据
      */
     public Map<String, Object> calculateMemberCrfme(Long memberId);
+
+    /**
+     * 修改会员ID
+     * 
+     * @param oldId 旧ID
+     * @param newId 新ID
+     * @return 结果
+     */
+    public int updateMemberId(@org.apache.ibatis.annotations.Param("oldId") Long oldId, @org.apache.ibatis.annotations.Param("newId") Long newId);
 }

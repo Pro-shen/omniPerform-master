@@ -783,7 +783,7 @@ public class MemberController extends BaseController {
     @PostMapping({"/import/batch", "/batchImport"})
     public Result<Map<String, Object>> batchImport(@RequestParam("file") MultipartFile file,
                                                    @RequestParam("dataType") String dataType,
-                                                   @RequestParam(value = "updateSupport", defaultValue = "false") Boolean updateSupport) {
+                                                   @RequestParam(value = "updateSupport", defaultValue = "true") Boolean updateSupport) {
         try {
             log.info("🚀 [批量导入] 开始批量导入会员数据，数据类型: {}, 文件名: {}", dataType, file.getOriginalFilename());
             log.info("🚀 [批量导入] 文件详情 - 大小: {} bytes, 内容类型: {}, 更新支持: {}", 
