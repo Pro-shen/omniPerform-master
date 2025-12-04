@@ -25,31 +25,29 @@ public class SmartOperationOverview extends BaseEntity
 
     /** 统计日期 */
     @JsonFormat(pattern = "yyyy-MM-dd")
-    @Excel(name = "统计日期", width = 30, dateFormat = "yyyy-MM-dd")
     private Date statDate;
 
     /** 统计月份（格式：YYYY-MM） */
-    @Excel(name = "统计月份")
+    @Excel(name = "统计月份", sort = 1, cellType = ColumnType.TEXT)
     private String monthYear;
 
     /** 今日待处理预警数 */
-    @Excel(name = "今日待处理预警数", cellType = ColumnType.NUMERIC)
+    @Excel(name = "今日待处理预警数", cellType = ColumnType.NUMERIC, sort = 2)
     private Integer todayAlerts;
 
     /** AI推荐任务数 */
-    @Excel(name = "AI推荐任务数", cellType = ColumnType.NUMERIC)
+    @Excel(name = "AI推荐任务数", cellType = ColumnType.NUMERIC, sort = 3)
     private Integer aiRecommendedTasks;
 
     /** MOT执行率(%) */
-    @Excel(name = "MOT执行率", cellType = ColumnType.NUMERIC)
+    @Excel(name = "MOT执行率", cellType = ColumnType.NUMERIC, sort = 4)
     private BigDecimal motExecutionRate;
 
     /** 会员活跃度(%) */
-    @Excel(name = "会员活跃度", cellType = ColumnType.NUMERIC)
+    @Excel(name = "会员活跃度", cellType = ColumnType.NUMERIC, sort = 5)
     private BigDecimal memberActivityRate;
 
     /** 区域代码，NULL表示全国统计 */
-    @Excel(name = "区域代码")
     private String regionCode;
 
     public Long getId()

@@ -1328,8 +1328,24 @@ public class ExcelUtil<T>
         try {
             String strVal = val.toString().trim();
             
-            // 字符串类型直接返回
+            // 日期类型转换
+            if (fieldType == Date.class) {
+                if (val instanceof Date) {
+                    return val;
+                }
+                return parseDateSafe(strVal, attr);
+            }
+            
+            // 字符串类型
             if (fieldType == String.class) {
+                if (val instanceof Date) {
+                    // 如果是日期对象且目标是字符串，尝试按注解格式格式化
+                    String dateFormat = attr.dateFormat();
+                    if (StringUtils.isEmpty(dateFormat)) {
+                        dateFormat = "yyyy-MM-dd HH:mm:ss";
+                    }
+                    return new SimpleDateFormat(dateFormat).format((Date) val);
+                }
                 return strVal;
             }
             
@@ -1348,11 +1364,6 @@ public class ExcelUtil<T>
             
             if (fieldType == BigDecimal.class) {
                 return new BigDecimal(strVal);
-            }
-            
-            // 日期类型转换
-            if (fieldType == Date.class) {
-                return parseDateSafe(strVal, attr);
             }
             
             // 布尔类型转换

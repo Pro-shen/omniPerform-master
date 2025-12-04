@@ -10,6 +10,7 @@ import com.omniperform.system.service.ISmartMarketingTaskService;
 import com.omniperform.system.service.IMemberProfileAnalysisService;
 import com.omniperform.system.service.IOptimizationEffectDataService;
 import com.omniperform.system.service.IBestTouchTimeAnalysisService;
+import com.omniperform.system.domain.dto.OptimizationEffectImportDTO;
 import com.omniperform.common.utils.poi.ExcelUtil;
 import com.omniperform.common.utils.file.FileUtils;
 import io.swagger.annotations.Api;
@@ -69,12 +70,13 @@ public class SmartOperationController {
             // 导出包含示例数据与标题的模板，便于参考填写
             java.util.List<com.omniperform.system.domain.SmartOperationOverview> sample = createSmartOperationOverviewSampleData();
             // 显式设置下载文件名，避免浏览器使用URL最后一段“template”作为文件名
-            FileUtils.setAttachmentResponseHeader(response, "概览.xlsx");
-            util.exportExcel(response, sample, "概览数据", "概览导入模板");
+            FileUtils.setAttachmentResponseHeader(response, "智能运营概览.xlsx");
+            util.exportExcel(response, sample, "智能运营概览", "概览导入模板");
         } catch (Exception e) {
             log.error("下载智能运营概览Excel导入模板失败: {}", e.getMessage(), e);
         }
     }
+
 
     /**
      * 导入智能运营概览Excel数据（按统计日期+区域去重，存在则更新）
@@ -88,19 +90,36 @@ public class SmartOperationController {
         List<String> errors = new ArrayList<>();
         try {
             ExcelUtil<com.omniperform.system.domain.SmartOperationOverview> util = new ExcelUtil<>(com.omniperform.system.domain.SmartOperationOverview.class);
-            // 读取字节并按标准模板跳过1行标题进行解析（模板首行是标题，第二行是表头）
+            // 读取字节
             byte[] bytes = file.getBytes();
-            List<com.omniperform.system.domain.SmartOperationOverview> dataList;
-            try {
-                dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 1);
-            } catch (Exception e2) {
-                log.error("导入智能运营概览Excel解析失败: {}", e2.getMessage(), e2);
-                return Result.error("Excel解析失败，请检查模板格式或文件内容");
+            List<com.omniperform.system.domain.SmartOperationOverview> dataList = null;
+            
+            // 尝试不同的标题行位置（兼容用户删除了标题行或保留了标题行的情况）
+            // 0: 无标题行，第1行是表头
+            // 1: 有1行标题，第2行是表头（标准模板）
+            // 2: 有2行标题，第3行是表头
+            int bestSize = -1;
+            for (int titleNum = 0; titleNum <= 2; titleNum++) {
+                try {
+                    ExcelUtil.ExcelImportResult<com.omniperform.system.domain.SmartOperationOverview> resultObj = 
+                        util.importExcelEnhanced(new java.io.ByteArrayInputStream(bytes), titleNum);
+                    
+                    if (resultObj.isSuccess() && resultObj.getData() != null && !resultObj.getData().isEmpty()) {
+                        int currentSize = resultObj.getData().size();
+                        // 优先选择解析出更多数据的方案
+                        if (currentSize > bestSize) {
+                            dataList = resultObj.getData();
+                            bestSize = currentSize;
+                            log.info("智能运营概览导入 - 尝试titleNum={}成功，解析到{}条数据", titleNum, currentSize);
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.warn("智能运营概览导入 - 尝试titleNum={}失败: {}", titleNum, ex.getMessage());
+                }
             }
 
-            // 若按标准模板解析后无数据，直接提示用户从第三行开始填写数据
-            if (dataList == null || dataList.isEmpty() || dataList.stream().allMatch(java.util.Objects::isNull)) {
-                return Result.error("导入数据为空，请从第三行开始填写数据后再导入");
+            if (dataList == null || dataList.isEmpty()) {
+                return Result.error("Excel解析失败，未找到有效数据。请确保表头包含：统计日期/月份、今日待处理预警数等列");
             }
 
             for (int i = 0; i < dataList.size(); i++) {
@@ -116,9 +135,19 @@ public class SmartOperationController {
                     // 兜底补全monthYear或statDate
                     Date statDate = data.getStatDate();
                     String monthYear = data.getMonthYear();
+                    
+                    // 预处理monthYear，兼容可能包含的时间部分（例如"2025-09-01 00:00:00"）
+                    if (monthYear != null) {
+                        monthYear = monthYear.trim();
+                        if (monthYear.length() > 7 && monthYear.matches("^\\d{4}-\\d{2}.*")) {
+                             monthYear = monthYear.substring(0, 7);
+                             data.setMonthYear(monthYear);
+                        }
+                    }
+                    
                     String regionCode = data.getRegionCode();
 
-                    if ((statDate == null) && monthYear != null && !monthYear.trim().isEmpty()) {
+                    if ((statDate == null) && monthYear != null && !monthYear.isEmpty()) {
                         // 若仅提供月份，则按该月最后一天作为统计日期
                         try {
                             java.time.LocalDate ld = java.time.LocalDate.parse(monthYear + "-01");
@@ -607,10 +636,10 @@ public class SmartOperationController {
     @ApiOperation("下载数据闭环优化效果Excel导入模板")
     public void downloadOptimizationEffectImportTemplate(HttpServletResponse response) {
         try {
-            ExcelUtil<com.omniperform.system.domain.OptimizationEffectData> util = new ExcelUtil<>(com.omniperform.system.domain.OptimizationEffectData.class);
-            java.util.List<com.omniperform.system.domain.OptimizationEffectData> sample = createOptimizationEffectSampleData();
+            ExcelUtil<OptimizationEffectImportDTO> util = new ExcelUtil<>(OptimizationEffectImportDTO.class);
+            java.util.List<OptimizationEffectImportDTO> sample = createOptimizationEffectImportSampleData();
             FileUtils.setAttachmentResponseHeader(response, "数据闭环优化效果.xlsx");
-            util.exportExcel(response, sample, "优化效果数据导入模板");
+            util.exportExcel(response, sample, "数据闭环优化效果", "优化效果数据导入模板");
         } catch (Exception e) {
             log.error("下载优化效果Excel导入模板失败: {}", e.getMessage(), e);
         }
@@ -627,16 +656,25 @@ public class SmartOperationController {
         int failCount = 0;
         List<String> errors = new ArrayList<>();
         try {
-            ExcelUtil<com.omniperform.system.domain.OptimizationEffectData> util = new ExcelUtil<>(com.omniperform.system.domain.OptimizationEffectData.class);
-            List<com.omniperform.system.domain.OptimizationEffectData> dataList = util.importExcel(file.getInputStream());
+            ExcelUtil<OptimizationEffectImportDTO> util = new ExcelUtil<>(OptimizationEffectImportDTO.class);
+            List<OptimizationEffectImportDTO> dataList = util.importExcel(file.getInputStream());
             if (dataList == null || dataList.isEmpty()) {
                 return Result.error("导入数据为空");
             }
 
             for (int i = 0; i < dataList.size(); i++) {
-                com.omniperform.system.domain.OptimizationEffectData data = dataList.get(i);
+                OptimizationEffectImportDTO dto = dataList.get(i);
                 try {
-                    optimizationEffectDataService.upsert(data);
+                    if (dto.getStatDate() == null) {
+                        throw new IllegalArgumentException("统计日期不能为空");
+                    }
+                    // 转换并保存MOT执行率
+                    saveOptimizationMetric(dto, "MOT执行率", dto.getMotExecutionRate());
+                    // 转换并保存会员活跃度
+                    saveOptimizationMetric(dto, "会员活跃度", dto.getMemberActivityRate());
+                    // 转换并保存复购率
+                    saveOptimizationMetric(dto, "复购率", dto.getRepurchaseRate());
+                    
                     successCount++;
                 } catch (Exception e) {
                     failCount++;
@@ -652,6 +690,104 @@ public class SmartOperationController {
             return Result.success(result);
         } catch (Exception e) {
             log.error("导入优化效果Excel失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
+    }
+
+    private void saveOptimizationMetric(OptimizationEffectImportDTO dto, String metricName, java.math.BigDecimal value) {
+        if (value == null) return;
+        com.omniperform.system.domain.OptimizationEffectData data = new com.omniperform.system.domain.OptimizationEffectData();
+        data.setStatDate(dto.getStatDate());
+        // 自动生成monthYear
+        java.time.LocalDate ld = new java.sql.Date(dto.getStatDate().getTime()).toLocalDate();
+        data.setMonthYear(ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM")));
+        data.setMetricName(metricName);
+        data.setMetricValue(value);
+        data.setRegionCode(dto.getRegionCode());
+        // 默认同比环比为0，后续可增加计算逻辑
+        data.setMomRate(java.math.BigDecimal.ZERO);
+        data.setYoyRate(java.math.BigDecimal.ZERO);
+        
+        optimizationEffectDataService.upsert(data);
+    }
+
+    /**
+     * 下载会员画像分析Excel导入模板
+     */
+    @GetMapping("/member-profile-analysis/import/template")
+    @ApiOperation("下载会员画像分析Excel导入模板")
+    public void downloadMemberProfileAnalysisImportTemplate(HttpServletResponse response) {
+        try {
+            ExcelUtil<com.omniperform.system.domain.MemberProfileAnalysis> util = new ExcelUtil<>(com.omniperform.system.domain.MemberProfileAnalysis.class);
+            java.util.List<com.omniperform.system.domain.MemberProfileAnalysis> sample = createMemberProfileAnalysisSampleData();
+            FileUtils.setAttachmentResponseHeader(response, "会员画像分析.xlsx");
+            util.exportExcel(response, sample, "会员画像分析", "会员画像分析导入模板");
+        } catch (Exception e) {
+            log.error("下载会员画像分析Excel导入模板失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 导入会员画像分析Excel数据
+     */
+    @PostMapping("/member-profile-analysis/import")
+    @ApiOperation("导入会员画像分析Excel数据")
+    public Result<Map<String, Object>> importMemberProfileAnalysis(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> result = new HashMap<>();
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+        try {
+            ExcelUtil<com.omniperform.system.domain.MemberProfileAnalysis> util = new ExcelUtil<>(com.omniperform.system.domain.MemberProfileAnalysis.class);
+            List<com.omniperform.system.domain.MemberProfileAnalysis> dataList = util.importExcel(file.getInputStream());
+            
+            if (dataList == null || dataList.isEmpty()) {
+                return Result.error("导入数据为空");
+            }
+
+            for (int i = 0; i < dataList.size(); i++) {
+                com.omniperform.system.domain.MemberProfileAnalysis data = dataList.get(i);
+                try {
+                    // 基本校验
+                    if (data.getAnalysisDate() == null) {
+                        // 如果没有日期，默认为当天
+                        data.setAnalysisDate(new Date());
+                    }
+                    if (data.getProfileType() == null || data.getProfileType().trim().isEmpty()) {
+                        throw new IllegalArgumentException("画像类型不能为空");
+                    }
+
+                    // 插入或更新逻辑（这里简化为插入，实际业务可能需要根据日期和类型去重）
+                    // 检查是否存在
+                    com.omniperform.system.domain.MemberProfileAnalysis existing = new com.omniperform.system.domain.MemberProfileAnalysis();
+                    existing.setAnalysisDate(data.getAnalysisDate());
+                    existing.setProfileType(data.getProfileType());
+                    existing.setRegionCode(data.getRegionCode());
+                    List<com.omniperform.system.domain.MemberProfileAnalysis> list = memberProfileAnalysisService.selectMemberProfileAnalysisList(existing);
+                    
+                    if (list != null && !list.isEmpty()) {
+                        // 更新
+                        data.setId(list.get(0).getId());
+                        memberProfileAnalysisService.updateMemberProfileAnalysis(data);
+                    } else {
+                        // 插入
+                        memberProfileAnalysisService.insertMemberProfileAnalysis(data);
+                    }
+                    successCount++;
+                } catch (Exception e) {
+                    failCount++;
+                    String msg = "第" + (i + 1) + "条数据处理失败: " + e.getMessage();
+                    errors.add(msg);
+                    log.error(msg, e);
+                }
+            }
+
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("errors", errors);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("导入会员画像分析Excel失败: {}", e.getMessage(), e);
             return Result.error("导入失败: " + e.getMessage());
         }
     }
@@ -1403,32 +1539,90 @@ public class SmartOperationController {
     }
 
     /**
-     * 构造优化效果示例数据（含monthYear字段）
+     * 构造数据闭环优化效果导入示例数据（宽表结构）
      */
-    private java.util.List<com.omniperform.system.domain.OptimizationEffectData> createOptimizationEffectSampleData() {
-        java.util.List<com.omniperform.system.domain.OptimizationEffectData> list = new java.util.ArrayList<>();
+    private java.util.List<OptimizationEffectImportDTO> createOptimizationEffectImportSampleData() {
+        java.util.List<OptimizationEffectImportDTO> list = new java.util.ArrayList<>();
         try {
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-            com.omniperform.system.domain.OptimizationEffectData d1 = new com.omniperform.system.domain.OptimizationEffectData();
-            d1.setStatDate(sdf.parse("2025-01-31"));
-            d1.setMonthYear("2025-01");
-            d1.setMetricName("MOT执行率");
-            d1.setMetricValue(new java.math.BigDecimal("76.5"));
-            d1.setMomRate(new java.math.BigDecimal("3.2"));
-            d1.setYoyRate(new java.math.BigDecimal("5.1"));
-            d1.setRegionCode("CN");
+            
+            // 示例：连续4周的数据
+            OptimizationEffectImportDTO w1 = new OptimizationEffectImportDTO();
+            w1.setStatDate(sdf.parse("2025-01-07"));
+            w1.setMotExecutionRate(new java.math.BigDecimal("65.0"));
+            w1.setMemberActivityRate(new java.math.BigDecimal("58.0"));
+            w1.setRepurchaseRate(new java.math.BigDecimal("42.0"));
+            w1.setRegionCode("CN");
+            
+            OptimizationEffectImportDTO w2 = new OptimizationEffectImportDTO();
+            w2.setStatDate(sdf.parse("2025-01-14"));
+            w2.setMotExecutionRate(new java.math.BigDecimal("68.0"));
+            w2.setMemberActivityRate(new java.math.BigDecimal("62.0"));
+            w2.setRepurchaseRate(new java.math.BigDecimal("45.0"));
+            w2.setRegionCode("CN");
+            
+            OptimizationEffectImportDTO w3 = new OptimizationEffectImportDTO();
+            w3.setStatDate(sdf.parse("2025-01-21"));
+            w3.setMotExecutionRate(new java.math.BigDecimal("72.0"));
+            w3.setMemberActivityRate(new java.math.BigDecimal("65.0"));
+            w3.setRepurchaseRate(new java.math.BigDecimal("48.0"));
+            w3.setRegionCode("CN");
+            
+            OptimizationEffectImportDTO w4 = new OptimizationEffectImportDTO();
+            w4.setStatDate(sdf.parse("2025-01-28"));
+            w4.setMotExecutionRate(new java.math.BigDecimal("75.0"));
+            w4.setMemberActivityRate(new java.math.BigDecimal("68.0"));
+            w4.setRepurchaseRate(new java.math.BigDecimal("52.0"));
+            w4.setRegionCode("CN");
+            
+            list.add(w1);
+            list.add(w2);
+            list.add(w3);
+            list.add(w4);
+        } catch (Exception ignore) {
+        }
+        return list;
+    }
 
-            com.omniperform.system.domain.OptimizationEffectData d2 = new com.omniperform.system.domain.OptimizationEffectData();
-            d2.setStatDate(sdf.parse("2025-02-28"));
-            d2.setMonthYear("2025-02");
-            d2.setMetricName("会员活跃度");
-            d2.setMetricValue(new java.math.BigDecimal("44.8"));
-            d2.setMomRate(new java.math.BigDecimal("2.5"));
-            d2.setYoyRate(new java.math.BigDecimal("4.3"));
-            d2.setRegionCode("CN");
+    /**
+     * 构造会员画像分析示例数据
+     */
+    private java.util.List<com.omniperform.system.domain.MemberProfileAnalysis> createMemberProfileAnalysisSampleData() {
+        java.util.List<com.omniperform.system.domain.MemberProfileAnalysis> list = new java.util.ArrayList<>();
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            Date today = new Date();
+            
+            com.omniperform.system.domain.MemberProfileAnalysis p1 = new com.omniperform.system.domain.MemberProfileAnalysis();
+            p1.setAnalysisDate(today);
+            p1.setProfileType("成长探索型");
+            p1.setMemberCount(1500);
+            p1.setPercentage(new java.math.BigDecimal("30.0"));
+            p1.setAvgPurchaseAmount(new java.math.BigDecimal("450.0"));
+            p1.setAvgInteractionFrequency(new java.math.BigDecimal("5.2"));
+            p1.setRegionCode("CN");
 
-            list.add(d1);
-            list.add(d2);
+            com.omniperform.system.domain.MemberProfileAnalysis p2 = new com.omniperform.system.domain.MemberProfileAnalysis();
+            p2.setAnalysisDate(today);
+            p2.setProfileType("品质追求型");
+            p2.setMemberCount(1000);
+            p2.setPercentage(new java.math.BigDecimal("20.0"));
+            p2.setAvgPurchaseAmount(new java.math.BigDecimal("800.0"));
+            p2.setAvgInteractionFrequency(new java.math.BigDecimal("3.5"));
+            p2.setRegionCode("CN");
+            
+            com.omniperform.system.domain.MemberProfileAnalysis p3 = new com.omniperform.system.domain.MemberProfileAnalysis();
+            p3.setAnalysisDate(today);
+            p3.setProfileType("价格敏感型");
+            p3.setMemberCount(1250);
+            p3.setPercentage(new java.math.BigDecimal("25.0"));
+            p3.setAvgPurchaseAmount(new java.math.BigDecimal("200.0"));
+            p3.setAvgInteractionFrequency(new java.math.BigDecimal("6.8"));
+            p3.setRegionCode("CN");
+            
+            list.add(p1);
+            list.add(p2);
+            list.add(p3);
         } catch (Exception ignore) {
         }
         return list;
