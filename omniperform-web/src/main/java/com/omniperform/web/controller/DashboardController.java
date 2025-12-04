@@ -70,6 +70,9 @@ public class DashboardController {
     @Autowired
     private IDashboardOverviewKpiService dashboardOverviewKpiService;
 
+    @Autowired
+    private IBestTouchTimeAnalysisService bestTouchTimeAnalysisService;
+
     /**
      * 获取仪表盘概览数据
      */
@@ -627,6 +630,21 @@ public class DashboardController {
                     monthSet.add(source.getDataMonth());
                     log.info("添加月份: {} (来自 Member Source)", source.getDataMonth());
                 }
+            }
+
+            try {
+                List<BestTouchTimeAnalysis> touchTimeList = bestTouchTimeAnalysisService.listByMonth(null, null);
+                log.info("Best Touch Time 表中的月份数据: {}", touchTimeList != null ? touchTimeList.size() : 0);
+                if (touchTimeList != null) {
+                    for (BestTouchTimeAnalysis touch : touchTimeList) {
+                        if (touch.getMonthYear() != null && !touch.getMonthYear().isEmpty()) {
+                            monthSet.add(touch.getMonthYear());
+                            log.info("添加月份: {} (来自 Best Touch Time)", touch.getMonthYear());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("获取 Best Touch Time 月份数据失败: {}", e.getMessage());
             }
             
             // 转换为列表并排序（最新的月份在前）

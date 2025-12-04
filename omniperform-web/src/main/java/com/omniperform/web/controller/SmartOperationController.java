@@ -189,6 +189,7 @@ public class SmartOperationController {
             result.put("successCount", successCount);
             result.put("failCount", failCount);
             result.put("errors", errors);
+            result.put("errorMessages", errors);
             return Result.success(result);
         } catch (Exception e) {
             log.error("导入智能运营概览Excel失败: {}", e.getMessage(), e);
@@ -734,6 +735,7 @@ public class SmartOperationController {
             result.put("successCount", successCount);
             result.put("failCount", failCount);
             result.put("errors", errors);
+            result.put("errorMessages", errors);
             return Result.success(result);
         } catch (Exception e) {
             log.error("导入优化效果Excel失败: {}", e.getMessage(), e);
@@ -868,7 +870,8 @@ public class SmartOperationController {
         List<String> errors = new ArrayList<>();
         try {
             ExcelUtil<com.omniperform.system.domain.BestTouchTimeAnalysis> util = new ExcelUtil<>(com.omniperform.system.domain.BestTouchTimeAnalysis.class);
-            List<com.omniperform.system.domain.BestTouchTimeAnalysis> dataList = util.importExcel(file.getInputStream());
+            // 模板包含标题行，从第2行读取
+            List<com.omniperform.system.domain.BestTouchTimeAnalysis> dataList = util.importExcel(file.getInputStream(), 1);
             if (dataList == null || dataList.isEmpty()) {
                 return Result.error("导入数据为空");
             }
@@ -876,6 +879,28 @@ public class SmartOperationController {
             for (int i = 0; i < dataList.size(); i++) {
                 com.omniperform.system.domain.BestTouchTimeAnalysis data = dataList.get(i);
                 try {
+                    // 数据校验与补全
+                    if (data.getAnalysisDate() == null) {
+                        if (data.getMonthYear() != null && data.getMonthYear().matches("^\\d{4}-\\d{2}$")) {
+                            // 如果没有分析日期但有统计月份，默认设置为该月1号
+                            java.time.LocalDate firstDay = java.time.LocalDate.parse(data.getMonthYear() + "-01", java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                            data.setAnalysisDate(java.sql.Date.valueOf(firstDay));
+                            log.warn("第{}条数据缺少分析日期，已根据月份自动补充为: {}", i + 1, data.getAnalysisDate());
+                        } else {
+                            throw new IllegalArgumentException("分析日期不能为空，且无法从统计月份推导");
+                        }
+                    }
+                    
+                    if (data.getMonthYear() == null || data.getMonthYear().trim().isEmpty()) {
+                         if (data.getAnalysisDate() != null) {
+                             // 如果没有统计月份但有分析日期，自动生成YYYY-MM
+                             java.time.LocalDate analysisDate = new java.sql.Date(data.getAnalysisDate().getTime()).toLocalDate();
+                             data.setMonthYear(analysisDate.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM")));
+                         } else {
+                             throw new IllegalArgumentException("统计月份不能为空");
+                         }
+                    }
+
                     bestTouchTimeAnalysisService.upsert(data);
                     successCount++;
                 } catch (Exception e) {
@@ -889,6 +914,7 @@ public class SmartOperationController {
             result.put("successCount", successCount);
             result.put("failCount", failCount);
             result.put("errors", errors);
+            result.put("errorMessages", errors);
             return Result.success(result);
         } catch (Exception e) {
             log.error("导入触达优化建议Excel失败: {}", e.getMessage(), e);
