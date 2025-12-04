@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.omniperform.system.mapper.MemberLifecycleRecordsMapper">
+    
+    <resultMap type="MemberLifecycleRecords" id="MemberLifecycleRecordsResult">
+        <result property="id"    column="id"    />
+        <result property="memberId"    column="member_id"    />
+        <result property="lifecycleStage"    column="lifecycle_stage"    />
+        <result property="stageStartTime"    column="stage_start_date"    />
+        <result property="stageEndTime"    column="stage_end_date"    />
+        <result property="stageDuration"    column="days_in_stage"    />
+        <result property="triggerEvent"    column="trigger_event"    />
+        <result property="stageDescription"    column="stage_description"    />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <sql id="selectMemberLifecycleRecordsVo">
+        select id, member_id, lifecycle_stage, stage_start_date, stage_end_date, days_in_stage, trigger_event, stage_description, create_time from member_lifecycle_records
+    </sql>
+
+    <select id="selectMemberLifecycleRecordsList" parameterType="MemberLifecycleRecords" resultMap="MemberLifecycleRecordsResult">
+        <include refid="selectMemberLifecycleRecordsVo"/>
+        <where>  
+            <if test="memberId != null "> and member_id = #{memberId}</if>
+            <if test="lifecycleStage != null  and lifecycleStage != ''"> and lifecycle_stage = #{lifecycleStage}</if>
+            <if test="stageStartTime != null "> and stage_start_date = #{stageStartTime}</if>
+            <if test="stageEndTime != null "> and stage_end_date = #{stageEndTime}</if>
+            <if test="stageDuration != null "> and days_in_stage = #{stageDuration}</if>
+            <if test="triggerEvent != null  and triggerEvent != ''"> and trigger_event = #{triggerEvent}</if>
+            <if test="stageDescription != null  and stageDescription != ''"> and stage_description = #{stageDescription}</if>
+        </where>
+    </select>
+    
+    <select id="selectMemberLifecycleRecordsById" parameterType="Long" resultMap="MemberLifecycleRecordsResult">
+        <include refid="selectMemberLifecycleRecordsVo"/>
+        where id = #{id}
+    </select>
+        
+    <insert id="insertMemberLifecycleRecords" parameterType="MemberLifecycleRecords" useGeneratedKeys="true" keyProperty="id">
+        insert into member_lifecycle_records
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="memberId != null">member_id,</if>
+            <if test="lifecycleStage != null and lifecycleStage != ''">lifecycle_stage,</if>
+            <if test="stageStartTime != null">stage_start_date,</if>
+            <if test="stageEndTime != null">stage_end_date,</if>
+            <if test="stageDuration != null">days_in_stage,</if>
+            <if test="triggerEvent != null">trigger_event,</if>
+            <if test="stageDescription != null">stage_description,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="memberId != null">#{memberId},</if>
+            <if test="lifecycleStage != null and lifecycleStage != ''">#{lifecycleStage},</if>
+            <if test="stageStartTime != null">#{stageStartTime},</if>
+            <if test="stageEndTime != null">#{stageEndTime},</if>
+            <if test="stageDuration != null">#{stageDuration},</if>
+            <if test="triggerEvent != null">#{triggerEvent},</if>
+            <if test="stageDescription != null">#{stageDescription},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateMemberLifecycleRecords" parameterType="MemberLifecycleRecords">
+        update member_lifecycle_records
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="memberId != null">member_id = #{memberId},</if>
+            <if test="lifecycleStage != null and lifecycleStage != ''">lifecycle_stage = #{lifecycleStage},</if>
+            <if test="stageStartTime != null">stage_start_date = #{stageStartTime},</if>
+            <if test="stageEndTime != null">stage_end_date = #{stageEndTime},</if>
+            <if test="stageDuration != null">days_in_stage = #{stageDuration},</if>
+            <if test="triggerEvent != null">trigger_event = #{triggerEvent},</if>
+            <if test="stageDescription != null">stage_description = #{stageDescription},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteMemberLifecycleRecordsById" parameterType="Long">
+        delete from member_lifecycle_records where id = #{id}
+    </delete>
+
+    <delete id="deleteMemberLifecycleRecordsByIds" parameterType="String">
+        delete from member_lifecycle_records where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

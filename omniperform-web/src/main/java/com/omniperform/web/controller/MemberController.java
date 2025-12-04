@@ -13,6 +13,8 @@ import com.omniperform.system.domain.MemberStageStats;
 import com.omniperform.system.domain.MemberLifecycleRecords;
 import com.omniperform.system.domain.MemberCrfmeDistribution;
 import com.omniperform.system.domain.MemberProfileAnalysis;
+import com.omniperform.system.mapper.MemberLifecycleRecordsMapper;
+import com.omniperform.system.mapper.MemberStageStatsMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,6 +48,12 @@ public class MemberController extends BaseController {
 
     @Autowired
     private IMemberCrfmeDistributionService memberCrfmeDistributionService;
+
+    @Autowired
+    private MemberLifecycleRecordsMapper memberLifecycleRecordsMapper;
+
+    @Autowired
+    private MemberStageStatsMapper memberStageStatsMapper;
 
     /**
      * 获取会员概览数据
@@ -953,11 +961,29 @@ public class MemberController extends BaseController {
                         }
                         
                         log.info("💾 [生命周期] 开始保存数据到数据库...");
+                        
+                        // 统计各阶段的会员数量，用于更新统计表
+                        Map<String, Map<String, Integer>> monthStageCounts = new HashMap<>();
+                        
                         // 批量保存生命周期记录数据
                         for (MemberLifecycleRecords lifecycleRecord : lifecycleList) {
                             try {
-                                // 这里需要调用相应的Service方法保存数据
-                                // 暂时记录成功
+                                // 设置默认开始时间如果为空 (Fix for NOT NULL constraint)
+                                if (lifecycleRecord.getStageStartTime() == null) {
+                                    lifecycleRecord.setStageStartTime(new Date());
+                                }
+                                
+                                // 保存记录
+                                memberLifecycleRecordsMapper.insertMemberLifecycleRecords(lifecycleRecord);
+                                
+                                // 统计数据用于更新MemberStageStats
+                                String dataMonth = lifecycleRecord.getDataMonth();
+                                String stage = lifecycleRecord.getLifecycleStage();
+                                if (dataMonth != null && stage != null) {
+                                    monthStageCounts.computeIfAbsent(dataMonth, k -> new HashMap<>())
+                                        .merge(stage, 1, Integer::sum);
+                                }
+
                                 successCount++;
                                 log.debug("💾 [生命周期] 保存成功 - 会员ID: {}", lifecycleRecord.getMemberId());
                             } catch (Exception e) {
@@ -967,6 +993,51 @@ public class MemberController extends BaseController {
                                 log.error("❌ [生命周期] 保存失败 - 会员ID: {}, 错误: {}", lifecycleRecord.getMemberId(), e.getMessage());
                             }
                         }
+                        
+                        // 更新会员阶段统计表
+                        for (Map.Entry<String, Map<String, Integer>> monthEntry : monthStageCounts.entrySet()) {
+                            String month = monthEntry.getKey();
+                            Map<String, Integer> stageCounts = monthEntry.getValue();
+                            
+                            for (Map.Entry<String, Integer> stageEntry : stageCounts.entrySet()) {
+                                String lifecycleStage = stageEntry.getKey();
+                                Integer count = stageEntry.getValue();
+                                
+                                // 映射生命周期阶段到宝宝阶段
+                                String babyStage = mapLifecycleStageToBabyStage(lifecycleStage);
+                                if (babyStage != null) {
+                                    // 查询是否存在该月该阶段的统计
+                                    MemberStageStats stats = new MemberStageStats();
+                                    stats.setStatsMonth(month);
+                                    stats.setBabyStage(babyStage);
+                                    List<MemberStageStats> existingStats = memberStageStatsMapper.selectMemberStageStatsList(stats);
+                                    
+                                    if (existingStats != null && !existingStats.isEmpty()) {
+                                        // 更新现有统计
+                                        MemberStageStats existing = existingStats.get(0);
+                                        existing.setMemberCount(existing.getMemberCount() + count);
+                                        // 假设所有导入的都是活跃会员
+                                        existing.setActiveMemberCount(existing.getActiveMemberCount() + count);
+                                        existing.setUpdateTime(new Date());
+                                        memberStageStatsMapper.updateMemberStageStats(existing);
+                                    } else {
+                                        // 创建新统计
+                                        MemberStageStats newStats = new MemberStageStats();
+                                        newStats.setStatsMonth(month);
+                                        newStats.setBabyStage(babyStage);
+                                        newStats.setMemberCount(count);
+                                        newStats.setActiveMemberCount(count);
+                                        newStats.setNewMemberCount(0);
+                                        newStats.setPurchaseMemberCount(0);
+                                        newStats.setTotalPurchaseAmount(BigDecimal.ZERO);
+                                        newStats.setAvgOrderValue(BigDecimal.ZERO);
+                                        newStats.setCreateTime(new Date());
+                                        memberStageStatsMapper.insertMemberStageStats(newStats);
+                                    }
+                                }
+                            }
+                        }
+                        
                         log.info("💾 [生命周期] 数据保存完成 - 成功: {}, 失败: {}", successCount, failureCount);
                         
                     } catch (Exception e) {
@@ -1089,11 +1160,36 @@ public class MemberController extends BaseController {
                         // 批量保存会员阶段统计数据
                         for (MemberStageStats stageStats : stageList) {
                             try {
-                                // 这里需要调用相应的Service方法保存数据
-                                // 暂时记录成功
+                                // 查询是否存在该月该阶段的统计
+                                MemberStageStats query = new MemberStageStats();
+                                query.setStatsMonth(stageStats.getStatsMonth());
+                                query.setBabyStage(stageStats.getBabyStage());
+                                List<MemberStageStats> existingList = memberStageStatsMapper.selectMemberStageStatsList(query);
+                                
+                                if (existingList != null && !existingList.isEmpty()) {
+                                    // 更新现有统计 (覆盖操作)
+                                    MemberStageStats existing = existingList.get(0);
+                                    existing.setMemberCount(stageStats.getMemberCount());
+                                    existing.setNewMemberCount(stageStats.getNewMemberCount());
+                                    // 如果Excel中有这些字段则更新，否则保留原值
+                                    if (stageStats.getActiveMemberCount() != null) existing.setActiveMemberCount(stageStats.getActiveMemberCount());
+                                    if (stageStats.getPurchaseMemberCount() != null) existing.setPurchaseMemberCount(stageStats.getPurchaseMemberCount());
+                                    if (stageStats.getTotalPurchaseAmount() != null) existing.setTotalPurchaseAmount(stageStats.getTotalPurchaseAmount());
+                                    if (stageStats.getAvgOrderValue() != null) existing.setAvgOrderValue(stageStats.getAvgOrderValue());
+                                    
+                                    existing.setUpdateTime(new Date());
+                                    memberStageStatsMapper.updateMemberStageStats(existing);
+                                    log.debug("💾 [阶段统计] 更新成功 - 月份: {}, 阶段: {}", 
+                                            stageStats.getStatsMonth(), stageStats.getBabyStage());
+                                } else {
+                                    // 插入新统计
+                                    stageStats.setCreateTime(new Date());
+                                    memberStageStatsMapper.insertMemberStageStats(stageStats);
+                                    log.debug("💾 [阶段统计] 新增成功 - 月份: {}, 阶段: {}", 
+                                            stageStats.getStatsMonth(), stageStats.getBabyStage());
+                                }
+                                
                                 successCount++;
-                                log.debug("💾 [阶段统计] 保存成功 - 月份: {}, 阶段: {}", 
-                                        stageStats.getStatsMonth(), stageStats.getBabyStage());
                             } catch (Exception e) {
                                 failureCount++;
                                 String errorMsg = "保存会员阶段统计数据失败: " + e.getMessage();
@@ -1275,5 +1371,19 @@ public class MemberController extends BaseController {
             log.error("获取会员画像分析失败", e);
             return Result.error("获取会员画像分析失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 映射生命周期阶段到宝宝阶段
+     */
+    private String mapLifecycleStageToBabyStage(String lifecycleStage) {
+        if (lifecycleStage == null) return null;
+        if (lifecycleStage.contains("导入期")) return "导入期";
+        if (lifecycleStage.contains("成长期")) return "成长期";
+        if (lifecycleStage.contains("成熟期")) return "成熟期";
+        if (lifecycleStage.contains("衰退期")) return "衰退期";
+        if (lifecycleStage.contains("流失期")) return "流失期";
+        // 尝试直接匹配
+        return null;
     }
 }

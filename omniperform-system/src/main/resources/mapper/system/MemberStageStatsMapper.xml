@@ -27,18 +27,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectMemberStageStatsList" parameterType="MemberStageStats" resultMap="MemberStageStatsResult">
         <include refid="selectMemberStageStatsVo"/>
         <where>  
-            <if test="statsMonth != null  and statsMonth != ''"> and stats_month = #{statsMonth}</if>
+            <if test="statsMonth != null  and statsMonth != ''"> and stat_month = #{statsMonth}</if>
             <if test="babyStage != null  and babyStage != ''"> and baby_stage = #{babyStage}</if>
             <if test="memberCount != null "> and member_count = #{memberCount}</if>
-            <if test="newMemberCount != null "> and new_member_count = #{newMemberCount}</if>
-            <if test="activeMemberCount != null "> and active_member_count = #{activeMemberCount}</if>
-            <if test="purchaseMemberCount != null "> and purchase_member_count = #{purchaseMemberCount}</if>
-            <if test="totalPurchaseAmount != null "> and total_purchase_amount = #{totalPurchaseAmount}</if>
-            <if test="avgOrderValue != null "> and avg_order_value = #{avgOrderValue}</if>
-            <if test="stageRatio != null "> and stage_ratio = #{stageRatio}</if>
-            <if test="statsTime != null "> and stats_time = #{statsTime}</if>
+            <if test="newMemberCount != null "> and new_members = #{newMemberCount}</if>
+            <if test="activeMemberCount != null "> and active_members = #{activeMemberCount}</if>
+            <if test="purchaseMemberCount != null "> and 0 = #{purchaseMemberCount}</if>
+            <if test="totalPurchaseAmount != null "> and purchase_amount = #{totalPurchaseAmount}</if>
+            <if test="avgOrderValue != null "> and avg_crfme_score = #{avgOrderValue}</if>
+            <if test="stageRatio != null "> and 0.0 = #{stageRatio}</if>
+            <if test="statsTime != null "> and create_time = #{statsTime}</if>
         </where>
-        order by stats_month desc, baby_stage
+        order by stat_month desc, baby_stage
     </select>
     
     <select id="selectMemberStageStatsByStatsId" parameterType="Long" resultMap="MemberStageStatsResult">
