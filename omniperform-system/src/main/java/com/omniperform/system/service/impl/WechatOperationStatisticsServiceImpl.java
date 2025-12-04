@@ -68,6 +68,17 @@ public class WechatOperationStatisticsServiceImpl implements IWechatOperationSta
     }
 
     /**
+     * 查询所有统计月份（去重）
+     * 
+     * @return 统计月份集合
+     */
+    @Override
+    public List<String> selectDistinctStatMonths()
+    {
+        return wechatOperationStatisticsMapper.selectDistinctStatMonths();
+    }
+
+    /**
      * 新增企业微信运营统计
      * 
      * @param wechatOperationStatistics 企业微信运营统计

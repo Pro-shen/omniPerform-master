@@ -43,6 +43,13 @@ public interface IWechatOperationStatisticsService
     public List<WechatOperationStatistics> selectRecentMonthsStatistics(Integer months);
 
     /**
+     * 查询所有统计月份（去重）
+     * 
+     * @return 统计月份集合
+     */
+    public List<String> selectDistinctStatMonths();
+
+    /**
      * 新增企业微信运营统计
      * 
      * @param wechatOperationStatistics 企业微信运营统计

@@ -55,19 +55,19 @@ public class WechatOperationStatistics extends BaseEntity
     private BigDecimal satisfactionRate;
 
     /** 绑定率(%) */
-    @Excel(name = "绑定率(%)")
+    @Excel(name = "企业微信绑定率")
     private BigDecimal bindingRate;
 
     /** 转化率(%) */
-    @Excel(name = "转化率(%)")
+    @Excel(name = "企微转化率")
     private BigDecimal conversionRate;
 
     /** 入群率(%) */
-    @Excel(name = "入群率(%)")
+    @Excel(name = "会员入群率")
     private BigDecimal joinRate;
 
     /** 活跃度评分 */
-    @Excel(name = "活跃度评分")
+    @Excel(name = "社群活跃度")
     private BigDecimal activityScore;
 
     public void setStatId(Long statId) 

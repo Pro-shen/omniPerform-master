@@ -60,6 +60,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             limit #{months}
         </if>
     </select>
+
+    <select id="selectDistinctStatMonths" resultType="String">
+        select distinct stat_month from wechat_operation_statistics order by stat_month desc
+    </select>
         
     <insert id="insertWechatOperationStatistics" parameterType="WechatOperationStatistics" useGeneratedKeys="true" keyProperty="statId">
         insert into wechat_operation_statistics

@@ -44,6 +44,13 @@ public interface WechatOperationStatisticsMapper
     public List<WechatOperationStatistics> selectRecentMonthsStatistics(@Param("months") Integer months);
 
     /**
+     * 查询所有统计月份（去重）
+     * 
+     * @return 统计月份集合
+     */
+    public List<String> selectDistinctStatMonths();
+
+    /**
      * 新增微信运营统计汇总
      * 
      * @param wechatOperationStatistics 微信运营统计汇总
