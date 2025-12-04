@@ -62,6 +62,14 @@ public class WechatOperationStatistics extends BaseEntity
     @Excel(name = "转化率(%)")
     private BigDecimal conversionRate;
 
+    /** 入群率(%) */
+    @Excel(name = "入群率(%)")
+    private BigDecimal joinRate;
+
+    /** 活跃度评分 */
+    @Excel(name = "活跃度评分")
+    private BigDecimal activityScore;
+
     public void setStatId(Long statId) 
     {
         this.statId = statId;
@@ -169,6 +177,26 @@ public class WechatOperationStatistics extends BaseEntity
     public BigDecimal getConversionRate() 
     {
         return conversionRate;
+    }
+
+    public void setJoinRate(BigDecimal joinRate) 
+    {
+        this.joinRate = joinRate;
+    }
+
+    public BigDecimal getJoinRate() 
+    {
+        return joinRate;
+    }
+
+    public void setActivityScore(BigDecimal activityScore) 
+    {
+        this.activityScore = activityScore;
+    }
+
+    public BigDecimal getActivityScore() 
+    {
+        return activityScore;
     }
 
     @Override

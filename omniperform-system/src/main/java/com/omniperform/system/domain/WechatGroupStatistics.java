@@ -47,9 +47,11 @@ public class WechatGroupStatistics extends BaseEntity
     private Long activeMemberCount;
 
     /** 群组名称 */
+    @Excel(name = "社群名称")
     private String groupName;
 
     /** 群组成员总数 */
+    @Excel(name = "人数")
     private Long memberCount;
 
     public void setStatId(Long statId) 
