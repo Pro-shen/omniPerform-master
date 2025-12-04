@@ -71,7 +71,7 @@ public class SmartOperationAlert extends BaseEntity
     private String processNote;
 
     /** 月份（格式：YYYY-MM），用于按月查询 */
-    @Excel(name = "月份", prompt = "格式：YYYY-MM，可留空由处理时间自动推断")
+    @Excel(name = "月份", width = 30, cellType = ColumnType.TEXT)
     private String monthYear;
 
     public Long getId()

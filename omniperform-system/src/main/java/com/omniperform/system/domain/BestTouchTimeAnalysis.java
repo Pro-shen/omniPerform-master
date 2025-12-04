@@ -21,15 +21,15 @@ public class BestTouchTimeAnalysis extends BaseEntity {
     private Date analysisDate;
 
     /** 统计月份（格式：YYYY-MM） */
-    @Excel(name = "统计月份")
+    @Excel(name = "统计月份", cellType = ColumnType.TEXT, sort = 1)
     private String monthYear;
 
     /** 时间段：09:00-10:00、10:00-11:00等 */
-    @Excel(name = "时间段")
+    @Excel(name = "时间段", sort = 2)
     private String timeSlot;
 
     /** 响应率(%) */
-    @Excel(name = "响应率", cellType = ColumnType.NUMERIC)
+    @Excel(name = "响应率", cellType = ColumnType.NUMERIC, sort = 3)
     private BigDecimal responseRate;
 
     /** 转化率(%) */

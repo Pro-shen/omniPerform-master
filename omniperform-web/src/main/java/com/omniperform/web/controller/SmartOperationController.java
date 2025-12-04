@@ -796,23 +796,23 @@ public class SmartOperationController {
      * 下载最佳触达时间Excel导入模板
      */
     @GetMapping("/best-touch-time/import/template")
-    @ApiOperation("下载最佳触达时间Excel导入模板")
+    @ApiOperation("下载触达优化建议Excel导入模板")
     public void downloadBestTouchTimeImportTemplate(HttpServletResponse response) {
         try {
             ExcelUtil<com.omniperform.system.domain.BestTouchTimeAnalysis> util = new ExcelUtil<>(com.omniperform.system.domain.BestTouchTimeAnalysis.class);
             java.util.List<com.omniperform.system.domain.BestTouchTimeAnalysis> sample = createBestTouchTimeSampleData();
-            FileUtils.setAttachmentResponseHeader(response, "最佳触达时间.xlsx");
-            util.exportExcel(response, sample, "最佳触达时间导入模板");
+            FileUtils.setAttachmentResponseHeader(response, "触达优化建议.xlsx");
+            util.exportExcel(response, sample, "触达优化建议", "触达优化建议导入模板");
         } catch (Exception e) {
-            log.error("下载最佳触达时间Excel导入模板失败: {}", e.getMessage(), e);
+            log.error("下载触达优化建议Excel导入模板失败: {}", e.getMessage(), e);
         }
     }
 
     /**
-     * 导入最佳触达时间Excel数据（按日期+时间段+区域去重）
+     * 导入触达优化建议Excel数据（按日期+时间段+区域去重）
      */
     @PostMapping("/best-touch-time/import")
-    @ApiOperation("导入最佳触达时间Excel数据")
+    @ApiOperation("导入触达优化建议Excel数据")
     public Result<Map<String, Object>> importBestTouchTime(@RequestParam("file") MultipartFile file) {
         Map<String, Object> result = new HashMap<>();
         int successCount = 0;
@@ -843,7 +843,7 @@ public class SmartOperationController {
             result.put("errors", errors);
             return Result.success(result);
         } catch (Exception e) {
-            log.error("导入最佳触达时间Excel失败: {}", e.getMessage(), e);
+            log.error("导入触达优化建议Excel失败: {}", e.getMessage(), e);
             return Result.error("导入失败: " + e.getMessage());
         }
     }
@@ -1144,9 +1144,9 @@ public class SmartOperationController {
         }
     }
 
-    /**
-     * 生成内容标题
-     */
+
+
+
     private String generateContentTitle(String memberProfile, String marketingGoal) {
         Map<String, String> titleTemplates = new HashMap<>();
         titleTemplates.put("品质追求型_提升复购率", "精选优质产品，为您的品质生活加分");
@@ -1279,6 +1279,7 @@ public class SmartOperationController {
             a1.setMemberId(10001L);
             a1.setGuideId(20001L);
             a1.setProcessTime(sdf.parse("2025-01-20 10:30:00"));
+            a1.setMonthYear("2025-01");
 
             com.omniperform.system.domain.SmartOperationAlert a2 = new com.omniperform.system.domain.SmartOperationAlert();
             a2.setAlertId("AL202502001");
@@ -1290,6 +1291,7 @@ public class SmartOperationController {
             a2.setMemberId(10002L);
             a2.setGuideId(20002L);
             a2.setProcessTime(sdf.parse("2025-02-18 15:45:00"));
+            a2.setMonthYear("2025-02");
 
             // 新增示例：2025-05、2025-06、2025-07
             com.omniperform.system.domain.SmartOperationAlert a3 = new com.omniperform.system.domain.SmartOperationAlert();
@@ -1302,6 +1304,7 @@ public class SmartOperationController {
             a3.setMemberId(10003L);
             a3.setGuideId(20003L);
             a3.setProcessTime(sdf.parse("2025-05-12 09:20:00"));
+            a3.setMonthYear("2025-05");
 
             com.omniperform.system.domain.SmartOperationAlert a4 = new com.omniperform.system.domain.SmartOperationAlert();
             a4.setAlertId("AL202506001");
@@ -1313,6 +1316,7 @@ public class SmartOperationController {
             a4.setMemberId(10004L);
             a4.setGuideId(20004L);
             a4.setProcessTime(sdf.parse("2025-06-22 14:10:00"));
+            a4.setMonthYear("2025-06");
 
             com.omniperform.system.domain.SmartOperationAlert a5 = new com.omniperform.system.domain.SmartOperationAlert();
             a5.setAlertId("AL202507001");
@@ -1324,6 +1328,7 @@ public class SmartOperationController {
             a5.setMemberId(10005L);
             a5.setGuideId(20005L);
             a5.setProcessTime(sdf.parse("2025-07-03 11:05:00"));
+            a5.setMonthYear("2025-07");
 
             list.add(a1);
             list.add(a2);
