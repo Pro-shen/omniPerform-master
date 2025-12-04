@@ -41,6 +41,28 @@ public class GuideController {
     private IGuidePerformanceService guidePerformanceService;
 
     /**
+     * 获取可用的数据月份列表
+     */
+    @GetMapping("/available-months")
+    public Result getAvailableMonths() {
+        try {
+            List<String> months = guidePerformanceService.selectDistinctDataMonths();
+            // 如果没有数据，提供最近几个月作为默认值
+            if (months == null || months.isEmpty()) {
+                months = new ArrayList<>();
+                LocalDate now = LocalDate.now();
+                for (int i = 0; i < 3; i++) {
+                    months.add(now.minusMonths(i).format(DateTimeFormatter.ofPattern("yyyy-MM")));
+                }
+            }
+            return Result.success("获取月份列表成功", months);
+        } catch (Exception e) {
+            log.error("获取月份列表失败: {}", e.getMessage(), e);
+            return Result.error("获取月份列表失败");
+        }
+    }
+
+    /**
      * 获取导购列表
      */
     @PostMapping("/list")
@@ -518,18 +540,48 @@ public class GuideController {
                 String[] xLabels = {"低", "低", "低", "中", "中", "中", "高", "高", "高"};
                 String[] yLabels = {"低", "中", "高", "低", "中", "高", "低", "中", "高"};
                 
-                // 创建位置到数据的映射
-                Map<String, Map<String, Object>> positionMap = new HashMap<>();
+                // 创建位置到数据的映射 (累加计数，防止同一位置多条记录被覆盖)
+                Map<String, Integer> countMap = new HashMap<>();
+                
+                // 打印第一条数据的Key，方便调试
+                if (!matrixData.isEmpty()) {
+                    log.info("数据库返回的第一条数据Keys: {}", matrixData.get(0).keySet());
+                }
+                
                 for (Map<String, Object> item : matrixData) {
                     log.info("处理数据库记录: {}", item);
-                    String position = (String) item.get("matrix_position"); // 使用下划线格式的字段名
+                    
+                    // 兼容不同命名风格（下划线、驼峰、全大写等）
+                    String position = null;
+                    Object positionObj = item.get("matrix_position");
+                    if (positionObj == null) positionObj = item.get("matrixPosition");
+                    if (positionObj == null) positionObj = item.get("MATRIX_POSITION");
+                    
+                    if (positionObj != null) {
+                        position = positionObj.toString();
+                    }
+                    
                     if (position != null) {
-                        positionMap.put(position, item);
-                        log.info("添加位置映射: {} -> {}", position, item.get("guide_count"));
+                        // 清理位置字符串可能的空格
+                        position = position.trim();
+                        
+                        Object countObj = item.get("guide_count");
+                        if (countObj == null) countObj = item.get("guideCount");
+                        if (countObj == null) countObj = item.get("GUIDE_COUNT");
+                        
+                        int count = 0;
+                        if (countObj instanceof Number) {
+                            count = ((Number) countObj).intValue();
+                        }
+                        
+                        countMap.put(position, countMap.getOrDefault(position, 0) + count);
+                        log.info("更新位置计数: {} -> {}, 当前总数: {}", position, count, countMap.get(position));
+                    } else {
+                        log.warn("记录中未找到matrix_position字段 (keys: {})", item.keySet());
                     }
                 }
                 
-                log.info("位置映射完成，共{}个位置", positionMap.size());
+                log.info("位置映射完成，共{}个有效位置", countMap.size());
                 
                 // 确保所有九宫格位置都有数据
                 for (int i = 0; i < positions.length; i++) {
@@ -539,11 +591,33 @@ public class GuideController {
                     point.put("position", positions[i]);
                     point.put("type", types[i]);
                     
-                    Map<String, Object> dbData = positionMap.get(positions[i]);
-                    if (dbData != null) {
-                        Object guideCount = dbData.get("guide_count");
-                        point.put("z", guideCount != null ? guideCount : 0); // 使用下划线格式的字段名
-                        log.info("位置{}找到数据，人数: {}", positions[i], guideCount);
+                    // 尝试直接匹配位置（例如 "1-1"）
+                    Integer count = countMap.get(positions[i]);
+                    
+                    // 如果没有直接匹配，尝试匹配中文位置名
+                    if (count == null) {
+                        String cnPosition = "";
+                        if (positions[i].equals("1-1")) cnPosition = "左下";
+                        else if (positions[i].equals("1-2")) cnPosition = "左中";
+                        else if (positions[i].equals("1-3")) cnPosition = "左上";
+                        else if (positions[i].equals("2-1")) cnPosition = "中下";
+                        else if (positions[i].equals("2-2")) cnPosition = "中间";
+                        else if (positions[i].equals("2-3")) cnPosition = "中上";
+                        else if (positions[i].equals("3-1")) cnPosition = "右下";
+                        else if (positions[i].equals("3-2")) cnPosition = "右中";
+                        else if (positions[i].equals("3-3")) cnPosition = "右上";
+                        
+                        if (!cnPosition.isEmpty()) {
+                            count = countMap.get(cnPosition);
+                            if (count != null) {
+                                log.info("通过中文位置名找到数据: {} -> {}", cnPosition, count);
+                            }
+                        }
+                    }
+                    
+                    if (count != null) {
+                        point.put("z", count);
+                        log.info("位置{}找到数据，人数: {}", positions[i], count);
                     } else {
                         point.put("z", 0);
                         log.info("位置{}没有数据，设置为0", positions[i]);
@@ -1088,6 +1162,67 @@ public class GuideController {
                         errorMessages.add("第 " + (i + 1) + " 行：" + validationErrors.toString());
                         failCount++;
                         continue;
+                    }
+                    
+                    // 自动计算九宫格位置和类型
+                    // 如果Excel中未提供位置或类型，但提供了CAI和RMV分数，则自动计算
+                    if ((data.getMatrixPosition() == null || data.getMatrixPosition().isEmpty()) && 
+                        data.getCaiScore() != null && data.getRmvScore() != null) {
+                        
+                        double cai = data.getCaiScore().doubleValue();
+                        double rmv = data.getRmvScore().doubleValue();
+                        
+                        // 计算等级：高(3): >= 0.8, 中(2): 0.5-0.8, 低(1): < 0.5
+                        int caiLevel = cai >= 0.8 ? 3 : (cai >= 0.5 ? 2 : 1);
+                        int rmvLevel = rmv >= 0.8 ? 3 : (rmv >= 0.5 ? 2 : 1);
+                        
+                        String position = caiLevel + "-" + rmvLevel;
+                        data.setMatrixPosition(position);
+                        
+                        // 自动设置对应的类型名称
+                        String type = "";
+                        if (caiLevel == 3 && rmvLevel == 3) type = "超级明星";
+                        else if (caiLevel == 3 && rmvLevel == 2) type = "成长之星";
+                        else if (caiLevel == 3 && rmvLevel == 1) type = "获客能手";
+                        else if (caiLevel == 2 && rmvLevel == 3) type = "关系专家";
+                        else if (caiLevel == 2 && rmvLevel == 2) type = "骨干力量";
+                        else if (caiLevel == 2 && rmvLevel == 1) type = "基础型";
+                        else if (caiLevel == 1 && rmvLevel == 3) type = "忠诚专家";
+                        else if (caiLevel == 1 && rmvLevel == 2) type = "服务达人";
+                        else if (caiLevel == 1 && rmvLevel == 1) type = "培训生";
+                        
+                        if (data.getMatrixType() == null || data.getMatrixType().isEmpty()) {
+                            data.setMatrixType(type);
+                        }
+                        
+                        log.info("第 {} 行：根据CAI({})和RMV({})自动计算九宫格位置: {} ({})", 
+                                i + 1, cai, rmv, position, type);
+                    } else {
+                        log.info("第 {} 行：手动检查九宫格数据 - Position: {}, Type: {}, CAI: {}, RMV: {}", 
+                                i + 1, data.getMatrixPosition(), data.getMatrixType(), data.getCaiScore(), data.getRmvScore());
+                    }
+                    
+                    // 如果提供了位置但没有提供类型，根据位置补充类型
+                    if (data.getMatrixPosition() != null && !data.getMatrixPosition().isEmpty() && 
+                        (data.getMatrixType() == null || data.getMatrixType().isEmpty())) {
+                        
+                        String pos = data.getMatrixPosition().trim();
+                        String type = "";
+                        switch (pos) {
+                            case "1-1": type = "培训生"; break;
+                            case "1-2": type = "服务达人"; break;
+                            case "1-3": type = "忠诚专家"; break;
+                            case "2-1": type = "基础型"; break;
+                            case "2-2": type = "骨干力量"; break;
+                            case "2-3": type = "关系专家"; break;
+                            case "3-1": type = "获客能手"; break;
+                            case "3-2": type = "成长之星"; break;
+                            case "3-3": type = "超级明星"; break;
+                        }
+                        if (!type.isEmpty()) {
+                            data.setMatrixType(type);
+                            log.info("第 {} 行：根据九宫格位置 {} 自动补充类型: {}", i + 1, pos, type);
+                        }
                     }
                     
                     // 验证导购ID是否存在

@@ -121,6 +121,17 @@ public class GuidePerformanceServiceImpl implements IGuidePerformanceService
     }
 
     /**
+     * 查询所有不重复的数据月份
+     * 
+     * @return 月份列表
+     */
+    @Override
+    public List<String> selectDistinctDataMonths()
+    {
+        return guidePerformanceMapper.selectDistinctDataMonths();
+    }
+
+    /**
      * 根据区域查询导购绩效排行
      * 
      * @param regionCode 区域代码

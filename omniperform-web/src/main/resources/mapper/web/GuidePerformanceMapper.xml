@@ -98,6 +98,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where gp.guide_id = #{guideId} and gp.data_month = #{dataMonth}
     </select>
 
+    <select id="selectDistinctDataMonths" resultType="String">
+        select distinct data_month from guide_performance 
+        where data_month is not null and data_month != ''
+        order by data_month desc
+    </select>
+
     <select id="selectGuidePerformanceByRegion" resultMap="GuidePerformanceResult">
         <include refid="selectGuidePerformanceVo"/>
         <where>
@@ -240,7 +246,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dataMonth != null and dataMonth != ''"> and gp.data_month = #{dataMonth}</if>
             and gi.status = 1
             and gp.matrix_position is not null
-            and gp.matrix_type is not null
+            and gp.matrix_position != ''
         </where>
         group by matrix_position, matrix_type
         order by matrix_position

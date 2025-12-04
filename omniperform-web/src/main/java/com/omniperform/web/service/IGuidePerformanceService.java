@@ -47,6 +47,13 @@ public interface IGuidePerformanceService
     public GuidePerformance selectGuidePerformanceByGuideIdAndMonth(String guideId, String dataMonth);
 
     /**
+     * 查询所有不重复的数据月份
+     * 
+     * @return 月份列表
+     */
+    public List<String> selectDistinctDataMonths();
+
+    /**
      * 根据区域查询导购绩效排行
      * 
      * @param regionCode 区域代码
