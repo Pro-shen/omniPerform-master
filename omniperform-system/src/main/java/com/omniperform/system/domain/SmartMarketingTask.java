@@ -83,6 +83,18 @@ public class SmartMarketingTask extends BaseEntity
     @Excel(name = "完成时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date completeTime;
 
+    /** 月份（格式：YYYY-MM），用于Excel导入辅助或按月查询 */
+    @Excel(name = "月份", width = 30, cellType = ColumnType.TEXT, prompt = "格式：YYYY-MM，若填写将用于辅助设定推荐时间")
+    private String monthYear;
+
+    public String getMonthYear() {
+        return monthYear;
+    }
+
+    public void setMonthYear(String monthYear) {
+        this.monthYear = monthYear;
+    }
+
     public Long getId()
     {
         return id;

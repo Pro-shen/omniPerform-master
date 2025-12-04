@@ -98,23 +98,17 @@ public class SmartOperationController {
             // 0: 无标题行，第1行是表头
             // 1: 有1行标题，第2行是表头（标准模板）
             // 2: 有2行标题，第3行是表头
-            int bestSize = -1;
-            for (int titleNum = 0; titleNum <= 2; titleNum++) {
+            // 尝试默认导入（首行表头）
+            try {
+                dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 0);
+                if (dataList == null || dataList.isEmpty()) {
+                    dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 1);
+                }
+            } catch (Exception e) {
                 try {
-                    ExcelUtil.ExcelImportResult<com.omniperform.system.domain.SmartOperationOverview> resultObj = 
-                        util.importExcelEnhanced(new java.io.ByteArrayInputStream(bytes), titleNum);
-                    
-                    if (resultObj.isSuccess() && resultObj.getData() != null && !resultObj.getData().isEmpty()) {
-                        int currentSize = resultObj.getData().size();
-                        // 优先选择解析出更多数据的方案
-                        if (currentSize > bestSize) {
-                            dataList = resultObj.getData();
-                            bestSize = currentSize;
-                            log.info("智能运营概览导入 - 尝试titleNum={}成功，解析到{}条数据", titleNum, currentSize);
-                        }
-                    }
+                    dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 1);
                 } catch (Exception ex) {
-                    log.warn("智能运营概览导入 - 尝试titleNum={}失败: {}", titleNum, ex.getMessage());
+                    log.error("导入失败", ex);
                 }
             }
 
@@ -411,7 +405,8 @@ public class SmartOperationController {
             }
 
             ExcelUtil<MemberProfileAnalysis> util = new ExcelUtil<>(MemberProfileAnalysis.class);
-            List<MemberProfileAnalysis> dataList = util.importExcel(file.getInputStream());
+            // 模板包含标题行，从第2行读取
+            List<MemberProfileAnalysis> dataList = util.importExcel(file.getInputStream(), 1);
             if (dataList == null) {
                 dataList = Collections.emptyList();
             }
@@ -464,10 +459,15 @@ public class SmartOperationController {
         int failCount = 0;
         List<String> errors = new ArrayList<>();
         try {
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || (!fileName.toLowerCase().endsWith(".xlsx") && !fileName.toLowerCase().endsWith(".xls"))) {
+                return Result.error("请上传Excel文件（.xlsx或.xls）");
+            }
+
             ExcelUtil<com.omniperform.system.domain.SmartOperationAlert> util = new ExcelUtil<>(com.omniperform.system.domain.SmartOperationAlert.class);
             List<com.omniperform.system.domain.SmartOperationAlert> dataList = util.importExcel(file.getInputStream());
             if (dataList == null || dataList.isEmpty()) {
-                return Result.error("导入数据为空");
+                return Result.error("导入数据为空，请检查文件内容或格式");
             }
 
             for (int i = 0; i < dataList.size(); i++) {
@@ -551,7 +551,7 @@ public class SmartOperationController {
                     successCount++;
                 } catch (Exception e) {
                     failCount++;
-                    String msg = "第" + (i + 1) + "条数据处理失败: " + e.getMessage();
+                    String msg = "第" + (i + 1) + "条数据处理失败: " + (e.getMessage() != null ? e.getMessage() : "未知错误");
                     errors.add(msg);
                     log.error(msg, e);
                 }
@@ -563,7 +563,7 @@ public class SmartOperationController {
             return Result.success(result);
         } catch (Exception e) {
             log.error("导入智能运营预警Excel失败: {}", e.getMessage(), e);
-            return Result.error("导入失败: " + e.getMessage());
+            return Result.error("导入失败: " + (e.getMessage() != null ? e.getMessage() : "系统异常，请联系管理员"));
         }
     }
 
@@ -594,15 +594,59 @@ public class SmartOperationController {
         int failCount = 0;
         List<String> errors = new ArrayList<>();
         try {
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || (!fileName.toLowerCase().endsWith(".xlsx") && !fileName.toLowerCase().endsWith(".xls"))) {
+                return Result.error("请上传Excel文件（.xlsx或.xls）");
+            }
+
             ExcelUtil<com.omniperform.system.domain.SmartMarketingTask> util = new ExcelUtil<>(com.omniperform.system.domain.SmartMarketingTask.class);
             List<com.omniperform.system.domain.SmartMarketingTask> dataList = util.importExcel(file.getInputStream());
             if (dataList == null || dataList.isEmpty()) {
-                return Result.error("导入数据为空");
+                return Result.error("导入数据为空，请检查文件内容或格式");
             }
 
             for (int i = 0; i < dataList.size(); i++) {
                 com.omniperform.system.domain.SmartMarketingTask data = dataList.get(i);
                 try {
+                    // 增强逻辑：优先使用monthYear来修正recommendTime，确保按月查询正确
+                    if (data.getMonthYear() != null && !data.getMonthYear().trim().isEmpty()) {
+                        try {
+                            String my = data.getMonthYear().trim();
+                            String normalizedMonthYear = null;
+                            // 简单的格式处理，支持 YYYY-MM 和 YYYY/MM
+                            if (my.matches("^\\d{4}-\\d{1,2}$")) {
+                                normalizedMonthYear = my;
+                            } else if (my.matches("^\\d{4}/\\d{1,2}$")) {
+                                normalizedMonthYear = my.replace("/", "-");
+                            }
+                            
+                            if (normalizedMonthYear != null) {
+                                String[] parts = normalizedMonthYear.split("-");
+                                int year = Integer.parseInt(parts[0]);
+                                int month = Integer.parseInt(parts[1]); // 1-12
+                                
+                                // 如果recommendTime为空，或者与monthYear不一致，则修正recommendTime
+                                java.util.Calendar cal = java.util.Calendar.getInstance();
+                                if (data.getRecommendTime() != null) {
+                                    cal.setTime(data.getRecommendTime());
+                                    int rYear = cal.get(java.util.Calendar.YEAR);
+                                    int rMonth = cal.get(java.util.Calendar.MONTH) + 1; // 0-11 -> 1-12
+                                    
+                                    if (rYear != year || rMonth != month) {
+                                        // 修正年份和月份，保留日期和时间
+                                        cal.set(java.util.Calendar.YEAR, year);
+                                        cal.set(java.util.Calendar.MONTH, month - 1);
+                                        data.setRecommendTime(cal.getTime());
+                                    }
+                                } else {
+                                    // recommendTime为空，默认设为当月1号09:00:00
+                                    cal.set(year, month - 1, 1, 9, 0, 0);
+                                    data.setRecommendTime(cal.getTime());
+                                }
+                            }
+                        } catch (Exception ignore) {}
+                    }
+
                     com.omniperform.system.domain.SmartMarketingTask existing = smartMarketingTaskService.selectSmartMarketingTaskByTaskId(data.getTaskId());
                     if (existing != null && existing.getId() != null) {
                         data.setId(existing.getId());
@@ -613,7 +657,7 @@ public class SmartOperationController {
                     successCount++;
                 } catch (Exception e) {
                     failCount++;
-                    String msg = "第" + (i + 1) + "条数据处理失败: " + e.getMessage();
+                    String msg = "第" + (i + 1) + "条数据处理失败: " + (e.getMessage() != null ? e.getMessage() : "未知错误");
                     errors.add(msg);
                     log.error(msg, e);
                 }
@@ -625,7 +669,7 @@ public class SmartOperationController {
             return Result.success(result);
         } catch (Exception e) {
             log.error("导入AI推荐营销任务Excel失败: {}", e.getMessage(), e);
-            return Result.error("导入失败: " + e.getMessage());
+            return Result.error("导入失败: " + (e.getMessage() != null ? e.getMessage() : "系统异常，请联系管理员"));
         }
     }
 
@@ -656,17 +700,20 @@ public class SmartOperationController {
         int failCount = 0;
         List<String> errors = new ArrayList<>();
         try {
-            ExcelUtil<OptimizationEffectImportDTO> util = new ExcelUtil<>(OptimizationEffectImportDTO.class);
-            List<OptimizationEffectImportDTO> dataList = util.importExcel(file.getInputStream());
-            if (dataList == null || dataList.isEmpty()) {
-                return Result.error("导入数据为空");
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || (!fileName.toLowerCase().endsWith(".xlsx") && !fileName.toLowerCase().endsWith(".xls"))) {
+                return Result.error("请上传Excel文件（.xlsx或.xls）");
             }
+
+            ExcelUtil<OptimizationEffectImportDTO> util = new ExcelUtil<>(OptimizationEffectImportDTO.class);
+            // 模板包含标题行，所以从第2行（索引1）开始读取数据
+            List<OptimizationEffectImportDTO> dataList = util.importExcel(file.getInputStream(), 1);
 
             for (int i = 0; i < dataList.size(); i++) {
                 OptimizationEffectImportDTO dto = dataList.get(i);
                 try {
                     if (dto.getStatDate() == null) {
-                        throw new IllegalArgumentException("统计日期不能为空");
+                        throw new IllegalArgumentException("统计日期不能为空，请检查'统计日期'列");
                     }
                     // 转换并保存MOT执行率
                     saveOptimizationMetric(dto, "MOT执行率", dto.getMotExecutionRate());
@@ -678,7 +725,7 @@ public class SmartOperationController {
                     successCount++;
                 } catch (Exception e) {
                     failCount++;
-                    String msg = "第" + (i + 1) + "条数据处理失败: " + e.getMessage();
+                    String msg = "第" + (i + 1) + "条数据处理失败: " + (e.getMessage() != null ? e.getMessage() : "未知错误");
                     errors.add(msg);
                     log.error(msg, e);
                 }
@@ -690,7 +737,7 @@ public class SmartOperationController {
             return Result.success(result);
         } catch (Exception e) {
             log.error("导入优化效果Excel失败: {}", e.getMessage(), e);
-            return Result.error("导入失败: " + e.getMessage());
+            return Result.error("导入失败: " + (e.getMessage() != null ? e.getMessage() : "系统异常，请联系管理员"));
         }
     }
 
@@ -739,7 +786,8 @@ public class SmartOperationController {
         List<String> errors = new ArrayList<>();
         try {
             ExcelUtil<com.omniperform.system.domain.MemberProfileAnalysis> util = new ExcelUtil<>(com.omniperform.system.domain.MemberProfileAnalysis.class);
-            List<com.omniperform.system.domain.MemberProfileAnalysis> dataList = util.importExcel(file.getInputStream());
+            // 模板包含标题行，从第2行读取
+            List<com.omniperform.system.domain.MemberProfileAnalysis> dataList = util.importExcel(file.getInputStream(), 1);
             
             if (dataList == null || dataList.isEmpty()) {
                 return Result.error("导入数据为空");
@@ -1356,6 +1404,7 @@ public class SmartOperationController {
             jan1.setMemberCount(500);
             jan1.setExpectedEffect("提升复购率2%");
             jan1.setRecommendTime(sdf.parse("2025-01-10 09:00:00"));
+            jan1.setMonthYear("2025-01");
             jan1.setStatus("待执行");
             jan1.setPriority("高");
             jan1.setAiConfidence(new java.math.BigDecimal("82.5"));
@@ -1368,6 +1417,7 @@ public class SmartOperationController {
             jan2.setMemberCount(800);
             jan2.setExpectedEffect("提升注册转化率3%");
             jan2.setRecommendTime(sdf.parse("2025-01-15 14:30:00"));
+            jan2.setMonthYear("2025-01");
             jan2.setStatus("待执行");
             jan2.setPriority("中");
             jan2.setAiConfidence(new java.math.BigDecimal("74.0"));
@@ -1380,6 +1430,7 @@ public class SmartOperationController {
             jan3.setMemberCount(420);
             jan3.setExpectedEffect("提升回流率1.5%");
             jan3.setRecommendTime(sdf.parse("2025-01-22 18:00:00"));
+            jan3.setMonthYear("2025-01");
             jan3.setStatus("待执行");
             jan3.setPriority("低");
             jan3.setAiConfidence(new java.math.BigDecimal("68.2"));
@@ -1393,6 +1444,7 @@ public class SmartOperationController {
             feb1.setMemberCount(300);
             feb1.setExpectedEffect("提升新品试用率5%");
             feb1.setRecommendTime(sdf.parse("2025-02-05 10:00:00"));
+            feb1.setMonthYear("2025-02");
             feb1.setStatus("待执行");
             feb1.setPriority("中");
             feb1.setAiConfidence(new java.math.BigDecimal("76.0"));
@@ -1405,6 +1457,7 @@ public class SmartOperationController {
             feb2.setMemberCount(650);
             feb2.setExpectedEffect("提升复购率2.5%");
             feb2.setRecommendTime(sdf.parse("2025-02-18 11:20:00"));
+            feb2.setMonthYear("2025-02");
             feb2.setStatus("待执行");
             feb2.setPriority("高");
             feb2.setAiConfidence(new java.math.BigDecimal("80.3"));
@@ -1417,6 +1470,7 @@ public class SmartOperationController {
             feb3.setMemberCount(200);
             feb3.setExpectedEffect("提升满意度1.2%");
             feb3.setRecommendTime(sdf.parse("2025-02-25 16:45:00"));
+            feb3.setMonthYear("2025-02");
             feb3.setStatus("待执行");
             feb3.setPriority("低");
             feb3.setAiConfidence(new java.math.BigDecimal("65.0"));
@@ -1430,6 +1484,7 @@ public class SmartOperationController {
             may1.setMemberCount(450);
             may1.setExpectedEffect("提升活动报名4%");
             may1.setRecommendTime(sdf.parse("2025-05-01 09:30:00"));
+            may1.setMonthYear("2025-05");
             may1.setStatus("待执行");
             may1.setPriority("中");
             may1.setAiConfidence(new java.math.BigDecimal("71.0"));
@@ -1442,6 +1497,7 @@ public class SmartOperationController {
             may2.setMemberCount(380);
             may2.setExpectedEffect("提升分享率3%");
             may2.setRecommendTime(sdf.parse("2025-05-12 13:00:00"));
+            may2.setMonthYear("2025-05");
             may2.setStatus("待执行");
             may2.setPriority("高");
             may2.setAiConfidence(new java.math.BigDecimal("83.1"));
@@ -1454,6 +1510,7 @@ public class SmartOperationController {
             may3.setMemberCount(520);
             may3.setExpectedEffect("提升复购率3.2%");
             may3.setRecommendTime(sdf.parse("2025-05-25 17:20:00"));
+            may3.setMonthYear("2025-05");
             may3.setStatus("待执行");
             may3.setPriority("中");
             may3.setAiConfidence(new java.math.BigDecimal("78.4"));
@@ -1467,6 +1524,7 @@ public class SmartOperationController {
             jun1.setMemberCount(900);
             jun1.setExpectedEffect("提升转化率5%");
             jun1.setRecommendTime(sdf.parse("2025-06-10 10:00:00"));
+            jun1.setMonthYear("2025-06");
             jun1.setStatus("待执行");
             jun1.setPriority("高");
             jun1.setAiConfidence(new java.math.BigDecimal("85.0"));
@@ -1479,6 +1537,7 @@ public class SmartOperationController {
             jun2.setMemberCount(600);
             jun2.setExpectedEffect("提升唤醒率2%");
             jun2.setRecommendTime(sdf.parse("2025-06-18 15:10:00"));
+            jun2.setMonthYear("2025-06");
             jun2.setStatus("待执行");
             jun2.setPriority("中");
             jun2.setAiConfidence(new java.math.BigDecimal("72.6"));
@@ -1491,6 +1550,7 @@ public class SmartOperationController {
             jun3.setMemberCount(350);
             jun3.setExpectedEffect("提升互动转化1.8%");
             jun3.setRecommendTime(sdf.parse("2025-06-25 19:30:00"));
+            jun3.setMonthYear("2025-06");
             jun3.setStatus("待执行");
             jun3.setPriority("低");
             jun3.setAiConfidence(new java.math.BigDecimal("66.9"));
@@ -1504,6 +1564,7 @@ public class SmartOperationController {
             jul1.setMemberCount(480);
             jul1.setExpectedEffect("提升客单价2.3%");
             jul1.setRecommendTime(sdf.parse("2025-07-06 09:40:00"));
+            jul1.setMonthYear("2025-07");
             jul1.setStatus("待执行");
             jul1.setPriority("中");
             jul1.setAiConfidence(new java.math.BigDecimal("77.7"));
@@ -1516,6 +1577,7 @@ public class SmartOperationController {
             jul2.setMemberCount(520);
             jul2.setExpectedEffect("提升互动率1.7%");
             jul2.setRecommendTime(sdf.parse("2025-07-18 12:15:00"));
+            jul2.setMonthYear("2025-07");
             jul2.setStatus("待执行");
             jul2.setPriority("低");
             jul2.setAiConfidence(new java.math.BigDecimal("69.5"));
@@ -1528,6 +1590,7 @@ public class SmartOperationController {
             jul3.setMemberCount(700);
             jul3.setExpectedEffect("提升直播观看率6%");
             jul3.setRecommendTime(sdf.parse("2025-07-28 20:00:00"));
+            jul3.setMonthYear("2025-07");
             jul3.setStatus("待执行");
             jul3.setPriority("高");
             jul3.setAiConfidence(new java.math.BigDecimal("84.2"));

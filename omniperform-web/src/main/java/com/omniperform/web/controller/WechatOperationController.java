@@ -885,30 +885,25 @@ public class WechatOperationController extends BaseController {
                         // 读取文件为字节数组，便于多次尝试不同表头行
                         byte[] fileBytes = file.getBytes();
                         List<WechatOperationMetrics> metricsList = null;
-                        int chosenHeaderRow = -1;
+                        int chosenHeaderRow = 0;
 
-                        // 优先使用增强的导入方法，并尝试前5行作为表头行（0-4）
-                        int bestSize = -1;
-                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
-                            ExcelUtil.ExcelImportResult<WechatOperationMetrics> enhancedResult = metricsUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
-                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
-                            boolean success = enhancedResult.isSuccess() && size > 0;
-                            log.info("📊 [企业微信运营指标] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}, 错误数: {}, 警告数: {}",
-                                    titleNum, success, size,
-                                    enhancedResult.getErrors() != null ? enhancedResult.getErrors().size() : 0,
-                                    enhancedResult.getWarnings() != null ? enhancedResult.getWarnings().size() : 0);
-                            if (success && size > bestSize) {
-                                metricsList = enhancedResult.getData();
-                                bestSize = size;
-                                chosenHeaderRow = titleNum;
+                        try {
+                            // 尝试默认导入（首行表头）
+                            metricsList = metricsUtil.importExcel(new ByteArrayInputStream(fileBytes), 0);
+                            if (metricsList == null || metricsList.isEmpty()) {
+                                // 如果第一行没数据，尝试第二行
+                                metricsList = metricsUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
                             }
-                        }
-
-                        // 如果增强导入失败或没有数据，回退到标准导入（默认首行为表头）
-                        if (metricsList == null || metricsList.isEmpty()) {
-                            log.warn("📊 [企业微信运营指标] 增强导入未得到有效数据，回退到标准导入（首行表头）");
-                            metricsList = metricsUtil.importExcel(new ByteArrayInputStream(fileBytes));
-                            chosenHeaderRow = 0;
+                        } catch (Exception e) {
+                            log.warn("首行导入失败，尝试第2行作为表头", e);
+                            try {
+                                metricsList = metricsUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
+                            } catch (Exception ex) {
+                                log.error("导入失败", ex);
+                                throw ex;
+                            }
                         }
 
                         log.info("📊 [企业微信运营指标] Excel解析完成，使用表头行: {}，解析到 {} 条数据",
@@ -1003,28 +998,19 @@ public class WechatOperationController extends BaseController {
                         List<WechatOperationStatistics> statisticsList = null;
                         int chosenHeaderRow = -1;
 
-                        // 优先使用增强的导入方法，并尝试前5行作为表头行（0-4）
-                        int bestSize = -1;
-                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
-                            ExcelUtil.ExcelImportResult<WechatOperationStatistics> enhancedResult = statisticsUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
-                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
-                            boolean success = enhancedResult.isSuccess() && size > 0;
-                            log.info("📊 [企业微信运营统计] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}, 错误数: {}, 警告数: {}",
-                                    titleNum, success, size,
-                                    enhancedResult.getErrors() != null ? enhancedResult.getErrors().size() : 0,
-                                    enhancedResult.getWarnings() != null ? enhancedResult.getWarnings().size() : 0);
-                            if (success && size > bestSize) {
-                                statisticsList = enhancedResult.getData();
-                                bestSize = size;
-                                chosenHeaderRow = titleNum;
+                        try {
+                            statisticsList = statisticsUtil.importExcel(new ByteArrayInputStream(fileBytes), 0);
+                            if (statisticsList == null || statisticsList.isEmpty()) {
+                                statisticsList = statisticsUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
                             }
-                        }
-
-                        // 如果增强导入失败或没有数据，回退到标准导入（默认首行为表头）
-                        if (statisticsList == null || statisticsList.isEmpty()) {
-                            log.warn("📊 [企业微信运营统计] 增强导入未得到有效数据，回退到标准导入（首行表头）");
-                            statisticsList = statisticsUtil.importExcel(new ByteArrayInputStream(fileBytes));
-                            chosenHeaderRow = 0;
+                        } catch (Exception e) {
+                            try {
+                                statisticsList = statisticsUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
+                            } catch (Exception ex) {
+                                throw ex;
+                            }
                         }
 
                         log.info("📊 [企业微信运营统计] Excel解析完成，使用表头行: {}，解析到 {} 条数据",
@@ -1171,26 +1157,19 @@ public class WechatOperationController extends BaseController {
                         List<WechatGroupStatistics> groupStatisticsList = null;
                         int chosenHeaderRow = -1;
 
-                        int bestSize = -1;
-                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
-                            ExcelUtil.ExcelImportResult<WechatGroupStatistics> enhancedResult = groupStatisticsUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
-                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
-                            boolean success = enhancedResult.isSuccess() && size > 0;
-                            log.info("📊 [群组统计] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}, 错误数: {}, 警告数: {}",
-                                    titleNum, success, size,
-                                    enhancedResult.getErrors() != null ? enhancedResult.getErrors().size() : 0,
-                                    enhancedResult.getWarnings() != null ? enhancedResult.getWarnings().size() : 0);
-                            if (success && size > bestSize) {
-                                groupStatisticsList = enhancedResult.getData();
-                                bestSize = size;
-                                chosenHeaderRow = titleNum;
+                        try {
+                            groupStatisticsList = groupStatisticsUtil.importExcel(new ByteArrayInputStream(fileBytes), 0);
+                            if (groupStatisticsList == null || groupStatisticsList.isEmpty()) {
+                                groupStatisticsList = groupStatisticsUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
                             }
-                        }
-
-                        if (groupStatisticsList == null || groupStatisticsList.isEmpty()) {
-                            log.warn("📊 [群组统计] 增强导入未得到有效数据，回退到标准导入（首行表头）");
-                            groupStatisticsList = groupStatisticsUtil.importExcel(new ByteArrayInputStream(fileBytes));
-                            chosenHeaderRow = 0;
+                        } catch (Exception e) {
+                            try {
+                                groupStatisticsList = groupStatisticsUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
+                            } catch (Exception ex) {
+                                throw ex;
+                            }
                         }
 
                         log.info("📊 [群组统计] Excel解析完成，使用表头行: {}，解析到 {} 条数据",
@@ -1348,23 +1327,19 @@ public class WechatOperationController extends BaseController {
                         List<WechatOperationMetrics> trendList = null;
                         int chosenHeaderRow = -1;
 
-                        int bestSize = -1;
-                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
-                            ExcelUtil.ExcelImportResult<WechatOperationMetrics> enhancedResult = trendUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
-                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
-                            boolean success = enhancedResult.isSuccess() && size > 0;
-                            log.info("📊 [社群活跃度趋势] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}", titleNum, success, size);
-                            if (success && size > bestSize) {
-                                trendList = enhancedResult.getData();
-                                bestSize = size;
-                                chosenHeaderRow = titleNum;
+                        try {
+                            trendList = trendUtil.importExcel(new ByteArrayInputStream(fileBytes), 0);
+                            if (trendList == null || trendList.isEmpty()) {
+                                trendList = trendUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
                             }
-                        }
-
-                        if (trendList == null || trendList.isEmpty()) {
-                            log.warn("📊 [社群活跃度趋势] 增强导入未得到有效数据，回退到标准导入（首行表头）");
-                            trendList = trendUtil.importExcel(new ByteArrayInputStream(fileBytes));
-                            chosenHeaderRow = 0;
+                        } catch (Exception e) {
+                            try {
+                                trendList = trendUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
+                            } catch (Exception ex) {
+                                throw ex;
+                            }
                         }
 
                         log.info("📊 [社群活跃度趋势] Excel解析完成，使用表头行: {}，解析到 {} 条数据", chosenHeaderRow, trendList != null ? trendList.size() : 0);
@@ -1447,23 +1422,19 @@ public class WechatOperationController extends BaseController {
                         List<WechatOperationStatistics> bindingList = null;
                         int chosenHeaderRow = -1;
 
-                        int bestSize = -1;
-                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
-                            ExcelUtil.ExcelImportResult<WechatOperationStatistics> enhancedResult = bindingRateUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
-                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
-                            boolean success = enhancedResult.isSuccess() && size > 0;
-                            log.info("📈 [企业微信绑定率] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}", titleNum, success, size);
-                            if (success && size > bestSize) {
-                                bindingList = enhancedResult.getData();
-                                bestSize = size;
-                                chosenHeaderRow = titleNum;
+                        try {
+                            bindingList = bindingRateUtil.importExcel(new ByteArrayInputStream(fileBytes), 0);
+                            if (bindingList == null || bindingList.isEmpty()) {
+                                bindingList = bindingRateUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
                             }
-                        }
-
-                        if (bindingList == null || bindingList.isEmpty()) {
-                            log.warn("📈 [企业微信绑定率] 增强导入未得到有效数据，回退到标准导入（首行表头）");
-                            bindingList = bindingRateUtil.importExcel(new ByteArrayInputStream(fileBytes));
-                            chosenHeaderRow = 0;
+                        } catch (Exception e) {
+                            try {
+                                bindingList = bindingRateUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
+                            } catch (Exception ex) {
+                                throw ex;
+                            }
                         }
 
                         log.info("📈 [企业微信绑定率] Excel解析完成，使用表头行: {}，解析到 {} 条数据", chosenHeaderRow, bindingList != null ? bindingList.size() : 0);
@@ -1549,23 +1520,19 @@ public class WechatOperationController extends BaseController {
                         List<WechatOperationStatistics> conversionList = null;
                         int chosenHeaderRow = -1;
 
-                        int bestSize = -1;
-                        for (int titleNum = 0; titleNum <= 4; titleNum++) {
-                            ExcelUtil.ExcelImportResult<WechatOperationStatistics> enhancedResult = conversionRateUtil.importExcelEnhanced(new ByteArrayInputStream(fileBytes), titleNum);
-                            int size = enhancedResult.getData() != null ? enhancedResult.getData().size() : 0;
-                            boolean success = enhancedResult.isSuccess() && size > 0;
-                            log.info("📈 [企微转化率] 增强导入尝试 - 表头行: {}, 成功: {}, 数据量: {}", titleNum, success, size);
-                            if (success && size > bestSize) {
-                                conversionList = enhancedResult.getData();
-                                bestSize = size;
-                                chosenHeaderRow = titleNum;
+                        try {
+                            conversionList = conversionRateUtil.importExcel(new ByteArrayInputStream(fileBytes), 0);
+                            if (conversionList == null || conversionList.isEmpty()) {
+                                conversionList = conversionRateUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
                             }
-                        }
-
-                        if (conversionList == null || conversionList.isEmpty()) {
-                            log.warn("📈 [企微转化率] 增强导入未得到有效数据，回退到标准导入（首行表头）");
-                            conversionList = conversionRateUtil.importExcel(new ByteArrayInputStream(fileBytes));
-                            chosenHeaderRow = 0;
+                        } catch (Exception e) {
+                            try {
+                                conversionList = conversionRateUtil.importExcel(new ByteArrayInputStream(fileBytes), 1);
+                                chosenHeaderRow = 1;
+                            } catch (Exception ex) {
+                                throw ex;
+                            }
                         }
 
                         log.info("📈 [企微转化率] Excel解析完成，使用表头行: {}，解析到 {} 条数据", chosenHeaderRow, conversionList != null ? conversionList.size() : 0);
