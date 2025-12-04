@@ -78,27 +78,21 @@ public class DashboardController {
         Map<String, Object> data = new HashMap<>();
         
         try {
-            log.info("[Dashboard] /overview 请求, month={}, thread={}", month, Thread.currentThread().getName());
             // 获取会员概览数据
             DashboardMemberOverview queryParam = new DashboardMemberOverview();
             if (month != null && !month.isEmpty()) {
                 queryParam.setDataMonth(month);
             }
             List<DashboardMemberOverview> overviewList = memberOverviewService.selectDashboardMemberOverviewList(queryParam);
-            log.info("[Dashboard] /overview 查询结果条数: {}", overviewList != null ? overviewList.size() : 0);
             
             // 核心指标
             Map<String, Object> metrics = new HashMap<>();
             if (!overviewList.isEmpty()) {
                 DashboardMemberOverview latest = overviewList.get(0);
-                log.info("[Dashboard] /overview 使用最新记录 data_month={}, totalMembers={}, newMembers={}, activeMembers={}, growthRate={}",
-                        latest.getDataMonth(), latest.getTotalMembers(), latest.getNewMembers(), latest.getActiveMembers(), latest.getMemberGrowthRate());
                 metrics.put("totalMembers", latest.getTotalMembers());
                 metrics.put("newMembersToday", latest.getNewMembers());
                 metrics.put("activeMembers", latest.getActiveMembers());
                 metrics.put("memberGrowthRate", latest.getMemberGrowthRate());
-            } else {
-                log.warn("[Dashboard] /overview 未找到数据，month={}，将返回空指标", month);
             }
             
             // 趋势数据（最近7天）
@@ -110,7 +104,6 @@ public class DashboardController {
                 dailyNewMembers.add(overview.getNewMembers());
                 dailyMemberGrowthRate.add(overview.getMemberGrowthRate() != null ? overview.getMemberGrowthRate().doubleValue() : 0.0);
             }
-            log.info("[Dashboard] /overview 返回趋势数据: dailyNewMembers.size={}, dailyMemberGrowthRate.size={}", dailyNewMembers.size(), dailyMemberGrowthRate.size());
             
             data.put("metrics", metrics);
             data.put("dailyNewMembers", dailyNewMembers);
@@ -131,12 +124,9 @@ public class DashboardController {
         Map<String, Object> data = new HashMap<>();
 
         try {
-            log.info("[getMetrics] 请求参数 month={}", month);
             // 从独立首页KPI表读取（按月份）
             if (month != null && !month.isEmpty()) {
                 List<DashboardOverviewKpi> list = dashboardOverviewKpiService.listByMonth(month, null);
-                log.info("[getMetrics] dashboard_overview_kpi 查询结果条数: {} (month={}, region=null)",
-                         (list == null ? 0 : list.size()), month);
                 if (list != null && !list.isEmpty()) {
                     DashboardOverviewKpi k = null;
                     try {
@@ -162,8 +152,6 @@ public class DashboardController {
                     } catch (Exception ignore) {
                         k = list.get(0);
                     }
-                    log.info("[getMetrics] 选择KPI记录 id={}, dataMonth={}, regionCode={}",
-                             (k != null ? k.getId() : null), (k != null ? k.getDataMonth() : null), (k != null ? k.getRegionCode() : null));
                     if (k != null) {
                         data.put("newMembers", k.getNewMembers());
                         data.put("newMembersGrowth", toRate(k.getNewMembersGrowth()));
@@ -174,13 +162,10 @@ public class DashboardController {
                         data.put("memberActivityRate", toRate(k.getMemberActivityRate()));
                         data.put("memberActivityGrowth", toRate(k.getMemberActivityGrowth()));
                     }
-                } else {
-                    log.warn("[getMetrics] 未在 dashboard_overview_kpi 查到该月份记录: month={}, 可能原因: 1) 数据未导入; 2) 月份格式不为YYYY-MM; 3) 全国数据region_code非NULL;", month);
                 }
             } else {
                 // 未指定月份时，读取最新的首页KPI（优先全国数据）
                 List<DashboardOverviewKpi> list = dashboardOverviewKpiService.listByMonth(null, null);
-                log.info("[getMetrics] 未带月份，查询全部KPI记录条数: {}", (list == null ? 0 : list.size()));
                 if (list != null && !list.isEmpty()) {
                     DashboardOverviewKpi k = null;
                     try {
@@ -207,8 +192,6 @@ public class DashboardController {
                     } catch (Exception ignore) {
                         k = list.get(0);
                     }
-                    log.info("[getMetrics] 未带月份，选用KPI记录 id={}, dataMonth={}, regionCode={}",
-                             (k != null ? k.getId() : null), (k != null ? k.getDataMonth() : null), (k != null ? k.getRegionCode() : null));
                     if (k != null) {
                         data.put("newMembers", k.getNewMembers());
                         data.put("newMembersGrowth", toRate(k.getNewMembersGrowth()));
@@ -228,17 +211,12 @@ public class DashboardController {
                 queryParam.setDataMonth(month);
             }
             List<DashboardMemberOverview> overviewList = memberOverviewService.selectDashboardMemberOverviewList(queryParam);
-            log.info("[getMetrics] 兼容查询 member_overview 结果条数: {} (month={})",
-                     (overviewList == null ? 0 : overviewList.size()), month);
             if (!overviewList.isEmpty()) {
                 DashboardMemberOverview latest = overviewList.get(0);
                 data.put("todayNewMembers", latest.getNewMembers());
                 data.put("todayActiveMot", latest.getActiveMembers());
-            } else {
-                log.info("[getMetrics] 兼容查询 member_overview 无记录 (month={})", month);
             }
 
-            log.info("[getMetrics] 返回数据键: {}", data.keySet());
             return Result.success("获取核心指标成功", data);
         } catch (Exception e) {
             log.error("获取核心指标失败: {}", e.getMessage(), e);
@@ -260,7 +238,8 @@ public class DashboardController {
      * 获取会员增长趋势
      */
     @GetMapping("/member-growth-trend")
-    public Result<Map<String, Object>> getMemberGrowthTrend(@RequestParam(defaultValue = "6") int months) {
+    public Result<Map<String, Object>> getMemberGrowthTrend(@RequestParam(defaultValue = "6") int months, 
+                                                          @RequestParam(required = false) String month) {
         Map<String, Object> data = new HashMap<>();
         
         try {
@@ -276,8 +255,33 @@ public class DashboardController {
             
             // 按月份排序
             allGrowthData.sort((a, b) -> a.getDataMonth().compareTo(b.getDataMonth()));
+
+            // 过滤数据：如果指定了月份，只显示该月份及之前的N个月
+            // 如果未指定月份，显示最新的N个月
+            List<DashboardMemberGrowth> filteredData = new ArrayList<>();
+            String targetMonth = (month != null && !month.isEmpty()) ? month : 
+                               (allGrowthData.isEmpty() ? null : allGrowthData.get(allGrowthData.size() - 1).getDataMonth());
             
-            for (DashboardMemberGrowth growth : allGrowthData) {
+            if (targetMonth != null) {
+                // 找到目标月份的数据，并向前取 months 个
+                List<DashboardMemberGrowth> candidates = new ArrayList<>();
+                for (DashboardMemberGrowth growth : allGrowthData) {
+                    if (growth.getDataMonth().compareTo(targetMonth) <= 0) {
+                        candidates.add(growth);
+                    }
+                }
+                
+                // 取最后 months 个
+                int size = candidates.size();
+                int start = Math.max(0, size - months);
+                for (int i = start; i < size; i++) {
+                    filteredData.add(candidates.get(i));
+                }
+            } else {
+                filteredData = allGrowthData; // 如果没有数据，或者逻辑出错，回退到全部
+            }
+            
+            for (DashboardMemberGrowth growth : filteredData) {
                 // 将yyyy-MM格式转换为M月格式
                 String[] parts = growth.getDataMonth().split("-");
                 int monthNum = Integer.parseInt(parts[1]);
@@ -1939,11 +1943,7 @@ public class DashboardController {
             
             switch (dataType.toLowerCase()) {
                 case "member-overview":
-                    log.info("开始处理会员概览数据导入");
                     ExcelUtil<DashboardMemberOverview> memberUtil = new ExcelUtil<>(DashboardMemberOverview.class);
-                    
-                    // 添加调试信息
-                    log.info("Excel文件信息 - 文件名: {}, 大小: {} bytes", file.getOriginalFilename(), file.getSize());
                     
                     // 修改importExcel调用，使用titleNum=1跳过标题行，使用第二行作为表头
                     List<DashboardMemberOverview> memberDataList = memberUtil.importExcel(file.getInputStream(), 1);
@@ -1954,67 +1954,11 @@ public class DashboardController {
                         return Result.error("Excel文件解析失败，请检查文件格式");
                     }
                     
-                    log.info("从Excel文件中读取到 {} 条会员概览数据", memberDataList.size());
-                    
-                    // 添加Excel文件完整结构调试信息
-                    try {
-                        Workbook workbook = WorkbookFactory.create(file.getInputStream());
-                        Sheet sheet = workbook.getSheetAt(0);
-                        
-                        log.info("Excel文件完整结构分析:");
-                        log.info("总行数: {}", sheet.getLastRowNum() + 1);
-                        
-                        // 分析前5行的内容
-                        for (int rowIndex = 0; rowIndex <= Math.min(4, sheet.getLastRowNum()); rowIndex++) {
-                            Row row = sheet.getRow(rowIndex);
-                            if (row != null) {
-                                log.info("第 {} 行内容:", rowIndex + 1);
-                                for (int colIndex = 0; colIndex < row.getPhysicalNumberOfCells(); colIndex++) {
-                                    Cell cell = row.getCell(colIndex);
-                                    if (cell != null) {
-                                        String cellValue = "";
-                                        try {
-                                            cellValue = cell.getStringCellValue();
-                                        } catch (Exception e) {
-                                            try {
-                                                cellValue = String.valueOf(cell.getNumericCellValue());
-                                            } catch (Exception e2) {
-                                                cellValue = cell.toString();
-                                            }
-                                        }
-                                        log.info("  第 {} 列: '{}'", colIndex + 1, cellValue);
-                                    }
-                                }
-                            } else {
-                                log.info("第 {} 行: 空行", rowIndex + 1);
-                            }
-                        }
-                        
-                        workbook.close();
-                    } catch (Exception e) {
-                        log.error("读取Excel文件结构失败: {}", e.getMessage(), e);
-                    }
-                    
-                    // 输出期望的表头名称
-                    log.info("期望的表头名称: 数据月份, 总会员数, 新增会员数, 活跃会员数, 会员增长率");
-                    
-                    // 添加详细的调试信息
-                    for (int i = 0; i < memberDataList.size(); i++) {
-                        DashboardMemberOverview data = memberDataList.get(i);
-                        log.info("第 {} 条原始数据对象: {}", i + 1, data);
-                        if (data != null) {
-                            log.info("第 {} 条数据详情 - dataMonth: {}, totalMembers: {}, newMembers: {}, activeMembers: {}, memberGrowthRate: {}", 
-                                    i + 1, data.getDataMonth(), data.getTotalMembers(), data.getNewMembers(), 
-                                    data.getActiveMembers(), data.getMemberGrowthRate());
-                        }
-                    }
-                    
                     for (int i = 0; i < memberDataList.size(); i++) {
                         DashboardMemberOverview data = memberDataList.get(i);
                         
                         // 检查数据对象是否为null
                         if (data == null) {
-                            log.warn("第 {} 条数据为null，跳过处理", i + 1);
                             continue;
                         }
                         
@@ -2029,14 +1973,6 @@ public class DashboardController {
                         if (data.getRemark() == null) {
                             data.setRemark("批量导入");
                         }
-                        
-                        log.info("处理第 {} 条数据 - 数据月份: {}, 总会员数: {}, 活跃会员数: {}, 新增会员数: {}, 会员增长率: {}", 
-                                i + 1, 
-                                data.getDataMonth() != null ? data.getDataMonth() : "null", 
-                                data.getTotalMembers() != null ? data.getTotalMembers() : "null", 
-                                data.getActiveMembers() != null ? data.getActiveMembers() : "null",
-                                data.getNewMembers() != null ? data.getNewMembers() : "null", 
-                                data.getMemberGrowthRate() != null ? data.getMemberGrowthRate() : "null");
                         
                         try {
                             // 先查重复月份：存在则更新或跳过，避免唯一键报错
@@ -2180,36 +2116,89 @@ public class DashboardController {
                     break;
                     
                 case "member-growth":
-                    ExcelUtil<DashboardMemberGrowth> memberGrowthUtil = new ExcelUtil<>(DashboardMemberGrowth.class);
-                    // 使用titleNum=1跳过标题行
-                    List<DashboardMemberGrowth> memberGrowthDataList = memberGrowthUtil.importExcel(file.getInputStream(), 1);
-                    for (DashboardMemberGrowth data : memberGrowthDataList) {
-                        try {
-                            // 先查重复月份：存在则更新或跳过，避免唯一键报错
-                            boolean hasMonth = data.getDataMonth() != null && !data.getDataMonth().trim().isEmpty();
-                            if (hasMonth) {
-                                DashboardMemberGrowth existing = memberGrowthService.selectByDataMonth(data.getDataMonth());
-                                if (existing != null) {
-                                    if (allowUpdate) {
-                                        data.setId(existing.getId());
-                                        data.setUpdateBy(data.getCreateBy());
-                                        data.setUpdateTime(new Date());
-                                        memberGrowthService.updateDashboardMemberGrowth(data);
-                                    } else {
-                                        // 不允许更新时，重复月份直接跳过并记为成功，避免报错
-                                        // 如需记录，可在前端提示“已存在该月份，已跳过”
-                                    }
-                                    successCount++;
+                    // 使用手动解析以支持无表头或表头不匹配的情况
+                    try (Workbook wb = WorkbookFactory.create(file.getInputStream())) {
+                        Sheet sheet = wb.getSheetAt(0);
+                        org.apache.poi.ss.usermodel.DataFormatter formatter = new org.apache.poi.ss.usermodel.DataFormatter();
+                        
+                        // 从第一行开始遍历（兼容无表头情况）
+                        for (int i = 0; i <= sheet.getLastRowNum(); i++) {
+                            Row row = sheet.getRow(i);
+                            if (row == null) continue;
+                            
+                            // 第1列：月份
+                            Cell cellMonth = row.getCell(0);
+                            String rawMonth = formatter.formatCellValue(cellMonth);
+                            
+                            if (rawMonth == null || rawMonth.trim().isEmpty()) continue;
+                            
+                            // 跳过表头行：如果第一列包含"月"或"Month"且不包含数字（简单的表头检测）
+                            // 注意：如果是"12月"这种数据，包含数字，不会被跳过，会被normalizeMonth处理
+                            if (rawMonth.contains("月") || rawMonth.toLowerCase().contains("month") || rawMonth.contains("Data")) {
+                                if (!rawMonth.matches(".*\\d.*")) { 
                                     continue;
                                 }
                             }
-                            // 不存在重复月份时执行插入
-                            memberGrowthService.insertDashboardMemberGrowth(data);
-                            successCount++;
-                        } catch (Exception e) {
-                            failCount++;
-                            errorMessages.add("会员增长趋势数据导入失败: " + e.getMessage());
+                            
+                            // 归一化月份
+                            String dm = normalizeMonth(rawMonth);
+                            if (dm == null) {
+                                // 归一化失败，可能是表头或无效数据
+                                continue;
+                            }
+                            
+                            DashboardMemberGrowth data = new DashboardMemberGrowth();
+                            data.setDataMonth(dm);
+                            
+                            // 第2列：新增会员数
+                            Cell cellNew = row.getCell(1);
+                            String strNew = formatter.formatCellValue(cellNew);
+                            if (strNew != null && !strNew.isEmpty()) {
+                                try {
+                                    data.setNewMembers(new BigDecimal(strNew).intValue());
+                                } catch (Exception e) {}
+                            }
+                            
+                            // 第3列：累计会员数
+                            Cell cellTotal = row.getCell(2);
+                            String strTotal = formatter.formatCellValue(cellTotal);
+                            if (strTotal != null && !strTotal.isEmpty()) {
+                                try {
+                                    data.setTotalMembers(new BigDecimal(strTotal).intValue());
+                                } catch (Exception e) {}
+                            }
+                            
+                            // 第4列：增长率
+                            Cell cellRate = row.getCell(3);
+                            String strRate = formatter.formatCellValue(cellRate);
+                            if (strRate != null && !strRate.isEmpty()) {
+                                try {
+                                    data.setGrowthRate(new BigDecimal(strRate));
+                                } catch (Exception e) {}
+                            }
+                            
+                            try {
+                                // 覆盖逻辑：存在则更新，不存在则插入
+                                DashboardMemberGrowth existing = memberGrowthService.selectByDataMonth(dm);
+                                if (existing != null) {
+                                    data.setId(existing.getId());
+                                    data.setUpdateBy("import");
+                                    data.setUpdateTime(new Date());
+                                    memberGrowthService.updateDashboardMemberGrowth(data);
+                                } else {
+                                    data.setCreateBy("import");
+                                    data.setCreateTime(new Date());
+                                    memberGrowthService.insertDashboardMemberGrowth(data);
+                                }
+                                successCount++;
+                            } catch (Exception e) {
+                                failCount++;
+                                errorMessages.add("行 " + (i+1) + " 保存失败: " + e.getMessage());
+                            }
                         }
+                    } catch (Exception e) {
+                        failCount++;
+                        errorMessages.add("文件解析失败: " + e.getMessage());
                     }
                     break;
                     

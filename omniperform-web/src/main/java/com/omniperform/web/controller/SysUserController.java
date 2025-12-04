@@ -53,9 +53,8 @@ public class SysUserController {
     @Anonymous
     @GetMapping("/list")
     @ApiOperation("获取用户列表")
-    public Result getUserList() {
+    public Result getUserList(SysUser user) {
         try {
-            SysUser user = new SysUser();
             List<SysUser> users = userService.selectUserList(user);
             log.info("获取用户列表成功，共{}个用户", users.size());
             return Result.success("获取成功", users);
