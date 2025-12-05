@@ -59,6 +59,16 @@ public class SmartOperationController {
     @Autowired
     private IBestTouchTimeAnalysisService bestTouchTimeAnalysisService;
 
+    private boolean isSmartOperationOverviewRowEmpty(List<com.omniperform.system.domain.SmartOperationOverview> list) {
+        if (list == null || list.isEmpty()) return true;
+        for (com.omniperform.system.domain.SmartOperationOverview d : list) {
+            if (d != null && (d.getMonthYear() != null && !d.getMonthYear().trim().isEmpty())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * 下载智能运营概览Excel导入模板
      */
@@ -95,20 +105,19 @@ public class SmartOperationController {
             List<com.omniperform.system.domain.SmartOperationOverview> dataList = null;
             
             // 尝试不同的标题行位置（兼容用户删除了标题行或保留了标题行的情况）
-            // 0: 无标题行，第1行是表头
-            // 1: 有1行标题，第2行是表头（标准模板）
-            // 2: 有2行标题，第3行是表头
-            // 尝试默认导入（首行表头）
+            // 优先尝试标准模板（titleNum=1，跳过首行标题）
             try {
-                dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 0);
-                if (dataList == null || dataList.isEmpty()) {
-                    dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 1);
-                }
+                dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 1);
             } catch (Exception e) {
+                // ignore
+            }
+            
+            // 如果标准模板解析结果为空或无效（全空），尝试无标题模式（titleNum=0）
+            if (dataList == null || dataList.isEmpty() || isSmartOperationOverviewRowEmpty(dataList)) {
                 try {
-                    dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 1);
-                } catch (Exception ex) {
-                    log.error("导入失败", ex);
+                    dataList = util.importExcel(new java.io.ByteArrayInputStream(bytes), 0);
+                } catch (Exception e) {
+                    log.error("导入失败", e);
                 }
             }
 
@@ -230,13 +239,10 @@ public class SmartOperationController {
             String monthYear = (month == null) ? null : month.trim();
             if (monthYear != null && !monthYear.isEmpty()) {
                 // 当仅选择月份时，默认展示该月的全部状态数据（不按“待处理”过滤）
-                result = smartOperationAlertService.getAlertsDataWithPagination(region, "", page, size, monthYear);
-                Integer monthlyTotal = (result != null && result.get("totalCount") instanceof Integer)
-                        ? (Integer) result.get("totalCount") : 0;
-                if (monthlyTotal == 0) {
-                    // 若该月无数据，回退到按状态查询，避免前端空白
-                    result = smartOperationAlertService.getAlertsDataWithPagination(region, status.trim(), page, size);
-                }
+                // 修改：改为尊重前端传入的状态参数，不再强制查询所有状态，也不再进行回退
+                // 若前端传入 status="all" 或为空，则查询所有；若传入具体状态，则按状态过滤
+                String queryStatus = (status == null || "all".equalsIgnoreCase(status)) ? "" : status.trim();
+                result = smartOperationAlertService.getAlertsDataWithPagination(region, queryStatus, page, size, monthYear);
             } else {
                 result = smartOperationAlertService.getAlertsDataWithPagination(region, status.trim(), page, size);
             }
@@ -440,10 +446,49 @@ public class SmartOperationController {
     @ApiOperation("下载智能运营预警Excel导入模板")
     public void downloadAlertsImportTemplate(HttpServletResponse response) {
         try {
-            ExcelUtil<com.omniperform.system.domain.SmartOperationAlert> util = new ExcelUtil<>(com.omniperform.system.domain.SmartOperationAlert.class);
-            java.util.List<com.omniperform.system.domain.SmartOperationAlert> sample = createSmartOperationAlertSampleData();
+            // 使用自定义逻辑生成简化版模板
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("预警导入模板");
+            
+            // 样式设置
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+            
+            // 表头：去除用户不想要的字段（月份）
+            String[] headers = new String[] {
+                "预警编号", "预警类型", "预警内容", "严重程度", "处理状态", 
+                "所属区域", "关联会员ID", "关联导购ID", "处理时间", "处理人", "处理备注"
+            };
+            
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+            
+            // 添加示例数据
+            org.apache.poi.ss.usermodel.Row tipsRow = sheet.createRow(1);
+            tipsRow.createCell(0).setCellValue("AL202501001");
+            tipsRow.createCell(1).setCellValue("会员流失风险");
+            tipsRow.createCell(2).setCellValue("过去30天未复购，建议回访");
+            tipsRow.createCell(3).setCellValue("中");
+            tipsRow.createCell(4).setCellValue("待处理");
+            tipsRow.createCell(5).setCellValue("CN-North");
+            tipsRow.createCell(6).setCellValue("10001");
+            tipsRow.createCell(7).setCellValue("20001");
+            tipsRow.createCell(8).setCellValue("2025-01-20 10:30:00");
+            tipsRow.createCell(9).setCellValue("张三");
+            tipsRow.createCell(10).setCellValue("已联系，待跟进");
+
             FileUtils.setAttachmentResponseHeader(response, "预警.xlsx");
-            util.exportExcel(response, sample, "预警导入模板");
+            java.io.OutputStream os = response.getOutputStream();
+            wb.write(os);
+            os.flush();
+            wb.close();
         } catch (Exception e) {
             log.error("下载智能运营预警Excel导入模板失败: {}", e.getMessage(), e);
         }
@@ -474,73 +519,22 @@ public class SmartOperationController {
             for (int i = 0; i < dataList.size(); i++) {
                 com.omniperform.system.domain.SmartOperationAlert data = dataList.get(i);
                 try {
-                    // 规范化字符串，避免状态/区域因空格或大小写不一致导致查询不到
-                    if (data.getStatus() != null) {
-                        data.setStatus(data.getStatus().trim());
-                    }
-                    if (data.getRegion() != null) {
-                        data.setRegion(data.getRegion().trim());
+                    // 规范化字符串
+                    if (data.getStatus() != null) data.setStatus(data.getStatus().trim());
+                    if (data.getRegion() != null) data.setRegion(data.getRegion().trim());
+
+                    // 校验处理时间
+                    if (data.getProcessTime() == null) {
+                        failCount++;
+                        errors.add("第" + (i + 1) + "条数据处理失败: 处理时间为空或格式错误");
+                        continue;
                     }
 
-                    // 规范化/自动补全月份字段 monthYear（统一为：YYYY-MM），供前端按月筛选
-                    String normalizedMonthYear = null;
-                    String rawMonthYear = data.getMonthYear();
-                    if (rawMonthYear == null || rawMonthYear.trim().isEmpty()) {
-                        // 无显式月份时，基于处理时间推断
-                        java.util.Date pt = data.getProcessTime();
-                        java.time.LocalDate ld;
-                        if (pt != null) {
-                            ld = pt.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-                        } else {
-                            ld = java.time.LocalDate.now();
-                        }
-                        normalizedMonthYear = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
-                    } else {
-                        rawMonthYear = rawMonthYear.trim();
-                        try {
-                            // 支持：YYYY-MM、YYYY/M、YYYY/MM
-                            if (rawMonthYear.matches("^\\d{4}-\\d{1,2}$") || rawMonthYear.matches("^\\d{4}/\\d{1,2}$")) {
-                                String sep = rawMonthYear.contains("/") ? "/" : "-";
-                                String[] parts = rawMonthYear.split(sep);
-                                String mm = parts[1].length() == 1 ? ("0" + parts[1]) : parts[1];
-                                normalizedMonthYear = parts[0] + "-" + mm;
-                            }
-                            // 支持：YYYY年M月 或 YYYY年MM月
-                            else if (rawMonthYear.matches("^\\d{4}年\\d{1,2}月$")) {
-                                String year = rawMonthYear.substring(0, 4);
-                                String monthStr = rawMonthYear.substring(5, rawMonthYear.length() - 1);
-                                String mm = monthStr.length() == 1 ? ("0" + monthStr) : monthStr;
-                                normalizedMonthYear = year + "-" + mm;
-                            }
-                            // 支持：YYYY-M-D 或 YYYY-MM-DD（取年-月）
-                            else if (rawMonthYear.matches("^\\d{4}-\\d{1,2}-\\d{1,2}$")) {
-                                java.time.LocalDate ld = java.time.LocalDate.parse(rawMonthYear, java.time.format.DateTimeFormatter.ofPattern("yyyy-M-d"));
-                                normalizedMonthYear = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
-                            } else if (rawMonthYear.matches("^\\d{4}-\\d{2}-\\d{2}$")) {
-                                java.time.LocalDate ld = java.time.LocalDate.parse(rawMonthYear, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                                normalizedMonthYear = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
-                            }
-                            // 兜底：替换中文与斜杠为连字符，并提取前两段
-                            else {
-                                String candidate = rawMonthYear.replace("年", "-").replace("月", "").replace("/", "-");
-                                candidate = candidate.replaceAll("\\s+", "");
-                                java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d{4})-(\\d{1,2})").matcher(candidate);
-                                if (m.find()) {
-                                    String year = m.group(1);
-                                    String monthStr = m.group(2);
-                                    String mm = monthStr.length() == 1 ? ("0" + monthStr) : monthStr;
-                                    normalizedMonthYear = year + "-" + mm;
-                                } else {
-                                    java.time.LocalDate now = java.time.LocalDate.now();
-                                    normalizedMonthYear = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
-                                }
-                            }
-                        } catch (Exception pe) {
-                            java.time.LocalDate now = java.time.LocalDate.now();
-                            normalizedMonthYear = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
-                        }
-                    }
-                    data.setMonthYear(normalizedMonthYear);
+                    // 自动从处理时间提取月份
+                    java.time.LocalDate ld = new java.sql.Date(data.getProcessTime().getTime()).toLocalDate();
+                    String my = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                    data.setMonthYear(my);
+
                     // 查重：按alertId
                     com.omniperform.system.domain.SmartOperationAlert existing = smartOperationAlertService.selectSmartOperationAlertByAlertId(data.getAlertId());
                     if (existing != null && existing.getId() != null) {
@@ -575,10 +569,48 @@ public class SmartOperationController {
     @ApiOperation("下载AI推荐营销任务Excel导入模板")
     public void downloadMarketingTasksImportTemplate(HttpServletResponse response) {
         try {
-            ExcelUtil<com.omniperform.system.domain.SmartMarketingTask> util = new ExcelUtil<>(com.omniperform.system.domain.SmartMarketingTask.class);
-            java.util.List<com.omniperform.system.domain.SmartMarketingTask> sample = createSmartMarketingTaskSampleData();
+            // 使用自定义逻辑生成简化版模板
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("AI推荐营销任务");
+            
+            // 样式设置
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+            org.apache.poi.ss.usermodel.CellStyle textStyle = wb.createCellStyle();
+            textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+            
+            // 表头：去除用户不想要的字段（优先级、AI推荐置信度、执行时间、完成时间、月份）
+            String[] headers = new String[] {
+                "任务编号", "任务名称", "任务类型", "目标群体", "目标会员数量", 
+                "预期效果", "推荐执行时间", "任务状态"
+            };
+            
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+            
+            // 添加提示批注或说明
+            org.apache.poi.ss.usermodel.Row tipsRow = sheet.createRow(1);
+            tipsRow.createCell(0).setCellValue("T2025010101");
+            tipsRow.createCell(1).setCellValue("示例任务");
+            tipsRow.createCell(2).setCellValue("活动邀请");
+            tipsRow.createCell(3).setCellValue("活跃会员");
+            tipsRow.createCell(4).setCellValue("100");
+            tipsRow.createCell(5).setCellValue("提升活跃度");
+            tipsRow.createCell(6).setCellValue("2025-01-15 09:00:00");
+            tipsRow.createCell(7).setCellValue("待执行");
+
             FileUtils.setAttachmentResponseHeader(response, "AI推荐营销任务.xlsx");
-            util.exportExcel(response, sample, "AI推荐营销任务导入模板");
+            java.io.OutputStream os = response.getOutputStream();
+            wb.write(os);
+            os.flush();
+            wb.close();
         } catch (Exception e) {
             log.error("下载AI推荐营销任务Excel导入模板失败: {}", e.getMessage(), e);
         }
@@ -609,43 +641,19 @@ public class SmartOperationController {
             for (int i = 0; i < dataList.size(); i++) {
                 com.omniperform.system.domain.SmartMarketingTask data = dataList.get(i);
                 try {
-                    // 增强逻辑：优先使用monthYear来修正recommendTime，确保按月查询正确
-                    if (data.getMonthYear() != null && !data.getMonthYear().trim().isEmpty()) {
+                    // 自动从推荐执行时间提取月份
+                    if (data.getRecommendTime() != null) {
                         try {
-                            String my = data.getMonthYear().trim();
-                            String normalizedMonthYear = null;
-                            // 简单的格式处理，支持 YYYY-MM 和 YYYY/MM
-                            if (my.matches("^\\d{4}-\\d{1,2}$")) {
-                                normalizedMonthYear = my;
-                            } else if (my.matches("^\\d{4}/\\d{1,2}$")) {
-                                normalizedMonthYear = my.replace("/", "-");
-                            }
-                            
-                            if (normalizedMonthYear != null) {
-                                String[] parts = normalizedMonthYear.split("-");
-                                int year = Integer.parseInt(parts[0]);
-                                int month = Integer.parseInt(parts[1]); // 1-12
-                                
-                                // 如果recommendTime为空，或者与monthYear不一致，则修正recommendTime
-                                java.util.Calendar cal = java.util.Calendar.getInstance();
-                                if (data.getRecommendTime() != null) {
-                                    cal.setTime(data.getRecommendTime());
-                                    int rYear = cal.get(java.util.Calendar.YEAR);
-                                    int rMonth = cal.get(java.util.Calendar.MONTH) + 1; // 0-11 -> 1-12
-                                    
-                                    if (rYear != year || rMonth != month) {
-                                        // 修正年份和月份，保留日期和时间
-                                        cal.set(java.util.Calendar.YEAR, year);
-                                        cal.set(java.util.Calendar.MONTH, month - 1);
-                                        data.setRecommendTime(cal.getTime());
-                                    }
-                                } else {
-                                    // recommendTime为空，默认设为当月1号09:00:00
-                                    cal.set(year, month - 1, 1, 9, 0, 0);
-                                    data.setRecommendTime(cal.getTime());
-                                }
-                            }
-                        } catch (Exception ignore) {}
+                            java.time.LocalDate ld = new java.sql.Date(data.getRecommendTime().getTime()).toLocalDate();
+                            String my = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                            data.setMonthYear(my);
+                        } catch (Exception e) {
+                            // ignore
+                        }
+                    } else {
+                        failCount++;
+                        errors.add("第" + (i + 1) + "条数据处理失败: 推荐执行时间为空或格式错误");
+                        continue;
                     }
 
                     com.omniperform.system.domain.SmartMarketingTask existing = smartMarketingTaskService.selectSmartMarketingTaskByTaskId(data.getTaskId());
@@ -849,10 +857,47 @@ public class SmartOperationController {
     @ApiOperation("下载触达优化建议Excel导入模板")
     public void downloadBestTouchTimeImportTemplate(HttpServletResponse response) {
         try {
-            ExcelUtil<com.omniperform.system.domain.BestTouchTimeAnalysis> util = new ExcelUtil<>(com.omniperform.system.domain.BestTouchTimeAnalysis.class);
-            java.util.List<com.omniperform.system.domain.BestTouchTimeAnalysis> sample = createBestTouchTimeSampleData();
+            // 使用自定义逻辑生成简化版模板
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("触达优化建议");
+            
+            // 样式设置
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font bold = wb.createFont();
+            bold.setBold(true);
+            headerStyle.setFont(bold);
+            org.apache.poi.ss.usermodel.CellStyle textStyle = wb.createCellStyle();
+            textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+            
+            // 表头：只保留界面上有的字段（统计月份、时间段、响应率）
+            String[] headers = new String[] {
+                "统计月份", "时间段", "响应率"
+            };
+            
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+            
+            // 设置“统计月份”列（第0列）为文本格式，防止输入“2025-01”变成“Jan-25”
+            sheet.setDefaultColumnStyle(0, textStyle);
+            
+            // 添加示例数据
+            org.apache.poi.ss.usermodel.Row tipsRow = sheet.createRow(1);
+            org.apache.poi.ss.usermodel.Cell c0 = tipsRow.createCell(0);
+            c0.setCellValue("2025-01");
+            c0.setCellStyle(textStyle); // 确保示例数据也是文本格式
+            tipsRow.createCell(1).setCellValue("09:00-10:00");
+            tipsRow.createCell(2).setCellValue("12.4");
+
             FileUtils.setAttachmentResponseHeader(response, "触达优化建议.xlsx");
-            util.exportExcel(response, sample, "触达优化建议", "触达优化建议导入模板");
+            java.io.OutputStream os = response.getOutputStream();
+            wb.write(os);
+            os.flush();
+            wb.close();
         } catch (Exception e) {
             log.error("下载触达优化建议Excel导入模板失败: {}", e.getMessage(), e);
         }
@@ -870,8 +915,8 @@ public class SmartOperationController {
         List<String> errors = new ArrayList<>();
         try {
             ExcelUtil<com.omniperform.system.domain.BestTouchTimeAnalysis> util = new ExcelUtil<>(com.omniperform.system.domain.BestTouchTimeAnalysis.class);
-            // 模板包含标题行，从第2行读取
-            List<com.omniperform.system.domain.BestTouchTimeAnalysis> dataList = util.importExcel(file.getInputStream(), 1);
+            // 模板头部即为表头，从第1行读取
+            List<com.omniperform.system.domain.BestTouchTimeAnalysis> dataList = util.importExcel(file.getInputStream(), 0);
             if (dataList == null || dataList.isEmpty()) {
                 return Result.error("导入数据为空");
             }
@@ -899,6 +944,14 @@ public class SmartOperationController {
                          } else {
                              throw new IllegalArgumentException("统计月份不能为空");
                          }
+                    }
+
+                    if (data.getTimeSlot() == null || data.getTimeSlot().trim().isEmpty()) {
+                        throw new IllegalArgumentException("时间段不能为空");
+                    }
+
+                    if (data.getResponseRate() == null) {
+                        throw new IllegalArgumentException("响应率不能为空");
                     }
 
                     bestTouchTimeAnalysisService.upsert(data);
@@ -932,7 +985,7 @@ public class SmartOperationController {
             Map<String, Object> touchTimeData = new HashMap<>();
 
             List<String> timeSlots;
-            List<Integer> responseRates;
+            List<Double> responseRates;
 
             log.info("[best-touch-time] 请求开始, month={}", month);
             if (month != null && !month.isEmpty()) {
@@ -946,7 +999,8 @@ public class SmartOperationController {
                         } else {
                             timeSlots.add("未知时段");
                         }
-                        responseRates.add(r.getResponseRate() == null ? 0 : r.getResponseRate().setScale(0, java.math.RoundingMode.HALF_UP).intValue());
+                        // 保留小数位，不再四舍五入取整
+                        responseRates.add(r.getResponseRate() == null ? 0.0 : r.getResponseRate().doubleValue());
                     }
                     touchTimeData.put("timeSlots", timeSlots);
                     touchTimeData.put("responseRates", responseRates);
@@ -957,7 +1011,7 @@ public class SmartOperationController {
 
             // 兜底：静态示例数据
             timeSlots = Arrays.asList("6-8点", "8-10点", "10-12点", "12-14点", "14-16点", "16-18点", "18-20点", "20-22点", "22-24点");
-            responseRates = Arrays.asList(15, 22, 35, 28, 25, 30, 42, 65, 38);
+            responseRates = Arrays.asList(15.5, 22.3, 35.0, 28.7, 25.1, 30.0, 42.8, 65.5, 38.2);
 
             touchTimeData.put("timeSlots", timeSlots);
             touchTimeData.put("responseRates", responseRates);

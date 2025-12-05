@@ -20,13 +20,13 @@ public interface IWechatOperationMetricsService
     public WechatOperationMetrics selectWechatOperationMetricsByMetricId(Long metricId);
 
     /**
-     * 根据统计日期和指标类型查询微信运营指标
+     * 根据统计日期和用户ID查询微信运营指标
      * 
      * @param statisticsDate 统计日期
-     * @param metricType 指标类型
+     * @param userId 用户ID
      * @return 微信运营指标
      */
-    public WechatOperationMetrics selectWechatOperationMetricsByDateAndType(Date statisticsDate, Integer metricType);
+    public WechatOperationMetrics selectWechatOperationMetricsByDateAndType(Date statisticsDate, Long userId);
 
     /**
      * 查询微信运营指标列表

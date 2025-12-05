@@ -1443,6 +1443,7 @@ public class ExcelUtil<T>
             String dateFormat = attr.dateFormat();
             if (StringUtils.isNotEmpty(dateFormat)) {
                 SimpleDateFormat sdf = new SimpleDateFormat(dateFormat);
+                sdf.setLenient(false);
                 return sdf.parse(value);
             }
             
@@ -1459,6 +1460,7 @@ public class ExcelUtil<T>
             for (String format : formats) {
                 try {
                     SimpleDateFormat sdf = new SimpleDateFormat(format);
+                    sdf.setLenient(false);
                     return sdf.parse(value);
                 } catch (ParseException ignored) {
                     // 继续尝试下一个格式
@@ -2873,14 +2875,18 @@ public class ExcelUtil<T>
             else if (Date.class == fieldType)
             {
                 if (val instanceof String)
-                {
-                    val = DateUtils.parseDate(val);
-                    log.debug("Excel解析 - 日期转换(字符串): 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
-                }
+            {
+                val = parseDateSafe((String) val, attr);
+                log.debug("Excel解析 - 日期转换(字符串): 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
+            }
                 else if (val instanceof Double)
                 {
                     val = DateUtil.getJavaDate((Double) val);
                     log.debug("Excel解析 - 日期转换(数值): 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
+                }
+                else if (val instanceof Date)
+                {
+                    log.debug("Excel解析 - 日期转换(原值): 行={}, 列={}, 转换后={}", rowNum, columnNum, val);
                 }
                 else
                 {

@@ -44,7 +44,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectWechatOperationMetricsVo"/>
         <where>  
             <if test="statDate != null "> and stat_date = #{statDate}</if>
-            <if test="statMonth != null  and statMonth != ''"> and stat_month = #{statMonth}</if>
+            <if test="statMonth != null  and statMonth != ''"> and stat_month like concat(#{statMonth}, '%')</if>
             <if test="userId != null "> and user_id = #{userId}</if>
             <if test="userName != null  and userName != ''"> and user_name = #{userName}</if>
             <if test="department != null  and department != ''"> and department = #{department}</if>
@@ -65,7 +65,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <select id="selectWechatOperationMetricsByDateAndType" resultMap="WechatOperationMetricsResult">
         <include refid="selectWechatOperationMetricsVo"/>
-        where stat_date = #{statDate} and user_id = #{userId}
+        where stat_date = #{statDate} 
+        <if test="userId != null">
+            and user_id = #{userId}
+        </if>
+        <if test="userId == null">
+            and user_id IS NULL
+        </if>
         limit 1
     </select>
 
@@ -163,7 +169,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <!-- 查询去重后的月份列表，按时间倒序 -->
     <select id="selectDistinctStatMonths" resultType="string">
-        select distinct stat_month 
+        select distinct left(stat_month, 7) 
         from wechat_operation_metrics 
         where stat_month is not null and stat_month != ''
         order by stat_month desc

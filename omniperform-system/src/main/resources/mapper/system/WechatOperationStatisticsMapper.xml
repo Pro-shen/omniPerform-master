@@ -17,18 +17,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="satisfactionRate"    column="satisfaction_rate"    />
         <result property="bindingRate"    column="binding_rate"    />
         <result property="conversionRate"    column="conversion_rate"    />
+        <result property="joinRate"    column="join_rate"    />
+        <result property="activityScore"    column="activity_score"    />
         <result property="createTime"    column="create_time"    />
         <result property="updateTime"    column="update_time"    />
     </resultMap>
 
     <sql id="selectWechatOperationStatisticsVo">
-        select stat_id, stat_month, total_members, bound_members, group_members, active_groups, total_groups, monthly_conversions, avg_response_time, satisfaction_rate, binding_rate, conversion_rate, create_time, update_time from wechat_operation_statistics
+        select stat_id, stat_month, total_members, bound_members, group_members, active_groups, total_groups, monthly_conversions, avg_response_time, satisfaction_rate, binding_rate, conversion_rate, join_rate, activity_score, create_time, update_time from wechat_operation_statistics
     </sql>
 
     <select id="selectWechatOperationStatisticsList" parameterType="WechatOperationStatistics" resultMap="WechatOperationStatisticsResult">
         <include refid="selectWechatOperationStatisticsVo"/>
         <where>  
-            <if test="statMonth != null  and statMonth != ''"> and stat_month = #{statMonth}</if>
+            <if test="statMonth != null  and statMonth != ''"> and stat_month like concat(#{statMonth}, '%')</if>
             <if test="totalMembers != null "> and total_members = #{totalMembers}</if>
             <if test="boundMembers != null "> and bound_members = #{boundMembers}</if>
             <if test="groupMembers != null "> and group_members = #{groupMembers}</if>
@@ -39,6 +41,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="satisfactionRate != null "> and satisfaction_rate = #{satisfactionRate}</if>
             <if test="bindingRate != null "> and binding_rate = #{bindingRate}</if>
             <if test="conversionRate != null "> and conversion_rate = #{conversionRate}</if>
+            <if test="joinRate != null "> and join_rate = #{joinRate}</if>
+            <if test="activityScore != null "> and activity_score = #{activityScore}</if>
         </where>
         order by stat_month desc
     </select>
@@ -62,7 +66,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectDistinctStatMonths" resultType="String">
-        select distinct stat_month from wechat_operation_statistics order by stat_month desc
+        select distinct left(stat_month, 7) from wechat_operation_statistics order by stat_month desc
     </select>
         
     <insert id="insertWechatOperationStatistics" parameterType="WechatOperationStatistics" useGeneratedKeys="true" keyProperty="statId">
@@ -79,6 +83,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="satisfactionRate != null">satisfaction_rate,</if>
             <if test="bindingRate != null">binding_rate,</if>
             <if test="conversionRate != null">conversion_rate,</if>
+            <if test="joinRate != null">join_rate,</if>
+            <if test="activityScore != null">activity_score,</if>
             <if test="createTime != null">create_time,</if>
             <if test="updateTime != null">update_time,</if>
          </trim>
@@ -94,6 +100,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="satisfactionRate != null">#{satisfactionRate},</if>
             <if test="bindingRate != null">#{bindingRate},</if>
             <if test="conversionRate != null">#{conversionRate},</if>
+            <if test="joinRate != null">#{joinRate},</if>
+            <if test="activityScore != null">#{activityScore},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="updateTime != null">#{updateTime},</if>
          </trim>
@@ -113,6 +121,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="satisfactionRate != null">satisfaction_rate = #{satisfactionRate},</if>
             <if test="bindingRate != null">binding_rate = #{bindingRate},</if>
             <if test="conversionRate != null">conversion_rate = #{conversionRate},</if>
+            <if test="joinRate != null">join_rate = #{joinRate},</if>
+            <if test="activityScore != null">activity_score = #{activityScore},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </trim>
         where stat_id = #{statId}

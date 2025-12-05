@@ -27,7 +27,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectWechatGroupStatisticsVo"/>
         <where>  
             <if test="groupId != null "> and group_id = #{groupId}</if>
-            <if test="statMonth != null  and statMonth != ''"> and stat_month = #{statMonth}</if>
+            <if test="statMonth != null  and statMonth != ''"> and stat_month like concat(#{statMonth}, '%')</if>
             <if test="activityScore != null "> and activity_score = #{activityScore}</if>
             <if test="joinRate != null "> and join_rate = #{joinRate}</if>
             <if test="interactionCount != null "> and interaction_count = #{interactionCount}</if>
@@ -72,7 +72,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <!-- 查询去重后的月份列表，按时间倒序 -->
     <select id="selectDistinctStatMonths" resultType="string">
-        select distinct stat_month 
+        select distinct left(stat_month, 7) 
         from wechat_group_statistics 
         where stat_month is not null and stat_month != ''
         order by stat_month desc

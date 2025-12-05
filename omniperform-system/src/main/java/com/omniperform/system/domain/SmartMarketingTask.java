@@ -57,11 +57,11 @@ public class SmartMarketingTask extends BaseEntity
     private String status;
 
     /** 优先级：高、中、低 */
-    @Excel(name = "优先级")
+    // @Excel(name = "优先级")
     private String priority;
 
     /** AI推荐置信度(%) */
-    @Excel(name = "AI推荐置信度", cellType = ColumnType.NUMERIC)
+    // @Excel(name = "AI推荐置信度", cellType = ColumnType.NUMERIC)
     private BigDecimal aiConfidence;
 
     /** 目标会员ID列表 */
@@ -75,16 +75,16 @@ public class SmartMarketingTask extends BaseEntity
 
     /** 执行时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @Excel(name = "执行时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
+    // @Excel(name = "执行时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date executeTime;
 
     /** 完成时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @Excel(name = "完成时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
+    // @Excel(name = "完成时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date completeTime;
 
     /** 月份（格式：YYYY-MM），用于Excel导入辅助或按月查询 */
-    @Excel(name = "月份", width = 30, cellType = ColumnType.TEXT, prompt = "格式：YYYY-MM，若填写将用于辅助设定推荐时间")
+    // @Excel(name = "月份", width = 30, cellType = ColumnType.TEXT, prompt = "格式：YYYY-MM，若填写将用于辅助设定推荐时间")
     private String monthYear;
 
     public String getMonthYear() {

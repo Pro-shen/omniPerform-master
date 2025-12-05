@@ -89,7 +89,7 @@ DROP TABLE IF EXISTS wechat_operation_metrics;
 CREATE TABLE wechat_operation_metrics (
     metric_id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '指标ID',
     stat_date DATE NOT NULL COMMENT '统计日期',
-    stat_month VARCHAR(7) NOT NULL COMMENT '统计月份(YYYY-MM)',
+    stat_month VARCHAR(10) NOT NULL COMMENT '统计月份(YYYY-MM-DD)',
     user_id BIGINT COMMENT '用户ID（为空表示全局统计）',
     user_name VARCHAR(100) COMMENT '用户姓名',
     department VARCHAR(100) COMMENT '部门',

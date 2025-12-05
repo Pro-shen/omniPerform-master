@@ -159,12 +159,13 @@ public class WechatOperationController extends BaseController {
             }
             metrics.put("bindingRate", bindingRate);
             
-            // 会员入群率 - 根据period参数返回不同的数据
+            // 会员入群率 - 优先使用统计表中的导入值，其次根据period参数回退
             Map<String, Object> groupJoinRate = new HashMap<>();
             double joinRateValue;
             
-            // 根据period参数调整会员入群率数据
-            if ("2025-06".equals(period)) {
+            if (statData != null && statData.getJoinRate() != null) {
+                joinRateValue = statData.getJoinRate().doubleValue();
+            } else if ("2025-06".equals(period)) {
                 joinRateValue = 69.5;
             } else if ("2025-05".equals(period)) {
                 joinRateValue = 66.8;
@@ -182,12 +183,13 @@ public class WechatOperationController extends BaseController {
             groupJoinRate.put("progressPercent", joinRateValue);
             metrics.put("groupJoinRate", groupJoinRate);
             
-            // 社群活跃度 - 根据period参数返回不同的数据
+            // 社群活跃度 - 优先使用统计表中的导入值，其次根据period参数回退
             Map<String, Object> groupActivity = new HashMap<>();
             double activityValue;
             
-            // 根据period参数调整社群活跃度数据
-            if ("2025-06".equals(period)) {
+            if (statData != null && statData.getActivityScore() != null) {
+                activityValue = statData.getActivityScore().doubleValue();
+            } else if ("2025-06".equals(period)) {
                 activityValue = 3.9;
             } else if ("2025-05".equals(period)) {
                 activityValue = 3.6;
@@ -207,7 +209,7 @@ public class WechatOperationController extends BaseController {
             groupActivity.put("maxValue", 5.0);
             groupActivity.put("trend", activityValue > 4.0 ? 0.3 : -0.2);
             groupActivity.put("trendDirection", activityValue > 4.0 ? "up" : "down");
-            groupActivity.put("progressPercent", activityValue * 20); // 转换为百分比
+            groupActivity.put("progressPercent", (activityValue / 5.0) * 100); // 转换为百分比
             metrics.put("groupActivity", groupActivity);
             
             // 企微转化率 - 优先使用统计表中的导入值，其次回退到指标估算
@@ -264,8 +266,18 @@ public class WechatOperationController extends BaseController {
             if (!recentMetrics.isEmpty()) {
                 // 取最近7条数据或所有数据（如果少于7条）
                 int dataCount = Math.min(7, recentMetrics.size());
-                for (int i = 0; i < dataCount; i++) {
-                    WechatOperationMetrics metrics = recentMetrics.get(i);
+                
+                // 截取需要的最新数据并按时间正序排列（从旧到新）
+                List<WechatOperationMetrics> displayList = new ArrayList<>(recentMetrics.subList(0, dataCount));
+                // 使用sort确保按日期正序排列
+                if (!displayList.isEmpty() && displayList.get(0).getStatDate() != null) {
+                    displayList.sort(Comparator.comparing(WechatOperationMetrics::getStatDate));
+                } else {
+                    Collections.reverse(displayList);
+                }
+
+                for (int i = 0; i < displayList.size(); i++) {
+                    WechatOperationMetrics metrics = displayList.get(i);
                     
                     // 格式化日期
                     String dateStr = metrics.getStatDate() != null ? 
@@ -276,7 +288,7 @@ public class WechatOperationController extends BaseController {
                     
                     // 群组活跃度 - 基于群聊互动数估算
                     Integer groupInteractions = metrics.getGroupInteractions();
-                    double activity;
+                    Double activity = null;
                     if (groupInteractions != null) {
                         // 将群聊互动数映射到1-5的评分范围
                         // 调整映射范围，让150-400为合理范围，映射到2-5分
@@ -295,41 +307,17 @@ public class WechatOperationController extends BaseController {
                         } else {
                             activity = Math.max(1.0, 1.5 + groupInteractions * 1.0 / 100.0); // 1.5-2.5
                         }
+                    } 
+                    
+                    if (activity != null) {
+                        activityData.add(Math.round(activity * 10.0) / 10.0);
                     } else {
-                        // 根据period参数生成不同的模拟数据
-                        if ("2025-06".equals(period)) {
-                            activity = 3.8 + Math.random() * 0.4; // 3.8-4.2
-                        } else if ("2025-05".equals(period)) {
-                            activity = 4.2 + Math.random() * 0.6; // 4.2-4.8
-                        } else if ("2025-04".equals(period)) {
-                            activity = 3.5 + Math.random() * 0.5; // 3.5-4.0
-                        } else {
-                            activity = 4.0 + Math.random() * 0.8; // 4.0-4.8
-                        }
+                         activityData.add(0.0); // 无数据时补0
                     }
-                    activityData.add(Math.round(activity * 10.0) / 10.0);
                 }
             } else {
-                // 如果没有数据，返回模拟数据
-                String[] dates = {"01-15", "01-16", "01-17", "01-18", "01-19", "01-20", "01-21"};
-                double[] activities;
-                
-                // 根据period参数生成不同月份的模拟数据
-                if ("2025-06".equals(period)) {
-                    activities = new double[]{3.8, 4.1, 3.9, 4.2, 3.7, 4.0, 3.9};
-                } else if ("2025-05".equals(period)) {
-                    activities = new double[]{4.3, 4.6, 4.2, 4.8, 4.4, 4.7, 4.5};
-                } else if ("2025-04".equals(period)) {
-                    activities = new double[]{3.6, 3.8, 3.5, 3.9, 3.7, 3.8, 3.6};
-                } else {
-                    // 默认数据（当前月份或未指定）
-                    activities = new double[]{4.2, 4.5, 4.1, 4.8, 4.3, 4.6, 4.4};
-                }
-                
-                for (int i = 0; i < dates.length; i++) {
-                    categories.add(dates[i]);
-                    activityData.add(activities[i]);
-                }
+                // 如果没有数据，不返回任何数据
+                // 保持categories和activityData为空
             }
             
             // 构建ApexCharts期望的数据格式
@@ -365,7 +353,7 @@ public class WechatOperationController extends BaseController {
             // 根据period参数确定查询月份
             String statMonth;
             if (period != null && !period.isEmpty()) {
-                statMonth = normalizeMonth(period);
+                statMonth = period.trim();
             } else {
                 // 默认选最新可用月份（合并两个来源）
                 Set<String> monthSet = new HashSet<>();
@@ -1389,7 +1377,7 @@ public class WechatOperationController extends BaseController {
                                     errorMessages.add("存在空行，已跳过");
                                     continue;
                                 }
-                                String month = normalizeMonth(data.getStatMonth());
+                                String month = data.getStatMonth() != null ? data.getStatMonth().trim() : null;
                                 data.setStatMonth(month);
                                 Long groupId = data.getGroupId();
                                 if (month == null || month.trim().isEmpty() || groupId == null) {
@@ -2200,47 +2188,5 @@ public class WechatOperationController extends BaseController {
      * 也支持纯数字形式如 "yyyyMM" 或 "yyyyMMdd"（取前6位作为年月）。
      * 若无法解析，则回退为当前系统月份。
      */
-    private String normalizeMonth(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        String s = raw.trim();
-        if (s.isEmpty()) {
-            return "";
-        }
-        try {
-            // 1) 常见分隔符形式：yyyy-MM / yyyy/MM / yyyy年MM月 / 含日的形式
-            java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("^(\\d{4})\\D*(\\d{1,2}).*");
-            java.util.regex.Matcher m1 = p1.matcher(s);
-            if (m1.matches()) {
-                int year = Integer.parseInt(m1.group(1));
-                int month = Integer.parseInt(m1.group(2));
-                if (month < 1) month = 1;
-                if (month > 12) month = 12;
-                return String.format("%04d-%02d", year, month);
-            }
 
-            // 2) 纯数字：优先按前6位解析为 yyyyMM（也兼容 yyyyMMdd）
-            String digits = s.replaceAll("[^0-9]", "");
-            if (digits.length() >= 6) {
-                int year = Integer.parseInt(digits.substring(0, 4));
-                int month = Integer.parseInt(digits.substring(4, 6));
-                if (month < 1) month = 1;
-                if (month > 12) month = 12;
-                return String.format("%04d-%02d", year, month);
-            }
-
-            // 3) 回退：尝试截取形如 yyyy-MM 或 yyyy/MM 的前7位
-            if (s.length() >= 7 && Character.isDigit(s.charAt(0)) && Character.isDigit(s.charAt(1))
-                    && Character.isDigit(s.charAt(2)) && Character.isDigit(s.charAt(3))
-                    && (s.charAt(4) == '-' || s.charAt(4) == '/') && Character.isDigit(s.charAt(5))) {
-                String candidate = s.substring(0, 7).replace('/', '-');
-                return candidate;
-            }
-        } catch (Exception ignored) {
-        }
-
-        // 最终回退：当前系统月
-        return java.time.LocalDate.now().toString().substring(0, 7);
-    }
 }

@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import com.omniperform.system.domain.WechatOperationMetrics;
 
+import org.apache.ibatis.annotations.Param;
+
 /**
  * 微信运营指标Mapper接口
  * 
@@ -21,13 +23,13 @@ public interface WechatOperationMetricsMapper
     public WechatOperationMetrics selectWechatOperationMetricsByMetricId(Long metricId);
 
     /**
-     * 根据日期和类型查询微信运营指标
+     * 根据日期和用户ID查询微信运营指标
      * 
-     * @param statisticsDate 统计日期
-     * @param metricType 指标类型
+     * @param statDate 统计日期
+     * @param userId 用户ID
      * @return 微信运营指标
      */
-    public WechatOperationMetrics selectWechatOperationMetricsByDateAndType(Date statisticsDate, Integer metricType);
+    public WechatOperationMetrics selectWechatOperationMetricsByDateAndType(@Param("statDate") Date statDate, @Param("userId") Long userId);
 
     /**
      * 查询微信运营指标列表

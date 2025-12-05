@@ -73,6 +73,9 @@ public class DashboardController {
     @Autowired
     private IBestTouchTimeAnalysisService bestTouchTimeAnalysisService;
 
+    @Autowired
+    private ISmartMarketingTaskService smartMarketingTaskService;
+
     /**
      * 获取仪表盘概览数据
      */
@@ -647,6 +650,26 @@ public class DashboardController {
                 log.warn("获取 Best Touch Time 月份数据失败: {}", e.getMessage());
             }
             
+            try {
+                List<com.omniperform.system.domain.SmartMarketingTask> taskList = smartMarketingTaskService.selectSmartMarketingTaskList(new com.omniperform.system.domain.SmartMarketingTask());
+                log.info("Smart Marketing Task 表中的月份数据: {}", taskList != null ? taskList.size() : 0);
+                if (taskList != null) {
+                    for (com.omniperform.system.domain.SmartMarketingTask task : taskList) {
+                        if (task.getRecommendTime() != null) {
+                             java.time.LocalDate ld = new java.sql.Date(task.getRecommendTime().getTime()).toLocalDate();
+                             String my = ld.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                             monthSet.add(my);
+                             log.info("添加月份: {} (来自 Smart Marketing Task)", my);
+                        } else if (task.getMonthYear() != null && !task.getMonthYear().isEmpty()) {
+                             monthSet.add(task.getMonthYear());
+                             log.info("添加月份: {} (来自 Smart Marketing Task monthYear)", task.getMonthYear());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("获取 Smart Marketing Task 月份数据失败: {}", e.getMessage());
+            }
+
             // 转换为列表并排序（最新的月份在前）
             List<String> monthList = new ArrayList<>(monthSet);
             monthList.sort((a, b) -> b.compareTo(a)); // 降序排列
@@ -800,7 +823,7 @@ public class DashboardController {
             org.apache.poi.ss.usermodel.CellStyle decimalStyle = wb.createCellStyle();
             decimalStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
 
-            String[] headers = new String[]{"数据月份","区域名称","销售金额","会员数量"};
+            String[] headers = new String[]{"数据月份","区域名称","销售金额","会员数量","绩效得分"};
             org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 org.apache.poi.ss.usermodel.Cell c = header.createCell(i);
@@ -825,7 +848,9 @@ public class DashboardController {
                 org.apache.poi.ss.usermodel.Cell c3 = row.createCell(3);
                 c3.setCellValue(s.getMemberCount() != null ? s.getMemberCount() : 0);
                 c3.setCellStyle(intStyle);
-                
+                org.apache.poi.ss.usermodel.Cell c4 = row.createCell(4);
+                c4.setCellValue(s.getPerformanceScore() != null ? s.getPerformanceScore().doubleValue() : 0.0);
+                c4.setCellStyle(decimalStyle);
             }
 
             com.omniperform.common.utils.file.FileUtils.setAttachmentResponseHeader(response, "区域绩效对比模板.xlsx");
