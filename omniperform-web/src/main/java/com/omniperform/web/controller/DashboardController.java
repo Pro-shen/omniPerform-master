@@ -76,6 +76,9 @@ public class DashboardController {
     @Autowired
     private ISmartMarketingTaskService smartMarketingTaskService;
 
+    @Autowired
+    private ISmartOperationOverviewService smartOperationOverviewService;
+
     /**
      * 获取仪表盘概览数据
      */
@@ -668,6 +671,21 @@ public class DashboardController {
                 }
             } catch (Exception e) {
                 log.warn("获取 Smart Marketing Task 月份数据失败: {}", e.getMessage());
+            }
+
+            try {
+                List<com.omniperform.system.domain.SmartOperationOverview> smartOverviewList = smartOperationOverviewService.selectSmartOperationOverviewList(new com.omniperform.system.domain.SmartOperationOverview());
+                log.info("Smart Operation Overview 表中的月份数据: {}", smartOverviewList != null ? smartOverviewList.size() : 0);
+                if (smartOverviewList != null) {
+                    for (com.omniperform.system.domain.SmartOperationOverview overview : smartOverviewList) {
+                        if (overview.getMonthYear() != null && !overview.getMonthYear().isEmpty()) {
+                            monthSet.add(overview.getMonthYear());
+                            log.info("添加月份: {} (来自 Smart Operation Overview)", overview.getMonthYear());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("获取 Smart Operation Overview 月份数据失败: {}", e.getMessage());
             }
 
             // 转换为列表并排序（最新的月份在前）
