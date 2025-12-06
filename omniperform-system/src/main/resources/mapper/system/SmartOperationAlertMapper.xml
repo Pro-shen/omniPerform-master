@@ -18,6 +18,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="processTime"    column="process_time"    />
         <result property="processUser"    column="process_user"    />
         <result property="processNote"    column="process_note"    />
+        <result property="monthYear"    column="month_year"    />
         <result property="createTime"    column="create_time"    />
         <result property="updateTime"    column="update_time"    />
     </resultMap>

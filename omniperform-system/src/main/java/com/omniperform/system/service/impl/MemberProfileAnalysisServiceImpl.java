@@ -288,6 +288,12 @@ public class MemberProfileAnalysisServiceImpl implements IMemberProfileAnalysisS
                 if (item.getAnalysisDate() == null) {
                     throw new IllegalArgumentException("分析日期不能为空");
                 }
+                
+                // 设置月份字段
+                if (item.getAnalysisDate() != null) {
+                    item.setMonthYear(DateUtils.parseDateToStr("yyyy-MM", item.getAnalysisDate()));
+                }
+
                 if (item.getProfileType() == null || item.getProfileType().trim().isEmpty()) {
                     throw new IllegalArgumentException("画像类型不能为空");
                 }
@@ -297,19 +303,30 @@ public class MemberProfileAnalysisServiceImpl implements IMemberProfileAnalysisS
                         item.getAnalysisDate(), item.getProfileType(), item.getRegionCode());
 
                 if (existing != null && !existing.isEmpty()) {
+                    // 始终执行覆盖操作（如果 updateSupport 为 true）
+                    // 或者如果用户要求强制覆盖，这里可以忽略 updateSupport。但为了兼容性，我们假设 Controller 传来了 true。
                     if (updateSupport) {
+                        // 1. 更新第一条记录
                         MemberProfileAnalysis toUpdate = existing.get(0);
                         toUpdate.setMemberCount(item.getMemberCount());
                         toUpdate.setPercentage(item.getPercentage());
                         toUpdate.setAvgPurchaseAmount(item.getAvgPurchaseAmount());
                         toUpdate.setAvgInteractionFrequency(item.getAvgInteractionFrequency());
                         toUpdate.setRegionCode(item.getRegionCode());
+                        toUpdate.setMonthYear(item.getMonthYear()); // 更新月份
                         toUpdate.setUpdateTime(DateUtils.getNowDate());
                         int r = updateMemberProfileAnalysis(toUpdate);
                         if (r > 0) {
                             successCount++;
                         } else {
                             throw new RuntimeException("更新失败");
+                        }
+                        
+                        // 2. 清理重复数据（如果有）
+                        if (existing.size() > 1) {
+                            for (int k = 1; k < existing.size(); k++) {
+                                deleteMemberProfileAnalysisById(existing.get(k).getId());
+                            }
                         }
                     } else {
                         failCount++;

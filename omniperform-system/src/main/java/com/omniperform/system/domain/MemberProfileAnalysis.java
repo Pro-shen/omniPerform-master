@@ -37,20 +37,23 @@ public class MemberProfileAnalysis extends BaseEntity
     private Integer memberCount;
 
     /** 占比(%) */
-    @Excel(name = "占比", cellType = ColumnType.NUMERIC)
+    // @Excel(name = "占比", cellType = ColumnType.NUMERIC)
     private BigDecimal percentage;
 
     /** 平均购买金额 */
-    @Excel(name = "平均购买金额", cellType = ColumnType.NUMERIC)
+    // @Excel(name = "平均购买金额", cellType = ColumnType.NUMERIC)
     private BigDecimal avgPurchaseAmount;
 
     /** 平均互动频次 */
-    @Excel(name = "平均互动频次", cellType = ColumnType.NUMERIC)
+    // @Excel(name = "平均互动频次", cellType = ColumnType.NUMERIC)
     private BigDecimal avgInteractionFrequency;
 
     /** 区域代码，NULL表示全国统计 */
     @Excel(name = "区域代码")
     private String regionCode;
+
+    /** 月份（格式：YYYY-MM） */
+    private String monthYear;
 
     public Long getId()
     {
@@ -133,6 +136,16 @@ public class MemberProfileAnalysis extends BaseEntity
     public void setRegionCode(String regionCode)
     {
         this.regionCode = regionCode;
+    }
+
+    public String getMonthYear()
+    {
+        return monthYear;
+    }
+
+    public void setMonthYear(String monthYear)
+    {
+        this.monthYear = monthYear;
     }
 
     @Override

@@ -397,7 +397,7 @@ public class SmartOperationController {
     @PostMapping("/member-profile/import")
     @ApiOperation("导入会员画像Excel数据")
     public Result<Map<String, Object>> importMemberProfile(@RequestParam("file") MultipartFile file,
-                                                           @RequestParam(value = "updateSupport", required = false, defaultValue = "false") boolean updateSupport,
+                                                           @RequestParam(value = "updateSupport", required = false, defaultValue = "true") boolean updateSupport,
                                                            @RequestParam(value = "defaultRegion", required = false, defaultValue = "") String defaultRegion) {
         try {
             log.info("开始导入会员画像数据，文件名: {}, 大小: {} bytes, updateSupport={}, defaultRegion={}",

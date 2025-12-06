@@ -79,6 +79,15 @@ public class DashboardController {
     @Autowired
     private ISmartOperationOverviewService smartOperationOverviewService;
 
+    @Autowired
+    private IOptimizationEffectDataService optimizationEffectDataService;
+
+    @Autowired
+    private ISmartOperationAlertService smartOperationAlertService;
+
+    @Autowired
+    private IMemberProfileAnalysisService memberProfileAnalysisService;
+
     /**
      * 获取仪表盘概览数据
      */
@@ -686,6 +695,51 @@ public class DashboardController {
                 }
             } catch (Exception e) {
                 log.warn("获取 Smart Operation Overview 月份数据失败: {}", e.getMessage());
+            }
+
+            try {
+                List<OptimizationEffectData> effectList = optimizationEffectDataService.listByMonth(null, null);
+                log.info("Optimization Effect Data 表中的月份数据: {}", effectList != null ? effectList.size() : 0);
+                if (effectList != null) {
+                    for (OptimizationEffectData effect : effectList) {
+                        if (effect.getMonthYear() != null && !effect.getMonthYear().isEmpty()) {
+                            monthSet.add(effect.getMonthYear());
+                            log.info("添加月份: {} (来自 Optimization Effect Data)", effect.getMonthYear());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("获取 Optimization Effect Data 月份数据失败: {}", e.getMessage());
+            }
+
+            try {
+                List<SmartOperationAlert> alertList = smartOperationAlertService.selectSmartOperationAlertList(new SmartOperationAlert());
+                log.info("Smart Operation Alert 表中的月份数据: {}", alertList != null ? alertList.size() : 0);
+                if (alertList != null) {
+                    for (SmartOperationAlert alert : alertList) {
+                        if (alert.getMonthYear() != null && !alert.getMonthYear().isEmpty()) {
+                            monthSet.add(alert.getMonthYear());
+                            log.info("添加月份: {} (来自 Smart Operation Alert)", alert.getMonthYear());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("获取 Smart Operation Alert 月份数据失败: {}", e.getMessage());
+            }
+
+            try {
+                List<MemberProfileAnalysis> profileList = memberProfileAnalysisService.selectMemberProfileAnalysisList(new MemberProfileAnalysis());
+                log.info("Member Profile Analysis 表中的月份数据: {}", profileList != null ? profileList.size() : 0);
+                if (profileList != null) {
+                    for (MemberProfileAnalysis profile : profileList) {
+                        if (profile.getMonthYear() != null && !profile.getMonthYear().isEmpty()) {
+                            monthSet.add(profile.getMonthYear());
+                            log.info("添加月份: {} (来自 Member Profile Analysis)", profile.getMonthYear());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("获取 Member Profile Analysis 月份数据失败: {}", e.getMessage());
             }
 
             // 转换为列表并排序（最新的月份在前）
