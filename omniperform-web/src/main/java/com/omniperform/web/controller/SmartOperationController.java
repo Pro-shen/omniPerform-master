@@ -231,7 +231,7 @@ public class SmartOperationController {
     @ApiOperation("获取实时监控预警数据")
     public Result getAlerts(@RequestParam(defaultValue = "1") int page,
                             @RequestParam(defaultValue = "10") int size,
-                            @RequestParam(defaultValue = "待处理") String status,
+                            @RequestParam(defaultValue = "") String status,
                             @RequestParam(defaultValue = "all") String region,
                             @RequestParam(required = false) String month) {
         try {
@@ -308,12 +308,12 @@ public class SmartOperationController {
                                     @RequestParam(defaultValue = "10") int size,
                                     @RequestParam(required = false) String month) {
         try {
-            // 使用Service层获取营销任务数据，不过滤任务类型，返回所有待执行的任务
+            // 使用Service层获取营销任务数据，传入null作为status以查询所有状态的任务
             Map<String, Object> result;
             if (month != null && !month.trim().isEmpty()) {
-                result = smartMarketingTaskService.getMarketingTasksData("待执行", null, month);
+                result = smartMarketingTaskService.getMarketingTasksData(null, null, month);
             } else {
-                result = smartMarketingTaskService.getMarketingTasksData("待执行", null);
+                result = smartMarketingTaskService.getMarketingTasksData(null, null);
             }
 
             log.info("获取AI推荐营销任务数据成功，页码: {}, 大小: {}, 月份: {}", page, size, month);
@@ -641,6 +641,16 @@ public class SmartOperationController {
             for (int i = 0; i < dataList.size(); i++) {
                 com.omniperform.system.domain.SmartMarketingTask data = dataList.get(i);
                 try {
+                    // 状态字段映射处理（兼容用户输入的不规范状态）
+                    if (data.getStatus() != null) {
+                        String status = data.getStatus().trim();
+                        if ("已执行".equals(status)) {
+                            data.setStatus("已完成");
+                        } else if ("进行中".equals(status)) {
+                            data.setStatus("执行中");
+                        }
+                    }
+
                     // 自动从推荐执行时间提取月份
                     if (data.getRecommendTime() != null) {
                         try {

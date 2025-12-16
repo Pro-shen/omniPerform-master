@@ -60,10 +60,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <!-- 简化的按状态查询方法 -->
     <select id="selectSmartOperationAlertByStatus" resultMap="SmartOperationAlertResult">
         <include refid="selectSmartOperationAlertVo"/>
-        where status = #{status}
-        <if test="region != null and region != '' and region != 'all'">
-            and region = #{region}
-        </if>
+        <where>
+            <if test="status != null and status != ''">
+                status = #{status}
+            </if>
+            <if test="region != null and region != '' and region != 'all'">
+                and region = #{region}
+            </if>
+        </where>
         order by create_time desc
     </select>
 
